@@ -2,61 +2,56 @@ import socket
 import json
 import time
 
-HOST, PORT = 'localhost', 20
-SIZE = 1024
-ENCODING = 'ascii'
-t = 4 #temp
-interval = 60 # second
+class MainServer:
+    host, port = 'localhost', 20
+    SIZE = 1024
+    ENCODING = 'ascii'
+    t = 0 #temp
+    interval = 10 # second
+    timeout = 10 #temp
 
-def AdvertiseKeysSocket():
-    start = end = time.time()
     userNum = 0
     requests = []
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.settimeout(10) #temp
-        s.listen()
-        print('[AdvertiseKeys] Server started')
+    def __init__(self, tag) -> None:
+        self.tag = tag
+        pass
 
-        while (end-start) < interval:
-            try:
-                clientSocket, addr = s.accept()
-                print('[AdvertiseKeys] Client: {0}'.format(addr))
-                request = str(clientSocket.recv(SIZE), ENCODING)  # receive client data
-                print('[AdvertiseKeys] Client request: {0}'.format(request))
-                userNum = userNum + 1
+    def start(self):
+        self.startTime = self.endTime = time.time()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            self.serverSocket = s
+            s.bind((self.host, self.port))
+            s.settimeout(self.timeout)
+            s.listen()
+            print('[{0}] Server started'.format(self.tag))
 
-                # request example: {"c_pk":"VALUE", "s_pk": "VALUE"}
-                request_dic = json.loads(request)
-                requests.append((clientSocket, request_dic))
-            except socket.timeout:
-                pass
-            
-            end = time.time()
+            while (self.endTime - self.startTime) < self.interval:
+                try:
+                    clientSocket, addr = s.accept()
+                    request = str(clientSocket.recv(self.SIZE), self.ENCODING)  # receive client data
+                    print('[{0}] Client: {1}'.format(self.tag, addr))
+                    print('[{0}] Client request: {1}'.format(self.tag, request))
+                    self.userNum = self.userNum + 1
+
+                    # request example: {"c_pk":"VALUE", "s_pk": "VALUE"}
+                    requestDic = json.loads(request)
+                    self.requests.append((clientSocket, requestDic))
+                except socket.timeout:
+                    pass
+                
+                self.endTime = time.time()
 
         # check threshold
-        if t > userNum:
-            print('[AdvertiseKeys] Exception: insufficient {0} users with {1} threshold'.format(userNum, t))
-            raise Exception("Need at least {0} users, but only {1} user(s) responsed".format(t, userNum))
+        if self.t > self.userNum:
+            print('[{0}] Exception: insufficient {1} users with {2} threshold'.format(self.tag, self.userNum, self.t))
+            raise Exception("Need at least {0} users, but only {1} user(s) responsed".format(self.t, self.userNum))
+    
+    def broadcast(self, response): # send response (broadcast)
+        response_json = json.dumps(response)
+        for client in self.requests:
+            clientSocket = client[0]
+            clientSocket.sendall(bytes(response_json, self.ENCODING))
         
-        # make response
-        # response example: {0: {"index":0, "c_pk":"VALUE", "s_pk": "VALUE"}, 1: {"index":0, "c_pk":"VALUE", "s_pk": "VALUE"} }
-        response = {}
-        for (v, data) in enumerate(requests):
-            request_dic = data[1]
-            request_dic['index'] = v # add index
-
-            response[v] = request_dic
-        
-        # send response (broadcast)
-        for (v, data) in enumerate(requests):
-            clientSocket = data[0]
-            response_json = json.dumps(response)
-            clientSocket.sendall(bytes(response_json, ENCODING))
-
-        s.close()
-        print('[AdvertiseKeys] Server finished')
-
-if __name__ == "__main__":
-    AdvertiseKeysSocket() # Round 0
+        self.serverSocket.close()
+        print('[{0}] Server finished'.format(self.tag))

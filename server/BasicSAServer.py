@@ -47,5 +47,5 @@ def shareKeys():
     server.foreach(response)
 
 if __name__ == "__main__":
-    #advertiseKeys() # Round 0
+    advertiseKeys() # Round 0
     shareKeys() # Round 1

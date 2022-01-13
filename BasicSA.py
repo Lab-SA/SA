@@ -15,7 +15,7 @@ def generateSharesOfMask(t, u, s_sk, c_sk, u1_list):
     bu_shares_list = sp.share(bu, t, len(u1_list)) #temp
     s_pk_dic = {}
     c_pk_dic = {}
-    euv_dic = {}
+    euv_list = []
     for i, list in enumerate(u1_list): # list = (v, c_pk, s_pk)
         v = list[0]
         c_pk = list[1]
@@ -23,13 +23,13 @@ def generateSharesOfMask(t, u, s_sk, c_sk, u1_list):
         c_pk_dic[v] = c_pk
         s_pk_dic[v] = s_pk
         euv = sp.encrypt((c_sk, c_pk), (u, v, s_sk_shares_list[i], bu_shares_list[i])) #temp
-        euv_dic[v] = euv
-    return (euv_dic, c_pk_dic, s_pk_dic)
+        euv_list.append((u, v, euv))
+    return (euv_list, c_pk_dic, s_pk_dic)
 
-def generateMaskedInput(u, bu, xu, s_sk, euv_dic, s_pk_dic):
+def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic):
     # compute p_uv
     p_uv_list = []
-    for v, euv in euv_dic.items(): # euv_dic = { v: euv }
+    for u, v, euv in euv_list: # euv_list = [ (u, v, euv), (u, v, euv) ... ]
         if u == v:
             continue
         s_uv = sp.agree(s_sk, s_pk_dic[v])
@@ -47,17 +47,26 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_dic, s_pk_dic):
     yu = xu + pu + sum(p_uv_list)
     return yu
 
-def unmasking(c_sk, evu_dic, c_pk_dic, users_u2, users_u3):
+def unmasking(u, c_sk, euv_list, c_pk_dic, users_u2, users_u3):
     s_sk_shares_dic = {}
     bu_shares_dic = {}
-    for _v in users_u2:
+    for v in users_u2:
         try:
-            [v, u, s_sk_shares, bu_shares] = sp.decrypt((c_sk, c_pk_dic[_v]), evu_dic[_v])
+            idx = euv = 0
+            for i, (u, _v, euv) in enumerate(euv_list):
+                if _v == v:
+                    idx = i
+                    euv = euv
+                    break
+            euv_list.pop(idx)
+            [_v, _u, s_sk_shares, bu_shares] = sp.decrypt((c_sk, c_pk_dic[v]), euv)
+            if not(u == _u and u == _v):
+                raise Exception('Something went wrong during reconstruction.')
             try:
                 users_u3.remove(v) # v is in U3
-                bu_shares_dic[_v] = bu_shares
+                bu_shares_dic[v] = bu_shares
             except ValueError: # v is in U2\U3
-                s_sk_shares_dic[_v] = s_sk_shares
+                s_sk_shares_dic[v] = s_sk_shares
         except:
             raise Exception('Decryption failed.')
     return (s_sk_shares_dic, bu_shares_dic)

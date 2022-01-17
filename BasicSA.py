@@ -88,7 +88,7 @@ def stochasticQuantization(x, q, p):
     # p = modulo p
 
     # var_x = quantized x
-    var_x = representNegativeInt(q * stochasticRounding(x, q), p)
+    var_x = mappingX(q * stochasticRounding(x, q), p)
     return var_x
 
 def stochasticRounding(x, q):
@@ -104,8 +104,8 @@ def stochasticRounding(x, q):
     ret_x = random.choices(ret_list, prob_list)
     return ret_x
 
-def mapping(x, p):
-    """mapping(x, p) is to represent a negative integer in the finite field
+def mappingX(x, p):
+    """mappingX(x, p) is to represent a negative integer in the finite field
     by using two’s complement representation"""
     # % mod 연산으로 대체가 가능한 부분인가...?
     if x < 0:
@@ -162,7 +162,7 @@ def Quantization(x, G, q, r1, r2):
     => Quantization(x, G, q) can do both homo quantization and hetero quantization. """
 
     # delK = quantization interval
-    # T = discrete value from quantization range
+    # T = discrete value from quantization range point list
     delK = (r2 - r1) / (q - 1)
     T = []
     for l in range(0, G):

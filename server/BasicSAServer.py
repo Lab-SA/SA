@@ -1,6 +1,9 @@
 import json
 from MainServer import MainServer
 
+totalNum = 0
+yu = 0
+
 def advertiseKeys():
     server = MainServer('AdvertiseKeys')
     server.start()
@@ -60,7 +63,8 @@ def MaskedInputCollection():
     for i, request in enumerate(requests):
         requestData = request[1]  # (socket, data)
         response[i] = requestData[0]
-        # server.yu = server.yu + requestData[1]
+        totalNum = totalNum + 1
+        yu = yu + requestData[1]
 
     server.broadcast(response)
 
@@ -84,17 +88,16 @@ def Unmasking():
             drop_usr[i] = data[0]
             survive_usr[i] = data[1]
 
-    surv_num = len(drop_usr)
-    drop_num = server.userNum - len(drop_usr)
+    drop_num = totalNum - server.userNum
     for n in range(drop_num):
         share_list[n] = []
-    for n in range(server.userNum):
+    for n in range(totalNum):
         bu_list[n] = []
     for n in range(drop_num):
-        for i in range(surv_num):
+        for i in range(server.userNum):
             share_list[n].append(drop_usr[i][n])
-    for n in range(server.userNum):
-        for i in range(surv_num):
+    for n in range(totalNum):
+        for i in range(server.userNum):
             if n in survive_usr[i]:
                 bu_list[n].append(survive_usr[i][n])
 

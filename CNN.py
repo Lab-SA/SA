@@ -49,9 +49,34 @@ def CNN(x):
     y_predict = tf.nn.softmax(logit)
  
     return y_predict, logit
- 
+
 #Input,Output 받을 placeholder 정의
 x = tf.placeholder(tf.float32, shape = [None, 784])
 y = tf.placeholder(tf.float32, shape = [None, 10])
  
 y_predict, logit = CNN(x)
+ 
+Loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = y, logits = logit))
+step = tf.train.AdamOptimizer(0.005).minimize(Loss)
+ 
+#정확도를 출력하기 위한 연산들 정의
+correct_prediction = tf.equal(tf.argmax(y_predict, 1), tf.argmax(y, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+
+with tf.Session() as s:
+    s.run(tf.global_variables_initializer())
+ 
+    for i in range(0, 1000):
+        #50개씩 MNIST 데이터를 불러온다.
+        batch = mnist.train.next_batch(50)
+ 
+        if i% 20 == 0:
+            feed_dict={x: batch[0], y: batch[1]}
+            train_accuracy = accuracy.eval(feed_dict)
+            print('반복(Epoch): %d,  정확도: %f'%(i, train_accuracy))
+ 
+        s.run([step], feed_dict={x: batch[0], y:batch[1]})
+ 
+    #정확도 측정
+    print(100.0 - accuracy.eval(feed_dict = {x: mnist.test.images, y:mnist.test.labels}))

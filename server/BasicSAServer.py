@@ -1,6 +1,8 @@
 import json
 from MainServer import MainServer
 
+users = {}
+
 def advertiseKeys():
     server = MainServer('AdvertiseKeys')
     server.start()
@@ -13,8 +15,9 @@ def advertiseKeys():
     response = {}
     for v, request in enumerate(requests):
         requestData = request[1] # (socket, data)
-        requestData['index'] = v # add index
+        users[v] = requestData # store on server
 
+        requestData['index'] = v # add index
         response[v] = requestData
     
     server.broadcast(response)

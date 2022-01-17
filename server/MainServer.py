@@ -6,8 +6,8 @@ class MainServer:
     host, port = 'localhost', 20
     SIZE = 1024
     ENCODING = 'ascii'
-    t = 0 #temp
-    interval = 10 # second
+    t = 0 # threshold #temp
+    interval = 10 # server waits in one round # second
     timeout = 10 #temp
 
     userNum = 0

@@ -9,14 +9,15 @@ def generateKeyPairs():
     return ((c_pk, c_sk), (s_pk, s_sk))
 
 # Generate secret-shares of s_sk and bu and encrypt those data
-def generateSharesOfMask(t, u, s_sk, c_sk, u1_list):
+# users [list]: all users of the current round
+def generateSharesOfMask(t, u, s_sk, c_sk, users):
     bu = random.randrange(1, 100) # 1~99 #temp
-    s_sk_shares_list = sp.share(s_sk, t, len(u1_list)) #temp
-    bu_shares_list = sp.share(bu, t, len(u1_list)) #temp
+    s_sk_shares_list = sp.share(s_sk, t, len(users)) #temp
+    bu_shares_list = sp.share(bu, t, len(users)) #temp
     s_pk_dic = {}
     c_pk_dic = {}
     euv_list = []
-    for i, list in enumerate(u1_list): # list = (v, c_pk, s_pk)
+    for i, list in enumerate(users): # list = (v, c_pk, s_pk)
         v = list[0]
         c_pk = list[1]
         s_pk = list[2]
@@ -47,10 +48,12 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic):
     yu = xu + pu + sum(p_uv_list)
     return yu
 
-def unmasking(u, c_sk, euv_list, c_pk_dic, users_u2, users_u3):
+# users_previous [list]: users who were alive in the previous round
+# users_last [list]: users who were alive in the recent round
+def unmasking(u, c_sk, euv_list, c_pk_dic, users_previous, users_last):
     s_sk_shares_dic = {}
     bu_shares_dic = {}
-    for v in users_u2:
+    for v in users_previous:
         try:
             idx = euv = 0
             for i, (u, _v, euv) in enumerate(euv_list):
@@ -63,7 +66,7 @@ def unmasking(u, c_sk, euv_list, c_pk_dic, users_u2, users_u3):
             if not(u == _u and u == _v):
                 raise Exception('Something went wrong during reconstruction.')
             try:
-                users_u3.remove(v) # v is in U3
+                users_last.remove(v) # v is in U3
                 bu_shares_dic[v] = bu_shares
             except ValueError: # v is in U2\U3
                 s_sk_shares_dic[v] = s_sk_shares

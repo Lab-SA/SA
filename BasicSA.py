@@ -12,20 +12,15 @@ def generateKeyPairs():
 # users [list]: all users of the current round
 def generateSharesOfMask(t, u, s_sk, c_sk, users):
     bu = random.randrange(1, 100) # 1~99 #temp
-    s_sk_shares_list = sp.share(s_sk, t, len(users)) #temp
-    bu_shares_list = sp.share(bu, t, len(users)) #temp
-    s_pk_dic = {}
-    c_pk_dic = {}
+    s_sk_shares_list = sp.make_shares(s_sk, t, len(users))
+    bu_shares_list = sp.make_shares(bu, t, len(users))
     euv_list = []
-    for i, list in enumerate(users): # list = (v, c_pk, s_pk)
-        v = list[0]
-        c_pk = list[1]
-        s_pk = list[2]
-        c_pk_dic[v] = c_pk
-        s_pk_dic[v] = s_pk
-        euv = sp.encrypt((c_sk, c_pk), (u, v, s_sk_shares_list[i], bu_shares_list[i])) #temp
-        euv_list.append((u, v, euv))
-    return (euv_list, c_pk_dic, s_pk_dic)
+    for c_pk, s_pk, v in users.items():
+        s_uv = sp.agree(c_sk, c_pk)
+        euv = sp.encrypt(s_uv, u, v, s_sk_shares_list[v], bu_shares_list[v])
+        euv_list.append(euv)
+
+    return euv_list
 
 def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic):
     # compute p_uv

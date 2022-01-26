@@ -3,7 +3,8 @@ import json
 import time
 
 class MainServer:
-    host, port = 'localhost', 20
+    host = 'localhost'
+    port = 20
     SIZE = 1024
     ENCODING = 'ascii'
     t = 0 # threshold #temp
@@ -13,9 +14,9 @@ class MainServer:
     userNum = 0
     requests = []
 
-    def __init__(self, tag) -> None:
+    def __init__(self, tag, port):
         self.tag = tag
-        pass
+        self.port = port
 
     def start(self):
         self.startTime = self.endTime = time.time()

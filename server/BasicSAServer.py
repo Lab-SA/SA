@@ -7,15 +7,15 @@ from BasicSA import getCommonValues
 users = {}
 
 # broadcast common value
-def setUp(port):
-    server = MainServer('ServerSetUp', port)
+def setUp():
+    server = MainServer('ServerSetUp', 7000)
     server.start()
 
     commonValues = getCommonValues()
     server.broadcast(commonValues)
 
-def advertiseKeys(port):
-    server = MainServer('AdvertiseKeys', port)
+def advertiseKeys():
+    server = MainServer('AdvertiseKeys', 7010)
     server.start()
 
     # requests example: {"c_pk":"VALUE", "s_pk": "VALUE"}
@@ -33,8 +33,8 @@ def advertiseKeys(port):
     
     server.broadcast(response)
 
-def shareKeys(port):
-    server = MainServer('ShareKeys', port)
+def shareKeys():
+    server = MainServer('ShareKeys', 7020)
     server.start()
 
     # (one) request example: [ 0, (0, 0, e00), (0, 1, e01) ... ]
@@ -59,8 +59,3 @@ def shareKeys(port):
                 pass
     
     server.foreach(response)
-
-if __name__ == "__main__":
-    setUp()
-    advertiseKeys() # Round 0
-    shareKeys() # Round 1

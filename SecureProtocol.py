@@ -1,5 +1,7 @@
 # Lab-SA Secure Protocols
 from Crypto.Protocol.SecretSharing import Shamir
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
 import random
 
 # find prime number
@@ -76,5 +78,15 @@ def combine_shares(shares):
     return int.from_bytes(key, 'big')
 
 
+# RSA
+def generateRSAKeyPair():
+    key = RSA.generate(1028)
+    publicKey = PKCS1_OAEP.new(key.publickey())
+    privateKey = PKCS1_OAEP.new(key)
+    return (publicKey, privateKey)
 
+def encryptRSA(publicKey, plainText):
+    return publicKey.encrypt(plainText.encode())
 
+def decryptRSA(privateKey, cipherText):
+    return privateKey.decrypt(cipherText).decode()

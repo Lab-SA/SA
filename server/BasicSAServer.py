@@ -1,10 +1,21 @@
-import json
+import os, sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 from MainServer import MainServer
+from BasicSA import getCommonValues
 
 users = {}
 
+# broadcast common value
+def setUp():
+    server = MainServer('ServerSetUp', 7000)
+    server.start()
+
+    commonValues = getCommonValues()
+    server.broadcast(commonValues)
+
 def advertiseKeys():
-    server = MainServer('AdvertiseKeys')
+    server = MainServer('AdvertiseKeys', 7010)
     server.start()
 
     # requests example: {"c_pk":"VALUE", "s_pk": "VALUE"}
@@ -23,7 +34,7 @@ def advertiseKeys():
     server.broadcast(response)
 
 def shareKeys():
-    server = MainServer('ShareKeys')
+    server = MainServer('ShareKeys', 7020)
     server.start()
 
     # (one) request example: [ 0, (0, 0, e00), (0, 1, e01) ... ]
@@ -48,7 +59,3 @@ def shareKeys():
                 pass
     
     server.foreach(response)
-
-if __name__ == "__main__":
-    advertiseKeys() # Round 0
-    shareKeys() # Round 1

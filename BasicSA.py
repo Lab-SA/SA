@@ -1,6 +1,17 @@
 # Lab-SA Basic SA for Federated Learning
-import random
+import random, math
 import SecureProtocol as sp
+
+# Get common values for server set-up: n, t, ...
+def getCommonValues():
+    # n: number of users, t: threshold, R: domain
+    # g: generator, p: prime
+    n = 4 #temp
+    t = 3 #temp
+    R = 100 #temp
+    (g, p) = sp.generator() #temp
+    commonValues = {"n": n, "t": t, "g": g, "p": p, "R": R}
+    return commonValues
 
 # Generate two key pairs
 def generateKeyPairs():
@@ -10,22 +21,22 @@ def generateKeyPairs():
 
 # Generate secret-shares of s_sk and bu and encrypt those data
 # users [dictionary]: all users of the current round
-def generateSharesOfMask(t, u, s_sk, c_sk, users):
-    bu = random.randrange(1, 100) # 1~99 #temp
+def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
+    bu = random.randrange(1, R) # 1~R
     s_sk_shares_list = sp.make_shares(s_sk, t, len(users))
     bu_shares_list = sp.make_shares(bu, t, len(users))
     euv_list = []
 
     for i, user_dic in users.items():
         v = i
-        c_pk = user_dic.get("c_pk")
+        c_pk = user_dic["c_pk"]
         s_uv = sp.agree(c_sk, c_pk)
         euv = sp.encrypt(s_uv, u, v, s_sk_shares_list[v], bu_shares_list[v])
         euv_list.append((u, v, euv))
 
     return euv_list
 
-def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic):
+def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
     # compute p_uv
     p_uv_list = []
     for u, v, euv in euv_list: # euv_list = [ (u, v, euv), (u, v, euv) ... ]
@@ -33,14 +44,14 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic):
             continue
         s_uv = sp.agree(s_sk, s_pk_dic[v])
         random.seed(s_uv)
-        p_uv = random.randrange(1, 100) # 1~99 #temp
+        p_uv = random.randrange(1, R) # 1~R
         if u < v:
             p_uv = -p_uv
         p_uv_list.append(p_uv)
 
     #compute bu
     random.seed(bu)
-    pu = random.randrange(1, 100) # 1~99 #temp
+    pu = random.randrange(1, R) # 1~R
 
     # make masked xu
     yu = xu + pu + sum(p_uv_list)
@@ -72,18 +83,18 @@ def unmasking(u, c_sk, euv_list, c_pk_dic, users_previous, users_last):
             raise Exception('Decryption failed.')
     return (s_sk_shares_dic, bu_shares_dic)
 
-def reconstructPuv(u, v, s_sk_shares_list): # shares list of user (u, v): s^SK_(u,v)
+def reconstructPuv(u, v, s_sk_shares_list, R): # shares list of user (u, v): s^SK_(u,v)
     s_sk = sp.reconstruct(s_sk_shares_list)
     random.seed(s_sk)
-    p_uv = random.randrange(1, 100) #temp
+    p_uv = random.randrange(1, R)
     if u < v:
         p_uv = -p_uv
     return p_uv
 
-def reconstructPu(bu_shares_list): # list of user u
+def reconstructPu(bu_shares_list, R): # list of user u
     bu = sp.reconstruct(bu_shares_list)
     random.seed(bu)
-    pu = random.randrange(1, 100) #temp
+    pu = random.randrange(1, R)
     return pu
 
 def generatingOutput(yu_list, pu_list, puv_list):

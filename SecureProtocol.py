@@ -35,9 +35,8 @@ def gcd(a, b):
         a, b = b, a % b
     return a
 
-def encrypt(s_uv, u, v, sk_s, bu_s):
+def encrypt(s_uv, plaintext):
     key, n = s_uv
-    plaintext = str(u) + ":" + str(v) + ":" + str(sk_s) + ":" + str(bu_s)
     cipher = [(ord(char) ** key) % n for char in plaintext]
     return cipher
 

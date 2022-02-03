@@ -3,6 +3,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
 from BasicSA import getCommonValues, reconstructPuv, reconstructPu
+from CommonValue import BasicSARound
 
 users = {}
 totalNum = 4
@@ -10,14 +11,18 @@ yu = 0
 
 # broadcast common value
 def setUp():
-    server = MainServer('ServerSetUp', 7000)
+    tag = BasicSARound.SetUp.name
+    port = BasicSARound.SetUp.value
+    server = MainServer(tag, port)
     server.start()
 
     commonValues = getCommonValues()
     server.broadcast(commonValues)
 
 def advertiseKeys():
-    server = MainServer('AdvertiseKeys', 7010)
+    tag = BasicSARound.AdvertiseKeys.name
+    port = BasicSARound.AdvertiseKeys.value
+    server = MainServer(tag, port)
     server.start()
 
     # requests example: {"c_pk":"VALUE", "s_pk": "VALUE"}
@@ -41,7 +46,9 @@ def advertiseKeys():
 
 
 def shareKeys():
-    server = MainServer('ShareKeys', 7020)
+    tag = BasicSARound.ShareKeys.name
+    port = BasicSARound.ShareKeys.value
+    server = MainServer(tag, port)
     server.start()
 
     # (one) request example: [ 0, (0, 0, e00), (0, 1, e01) ... ]
@@ -68,7 +75,9 @@ def shareKeys():
     server.foreach(response)
     
 def MaskedInputCollection():
-    server = MainServer('MaskedInputCollection', 7030)
+    tag = BasicSARound.MaskedInputCollection.name
+    port = BasicSARound.MaskedInputCollection.value
+    server = MainServer(tag, port)
     server.start()
 
     # if u3 dropped
@@ -85,7 +94,9 @@ def MaskedInputCollection():
     server.broadcast(response)
 
 def Unmasking():
-    server = MainServer('Unmasking', 7040)
+    tag = BasicSARound.Unmasking.name
+    port = BasicSARound.Unmasking.value
+    server = MainServer(tag, port)
     server.start()
 
     # if u2, u3 dropped

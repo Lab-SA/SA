@@ -1,11 +1,11 @@
 import random
 import math
 
-n = 4
-q = 127
+n = 4   # 사용자수
+q = 127 # temp
 
-rij = []
-t = []
+rij = []    # 각 사용자들이 랜덤 생성하는 벡터
+t = []      # theta를 저장
 cld = [0, 2, 3]     # collude 사용자 인덱스 리스트
 list = [1, 2, 3]    # 0번 user인 경우
 

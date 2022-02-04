@@ -34,7 +34,7 @@ def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
         euv = sp.encrypt(s_uv, u, v, s_sk_shares_list[v], bu_shares_list[v])
         euv_list.append((u, v, euv))
 
-    return euv_list
+    return euv_list, bu
 
 def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
     # compute p_uv

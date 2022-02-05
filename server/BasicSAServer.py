@@ -6,20 +6,27 @@ from BasicSA import getCommonValues, reconstructPuv, reconstructPu
 from CommonValue import BasicSARound
 
 users = {}
-totalNum = 4
 yu = 0
+usersNum = 0
+threshold = 0
 
 # broadcast common value
 def setUp():
+    global usersNum, threshold
+
     tag = BasicSARound.SetUp.name
     port = BasicSARound.SetUp.value
     server = MainServer(tag, port)
     server.start()
 
     commonValues = getCommonValues()
+    usersNum = commonValues["n"]
+    threshold = commonValues["t"]
     server.broadcast(commonValues)
 
 def advertiseKeys():
+    global users
+
     tag = BasicSARound.AdvertiseKeys.name
     port = BasicSARound.AdvertiseKeys.value
     server = MainServer(tag, port)
@@ -68,25 +75,29 @@ def shareKeys():
     server.foreach(response)
     
 def maskedInputCollection():
+    global yu
+
     tag = BasicSARound.MaskedInputCollection.name
     port = BasicSARound.MaskedInputCollection.value
     server = MainServer(tag, port)
     server.start()
 
     # if u3 dropped
-    # requests example: { (0, y1), (1, y2), (3, y3), ... }
+    # (one) request example: {"idx":0, "yu":y0}
     requests = server.requests
 
-    # response example: { 0, 1, 3, ... }
+    # response example: { "yu_list": [{0: y0}, {1: y1}, {2: y2}, ... ] }
     response = {}
-    for i, request in enumerate(requests):
+    for request in requests:
         requestData = request[1]  # (socket, data)
-        response[i] = requestData[0]
-        yu = yu + requestData[1]
+        response[requestData["idx"]] = requestData["yu"]
+        yu = yu + int(requestData["yu"])
 
-    server.broadcast(response)
+    server.broadcast({"yu_list": response})
 
 def unmasking():
+    global usersNum
+
     tag = BasicSARound.Unmasking.name
     port = BasicSARound.Unmasking.value
     server = MainServer(tag, port)
@@ -108,15 +119,15 @@ def unmasking():
             drop_usr[i] = data[0]
             survive_usr[i] = data[1]
 
-    drop_num = totalNum - server.userNum
+    drop_num = usersNum - server.userNum
     for n in range(drop_num):
         share_list[n] = []
-    for n in range(totalNum):
+    for n in range(usersNum):
         bu_list[n] = []
     for n in range(drop_num):
         for i in range(server.userNum):
             share_list[n].append(drop_usr[i][n])
-    for n in range(totalNum):
+    for n in range(usersNum):
         for i in range(server.userNum):
             if n in survive_usr[i]:
                 bu_list[n].append(survive_usr[i][n])
@@ -128,7 +139,7 @@ def unmasking():
             yu = yu + p_uv
     
     # recompute p_u
-    for i in range(totalNum):
+    for i in range(usersNum):
         p_u = reconstructPu(bu_list[i])
         yu = yu - p_u
 
@@ -136,4 +147,4 @@ def unmasking():
     
     
 if __name__ == "__main__":
-    advertiseKeys()
+    maskedInputCollection()

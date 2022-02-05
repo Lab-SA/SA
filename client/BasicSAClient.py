@@ -106,10 +106,10 @@ class BasicSAClient:
         """
         # if response format {v: euv}. example = {0: "e00", 1: "e10"}
         for v, euv in response.items():
-            self.others_euv[v] = euv
+            self.others_euv[int(v)] = euv
 
 
-    def MaskedInputCollection(self):
+    def maskedInputCollection(self):
         tag = BasicSARound.MaskedInputCollection.name
         PORT = BasicSARound.MaskedInputCollection.value
         request = {}
@@ -117,8 +117,8 @@ class BasicSAClient:
 
         s_pk_dic = {}
         for i, user_dic in self.others_keys.items():
-            v = i
-            s_pk_dic[i] = user_dic.get("s_pk")
+            v = int(i)
+            s_pk_dic[v] = user_dic.get("s_pk")
         yu = sa.generateMaskedInput(
             self.u, 
             self.bu, 
@@ -127,16 +127,16 @@ class BasicSAClient:
             self.euv_list, 
             s_pk_dic, 
             self.commonValues["R"])
-        request = {self.u: yu}  # request example: {0: y0}
+        request = {"idx": self.u, "yu": yu}  # request example: {"idx":0, "yu":y0}
 
         # receive sending_yu_list from server
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)
 
         # U3 = survived users in round2(MaskedInputCollection) = users_last used in round4(unmasking)
-        self.U3 = response
+        self.U3 = response['yu_list']
 
 
-    def Unmasking(self):
+    def unmasking(self):
         tag = BasicSARound.Unmasking.name
         PORT = BasicSARound.Unmasking.value
         request = {}
@@ -168,3 +168,4 @@ class BasicSAClient:
 
 if __name__ == "__main__":
     client = BasicSAClient() # test
+    client.maskedInputCollection()

@@ -45,30 +45,29 @@ def shareKeys():
     server = MainServer(tag, port)
     server.start()
 
-    # (one) request example: [ 0, (0, 0, e00), (0, 1, e01) ... ]
-    # requests example: [ [ 0, (0, 0, e00), ... ], [ 1, (1, 0, e10), ... ], ... ]
+    # (one) request example: {0: [(0, 0, e00), (0, 1, e01) ... ]}
+    # requests example: [{0: [(0, 0, e00), ... ]}, {1: [(1, 0, e10), ... ]}, ... ]
     requests = server.requests
 
     # response example: { 0: [e00, e10, e20, ...], 1: [e01, e11, e21, ... ] ... }
     response = {}
+    requests_euv = []
     for request in requests:
         requestData = request[1]  # (socket, data)
-        idx = requestData[0]
-        response[idx] = []  # make list
-    for request in requests:
-        requestData = request[1]  # (socket, data)
-        for i, data in enumerate(requestData):
-            if i == 0:
-                continue
-            (u, v, euv) = data
+        for idx, data in requestData.items(): #only one
+            response[idx] = {}  # make dic
+            requests_euv.append(data)
+    for request in requests_euv:
+        for (u, v, euv) in request:
             try:
-                response[v].append(euv)
+                response[str(v)][u] = euv
             except KeyError:  # drop-out # TODO save U2
+                print("KeyError")
                 pass
 
     server.foreach(response)
     
-def MaskedInputCollection():
+def maskedInputCollection():
     tag = BasicSARound.MaskedInputCollection.name
     port = BasicSARound.MaskedInputCollection.value
     server = MainServer(tag, port)
@@ -87,7 +86,7 @@ def MaskedInputCollection():
 
     server.broadcast(response)
 
-def Unmasking():
+def unmasking():
     tag = BasicSARound.Unmasking.name
     port = BasicSARound.Unmasking.value
     server = MainServer(tag, port)

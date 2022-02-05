@@ -35,13 +35,13 @@ def gcd(a, b):
         a, b = b, a % b
     return a
 
-def encrypt(s_uv, plaintext):
-    key, n = s_uv
+def encrypt(s_uv, plaintext, n):
+    key = s_uv
     cipher = [(ord(char) ** key) % n for char in plaintext]
     return cipher
 
-def decrypt(s_uv, ciphertext):
-    key, n = s_uv
+def decrypt(s_uv, ciphertext, n):
+    key = s_uv
     plain = [chr((char ** key) % n) for char in ciphertext]
     return ''.join(plain)
 

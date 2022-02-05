@@ -9,8 +9,8 @@ class MainServer:
     SIZE = 2048
     ENCODING = 'ascii'
     t = 1 # threshold
-    interval = 10 # server waits in one round # second
-    timeout = 10 #temp
+    interval = 5 # server waits in one round # second
+    timeout = 3 #temp
 
     userNum = 0
     requests = []
@@ -20,6 +20,7 @@ class MainServer:
         self.port = port
 
     def start(self):
+        self.requests = []
         self.startTime = self.endTime = time.time()
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             self.serverSocket = s
@@ -80,9 +81,11 @@ class MainServer:
     # send response for each client (different response)
     def foreach(self, response):
         # 'response' must be: { index: [response], ... }
-        # 'requestData' must be: [ index, [...data] ... ]
+        # 'requestData' must be: { index: [...data], ... }
         for (clientSocket, requestData) in self.requests:
-            idx = requestData[0]
+            idx = 0
+            for data in requestData.keys():
+                idx = data
             response_json = json.dumps(response[idx])
             clientSocket.sendall(bytes(response_json, self.ENCODING))
         

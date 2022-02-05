@@ -80,7 +80,7 @@ class BasicSAClient:
         for i, user_dic in self.others_keys.items():
             print(user_dic)
             if self.my_keys["c_pk"] == user_dic["c_pk"] and self.my_keys["s_pk"] == user_dic["s_pk"]:
-                u = user_dic["index"]  # u = user index
+                self.u = user_dic["index"]  # u = user index
                 break
             else:
                 continue
@@ -89,13 +89,13 @@ class BasicSAClient:
         # request = [[u, v1, euv], [u, v2, euv], ...]
         euv_list, bu = sa.generateSharesOfMask(
             self.commonValues["t"], 
-            u, 
+            self.u, 
             self.my_keys["s_sk"], 
             self.my_keys["c_sk"], 
             self.others_keys, 
             self.commonValues["R"])
         self.bu = bu
-        request = euv_list
+        request = {self.u: euv_list}
 
         # receive euv_list from server in json format
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)
@@ -159,7 +159,8 @@ class BasicSAClient:
             self.euv_list, 
             c_pk_dic, 
             U2, 
-            self.U3)
+            self.U3,
+            self.commonValues["R"])
         request = {self.u: list(temp_request)}
 
         # send u and dropped users' s_sk, survived users' bu in json format

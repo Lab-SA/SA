@@ -28,10 +28,11 @@ def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
     euv_list = []
 
     for i, user_dic in users.items():
-        v = i
+        v = int(i)
         c_pk = user_dic["c_pk"]
         s_uv = sp.agree(c_sk, c_pk)
-        euv = sp.encrypt(s_uv, u, v, s_sk_shares_list[v], bu_shares_list[v])
+        plainText = f'{u}|{v}|{s_sk_shares_list[v][1]}|{bu_shares_list[v][1]}'
+        euv = sp.encrypt(s_uv, plainText, R)
         euv_list.append((u, v, euv))
 
     return euv_list, bu
@@ -59,7 +60,7 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
 
 # users_previous [list]: users who were alive in the previous round
 # users_last [list]: users who were alive in the recent round
-def unmasking(u, c_sk, euv_list, c_pk_dic, users_previous, users_last):
+def unmasking(u, c_sk, euv_list, c_pk_dic, users_previous, users_last, R):
     s_sk_shares_dic = {}
     bu_shares_dic = {}
     for v in users_previous:
@@ -71,7 +72,12 @@ def unmasking(u, c_sk, euv_list, c_pk_dic, users_previous, users_last):
                     euv = euv
                     break
             euv_list.pop(idx)
-            [_v, _u, s_sk_shares, bu_shares] = sp.decrypt((c_sk, c_pk_dic[v]), euv)
+
+            # decrypt
+            s_uv = sp.agree(c_sk, c_pk_dic[v])
+            plainText = sp.decrypt(s_uv, euv, R)
+            _v, _u, s_sk_shares, bu_shares = plainText.split("|")
+
             if not(u == _u and u == _v):
                 raise Exception('Something went wrong during reconstruction.')
             try:

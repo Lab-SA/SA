@@ -16,17 +16,13 @@ def primesInRange(x, y):
             prime_list.append(n)
     return prime_list
 
-prime_list = primesInRange(100, 200) #temp
-g = random.choice(prime_list)
-p = random.choice(prime_list)
-
 # key generate
-def generate():
+def generate(g, p):
     pri_key = random.randrange(50000, 90000) #temp
     pub_key = g ** pri_key % p
     return (pub_key, pri_key)
 
-def agree(sk, pk):
+def agree(sk, pk, p):
     key = pk ** sk % p
     return key
 
@@ -59,7 +55,7 @@ def get_c_pk(tot):
         e += 1
     return e
 
-def generate_c():
+def generate_c(g, p):
     totient = (p - 1) * (g - 1)
     c_pk = get_c_pk(totient)
     c_sk = get_c_sk(c_pk, totient)

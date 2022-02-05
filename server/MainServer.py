@@ -8,8 +8,8 @@ class MainServer:
     port = 20
     SIZE = 2048
     ENCODING = 'ascii'
-    t = 3 # threshold
-    interval = 20 # server waits in one round # second
+    t = 1 # threshold
+    interval = 10 # server waits in one round # second
     timeout = 10 #temp
 
     userNum = 0
@@ -26,7 +26,7 @@ class MainServer:
             s.bind((self.host, self.port))
             s.settimeout(self.timeout)
             s.listen()
-            print('[{0}] Server started'.format(self.tag))
+            print(f'[{self.tag}] Server started')
 
             while (self.endTime - self.startTime) < self.interval:
                 currentClient = socket
@@ -42,19 +42,19 @@ class MainServer:
                         print(self.tag)
                         raise AttributeError
                     
-                    print('[{0}] Client: {1}'.format(self.tag, addr))
-                    print('[{0}] Client request: {1}'.format(self.tag, request))
+                    print(f'[{self.tag}] Client: {addr}')
+                    print(f'[{self.tag}] Client request: {request}')
 
                     self.userNum = self.userNum + 1
                     self.requests.append((clientSocket, requestData))
                 except socket.timeout:
                     pass
                 except AttributeError:
-                    print('[{0}] Exception: invalid request at {0}'.format(self.tag))
-                    currentClient.sendall(bytes('Exception: invalid request at {0}'.format(self.tag), self.ENCODING))
+                    print(f'[{self.tag}] Exception: invalid request at {self.tag}')
+                    currentClient.sendall(bytes(f'Exception: invalid request at {self.tag}', self.ENCODING))
                     pass
                 except:
-                    print('[{0}] Exception: invalid request or unknown server error'.format(self.tag))
+                    print(f'[{self.tag}] Exception: invalid request or unknown server error')
                     currentClient.sendall(bytes('Exception: invalid request or unknown server error', self.ENCODING))
                     pass
                 
@@ -62,8 +62,8 @@ class MainServer:
 
         # check threshold
         if self.t > self.userNum:
-            print('[{0}] Exception: insufficient {1} users with {2} threshold'.format(self.tag, self.userNum, self.t))
-            raise Exception("Need at least {0} users, but only {1} user(s) responsed".format(self.t, self.userNum))
+            print(f'[{self.tag}] Exception: insufficient {self.userNum} users with {self.t} threshold')
+            raise Exception(f"Need at least {self.t} users, but only {self.userNum} user(s) responsed")
     
     # broadcast to all client (same response)
     def broadcast(self, response): # send response (broadcast)
@@ -73,7 +73,7 @@ class MainServer:
             clientSocket.sendall(bytes(response_json, self.ENCODING))
         
         self.serverSocket.close()
-        print('[{0}] Server finished'.format(self.tag))
+        print(f'[{self.tag}] Server finished')
     
     # send response for each client (different response)
     def foreach(self, response):
@@ -85,4 +85,4 @@ class MainServer:
             clientSocket.sendall(bytes(response_json, self.ENCODING))
         
         self.serverSocket.close()
-        print('[{0}] Server finished'.format(self.tag))
+        print(f'[{self.tag}] Server finished')

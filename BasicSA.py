@@ -31,7 +31,7 @@ def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
         v = int(i)
         c_pk = user_dic["c_pk"]
         s_uv = sp.agree(c_sk, c_pk)
-        plainText = f'{u}|{v}|{s_sk_shares_list[v][1]}|{bu_shares_list[v][1]}'
+        plainText = f'{u}|{v}|{s_sk_shares_list[v]}|{bu_shares_list[v]}'
         euv = sp.encrypt(s_uv, plainText, R)
         euv_list.append((u, v, euv))
 
@@ -60,25 +60,27 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
 
 # users_previous [list]: users who were alive in the previous round
 # users_last [list]: users who were alive in the recent round
-def unmasking(u, c_sk, euv_list, c_pk_dic, users_previous, users_last, R):
+def unmasking(u, c_sk, euv_dic, c_pk_dic, users_previous, users_last, R):
     s_sk_shares_dic = {}
     bu_shares_dic = {}
     for v in users_previous:
+        if v == u:
+            continue
         try:
-            idx = euv = 0
-            for i, (u, _v, euv) in enumerate(euv_list):
+            idx = euv = -1
+            for _v, _euv in euv_dic.items():
                 if _v == v:
-                    idx = i
-                    euv = euv
+                    idx = _v
+                    euv = _euv
                     break
-            euv_list.pop(idx)
+            euv_dic.pop(idx)
 
             # decrypt
             s_uv = sp.agree(c_sk, c_pk_dic[v])
             plainText = sp.decrypt(s_uv, euv, R)
             _v, _u, s_sk_shares, bu_shares = plainText.split("|")
 
-            if not(u == _u and u == _v):
+            if not(u == _u and v == _v):
                 raise Exception('Something went wrong during reconstruction.')
             try:
                 users_last.remove(v) # v is in U3
@@ -87,18 +89,21 @@ def unmasking(u, c_sk, euv_list, c_pk_dic, users_previous, users_last, R):
                 s_sk_shares_dic[v] = s_sk_shares
         except:
             raise Exception('Decryption failed.')
-    return (s_sk_shares_dic, bu_shares_dic)
+    return s_sk_shares_dic, bu_shares_dic
 
-def reconstructPuv(u, v, s_sk_shares_list, R): # shares list of user (u, v): s^SK_(u,v)
-    s_sk = sp.reconstruct(s_sk_shares_list)
-    random.seed(s_sk)
-    p_uv = random.randrange(1, R)
-    if u < v:
-        p_uv = -p_uv
-    return p_uv
+def reconstruct(shares_list):
+    return sp.combine_shares(shares_list)
+
+def reconstructPvu(v, u, s_sk_v, s_pk_u, R):
+    s_uv = sp.agree(s_sk_v, s_pk_u)
+    random.seed(s_uv)
+    p_vu = random.randrange(1, R)
+    if v < u:
+        p_vu = -p_vu
+    return p_vu
 
 def reconstructPu(bu_shares_list, R): # list of user u
-    bu = sp.reconstruct(bu_shares_list)
+    bu = sp.combine_shares(bu_shares_list)
     random.seed(bu)
     pu = random.randrange(1, R)
     return pu

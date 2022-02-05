@@ -1,3 +1,4 @@
+from http import client
 import socket
 import json
 import time
@@ -5,10 +6,10 @@ import time
 class MainServer:
     host = 'localhost'
     port = 20
-    SIZE = 1024
+    SIZE = 2048
     ENCODING = 'ascii'
-    t = 0 # threshold #temp
-    interval = 10 # server waits in one round # second
+    t = 3 # threshold
+    interval = 20 # server waits in one round # second
     timeout = 10 #temp
 
     userNum = 0
@@ -28,16 +29,33 @@ class MainServer:
             print('[{0}] Server started'.format(self.tag))
 
             while (self.endTime - self.startTime) < self.interval:
+                currentClient = socket
                 try:
                     clientSocket, addr = s.accept()
+                    currentClient = clientSocket
+
                     request = str(clientSocket.recv(self.SIZE), self.ENCODING)  # receive client data
+                    requestData = json.loads(request)
+                    if requestData['request'] != self.tag: # check request
+                        # request must contain {request: tag}
+                        print(requestData)
+                        print(self.tag)
+                        raise AttributeError
+                    
                     print('[{0}] Client: {1}'.format(self.tag, addr))
                     print('[{0}] Client request: {1}'.format(self.tag, request))
-                    self.userNum = self.userNum + 1
 
-                    requestData = json.loads(request)
+                    self.userNum = self.userNum + 1
                     self.requests.append((clientSocket, requestData))
                 except socket.timeout:
+                    pass
+                except AttributeError:
+                    print('[{0}] Exception: invalid request at {0}'.format(self.tag))
+                    currentClient.sendall(bytes('Exception: invalid request at {0}'.format(self.tag), self.ENCODING))
+                    pass
+                except:
+                    print('[{0}] Exception: invalid request or unknown server error'.format(self.tag))
+                    currentClient.sendall(bytes('Exception: invalid request or unknown server error', self.ENCODING))
                     pass
                 
                 self.endTime = time.time()

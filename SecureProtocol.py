@@ -40,9 +40,9 @@ def encrypt(s_uv, plaintext):
     cipher = [(ord(char) ** key) % n for char in plaintext]
     return cipher
 
-def decrypt(s_uv, evu):
+def decrypt(s_uv, ciphertext):
     key, n = s_uv
-    plain = [chr((char ** key) % n) for char in evu]
+    plain = [chr((char ** key) % n) for char in ciphertext]
     return ''.join(plain)
 
 def get_c_sk(e, tot):

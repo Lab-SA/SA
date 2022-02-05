@@ -9,8 +9,8 @@ def getCommonValues():
     n = 4 #temp
     t = 3 #temp
     R = 100 #temp
-    (g, p) = sp.generator() #temp
-    commonValues = {"n": n, "t": t, "g": g, "p": p, "R": R}
+    #(g, p) = sp.generator()
+    commonValues = {"n": n, "t": t, "g": 10, "p": 10, "R": R}
     return commonValues
 
 # Generate two key pairs

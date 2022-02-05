@@ -41,6 +41,8 @@ class MainServer:
                         print(requestData)
                         print(self.tag)
                         raise AttributeError
+                    else:
+                        requestData.pop('request')
                     
                     print(f'[{self.tag}] Client: {addr}')
                     print(f'[{self.tag}] Client request: {request}')

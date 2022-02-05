@@ -34,14 +34,8 @@ def advertiseKeys():
     for v, request in enumerate(requests):
         requestData = request[1]  # (socket, data)
         users[v] = requestData  # store on server
-
-        requestData['index'] = v  # add index
-        requestData = request[1] # (socket, data)
-        users[v] = requestData # store on server
-
         requestData['index'] = v # add index
         response[v] = requestData
-
     server.broadcast(response)
 
 
@@ -143,7 +137,4 @@ def Unmasking():
     
     
 if __name__ == "__main__":
-    advertiseKeys() # Round 0
-    shareKeys() # Round 1
-    MaskedInputCollection() # Round 2
-    Unmasking() # Round 4
+    advertiseKeys()

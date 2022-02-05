@@ -31,6 +31,10 @@ def advertiseKeys():
         users[v] = requestData  # store on server
 
         requestData['index'] = v  # add index
+        requestData = request[1] # (socket, data)
+        users[v] = requestData # store on server
+
+        requestData['index'] = v # add index
         response[v] = requestData
 
     server.broadcast(response)
@@ -62,7 +66,6 @@ def shareKeys():
                 pass
 
     server.foreach(response)
-
     
 def MaskedInputCollection():
     server = MainServer('MaskedInputCollection', 7030)

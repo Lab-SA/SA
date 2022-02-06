@@ -1,6 +1,7 @@
 # Lab-SA Secure Protocols
+import random, hashlib
 from Crypto.Protocol.SecretSharing import Shamir
-import random
+from Crypto.Cipher import AES
 
 # find prime number
 def primesInRange(x, y):
@@ -16,51 +17,41 @@ def primesInRange(x, y):
             prime_list.append(n)
     return prime_list
 
-# key generate
-def generate(g, p):
-    pri_key = random.randrange(50000, 90000) #temp
-    pub_key = g ** pri_key % p
-    return (pub_key, pri_key)
-
-def agree(sk, pk, p):
-    key = pk ** sk % p
-    return key
-
 def gcd(a, b):
     while b != 0:
         a, b = b, a % b
     return a
 
-def encrypt(s_uv, plaintext, n):
-    key = s_uv
-    cipher = [(ord(char) ** key) % n for char in plaintext]
-    return cipher
+# key generate
+def generateKeyPair(g, p):
+    pri_key = random.randrange(50000, 90000) #temp
+    pub_key = g ** pri_key % p
+    return pub_key, pri_key
 
-def decrypt(s_uv, ciphertext, n):
-    key = s_uv
-    plain = [chr((char ** key) % n) for char in ciphertext]
-    return ''.join(plain)
+# key agreement with hash function (md5)
+# return 128bit key
+def agree(sk, pk, p):
+    # key = H((g^a)^b)
+    key = pk ** sk % p
+    # key agreement composed with a hash function md5: generate 128-bit key
+    return hashlib.md5(bytes(key)).hexdigest()
 
-def get_c_sk(e, tot):
-    # k = 1
-    k = random.randrange(1, e - 50) #temp
-    while (e * k) % tot != 1 or k == e:
-        k += 1
-    return k
+# encrypt using AES-128
+# return encrypted hex string
+def encrypt(key, plaintext):
+    encryptor = AES.new(key=bytes.fromhex(key), mode=AES.MODE_CBC, iv=bytes([0x00]*16))
+    boundary = 16 # Data must be padded to 16 byte boundary in CBC mode
+    pad = lambda s: s + (boundary - len(s) % boundary) * chr(boundary - len(s) % boundary)
+    raw = pad(plaintext)
+    return encryptor.encrypt(bytes(raw, encoding='utf-8')).hex()
 
-def get_c_pk(tot):
-    # e = 2
-    e = random.randrange(100, 1000) #temp
-    while e < tot and gcd(e, tot) != 1:
-        e += 1
-    return e
-
-def generate_c(g, p):
-    totient = (p - 1) * (g - 1)
-    c_pk = get_c_pk(totient)
-    c_sk = get_c_sk(c_pk, totient)
-    return (c_pk, c_sk)
-
+# decrypt using AES-128
+# return plaintext
+def decrypt(key, ciphertext):
+    decryptor = AES.new(key=bytes.fromhex(key), mode=AES.MODE_CBC, iv=bytes([0x00]*16))
+    unpad = lambda s: s[0:-ord(s[-1])] # unpad since we add padding in encryption (16bit-block)
+    decrypted = decryptor.decrypt(bytes.fromhex(ciphertext)).decode('utf-8')
+    return unpad(decrypted)
 
 # Secret-Sharing
 def make_shares(key, t, n):
@@ -69,7 +60,3 @@ def make_shares(key, t, n):
 def combine_shares(shares):
     key = Shamir.combine(shares)
     return int.from_bytes(key, 'big')
-
-
-
-

@@ -7,7 +7,7 @@ class MainServer:
     host = 'localhost'
     port = 20
     SIZE = 2048
-    ENCODING = 'ascii'
+    ENCODING = 'utf-8'
     t = 1 # threshold
     interval = 5 # server waits in one round # second
     timeout = 3 #temp

@@ -4,7 +4,7 @@ import BasicSA as sa
 from CommonValue import BasicSARound
 
 SIZE = 2048
-ENCODING = 'ascii'
+ENCODING = 'utf-8'
 
 def sendRequestAndReceive(host, port, tag, request):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -27,7 +27,7 @@ def sendRequestAndReceive(host, port, tag, request):
         return response
     except json.decoder.JSONDecodeError:
         #raise Exception(f"[{tag}] Server response with: {response}")
-        print(f"[{tag}][Error] Server response with: {receivedStr}")
+        print(f"[{tag}] Server response with: {receivedStr}")
         exit
     finally:
         s.close()
@@ -57,7 +57,7 @@ class BasicSAClient:
         tag = BasicSARound.AdvertiseKeys.name
         PORT = BasicSARound.AdvertiseKeys.value
 
-        ((c_pk, c_sk), (s_pk, s_sk)) = sa.generateKeyPairs()
+        (c_pk, c_sk), (s_pk, s_sk) = sa.generateKeyPairs()
         self.my_keys["c_pk"] = c_pk
         self.my_keys["c_sk"] = c_sk 
         self.my_keys["s_pk"] = s_pk
@@ -78,7 +78,6 @@ class BasicSAClient:
         PORT = BasicSARound.ShareKeys.value
 
         for i, user_dic in self.others_keys.items():
-            print(user_dic)
             if self.my_keys["c_pk"] == user_dic["c_pk"] and self.my_keys["s_pk"] == user_dic["s_pk"]:
                 self.u = user_dic["index"]  # u = user index
                 break
@@ -94,6 +93,7 @@ class BasicSAClient:
             self.my_keys["c_sk"], 
             self.others_keys, 
             self.commonValues["R"])
+        self.euv_list = euv_list
         self.bu = bu
         request = {self.u: euv_list}
 
@@ -149,7 +149,7 @@ class BasicSAClient:
 
         # U2 = survived users in round1(shareKeys) = users_previous
         U2 = list(self.others_euv.keys())
-        U3 = list(self.U3.keys())
+        U3 = list(map(int, self.U3.keys())) # make str key to int
 
         s_sk_shares_dic, bu_shares_dic = sa.unmasking(
             self.u, 
@@ -160,11 +160,15 @@ class BasicSAClient:
             U3,
             self.commonValues["R"])
         # requests example: {"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk, ...}, "bu_shares": {1: b10, 4: b40, ...}]}
-        request = {"idx": self.u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
+        request = {"idx": self.u, "ssk_shares": str(s_sk_shares_dic), "bu_shares": str(bu_shares_dic)}
 
         # send u and dropped users' s_sk, survived users' bu in json format
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
 if __name__ == "__main__":
     client = BasicSAClient() # test
+    client.setUp()
+    client.advertiseKeys()
+    client.shareKeys()    
     client.maskedInputCollection()
+    client.unmasking()

@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from MainServer import MainServer
 from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct
 from CommonValue import BasicSARound
+from ast import literal_eval
 
 users_keys = {}
 sum_yu = 0
@@ -116,14 +117,14 @@ def unmasking():
     # get s_sk_shares_dic, bu_shares_dic of user2\3, user3
     for request in requests:
         requestData = request[1]  # (socket, data)
-        ssk_shares = requestData["ssk_shares"]
+        ssk_shares = literal_eval(requestData["ssk_shares"])
         for i, share in ssk_shares.items():
             try: 
                 s_sk_shares_dic[i].append(share)
             except KeyError:
                 s_sk_shares_dic[i] = [share]
                 pass
-        bu_shares = requestData["bu_shares"]
+        bu_shares = literal_eval(requestData["bu_shares"])
         for i, share in bu_shares.items():
             try: 
                 bu_shares_dic[i].append(share)
@@ -151,4 +152,9 @@ def unmasking():
 
 
 if __name__ == "__main__":
+    setUp()
+    advertiseKeys()
+    shareKeys()    
     maskedInputCollection()
+    final = unmasking()
+    print("[Server] sum_xu: ", final)

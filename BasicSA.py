@@ -1,6 +1,7 @@
 # Lab-SA Basic SA for Federated Learning
 import random, math
 import SecureProtocol as sp
+from ast import literal_eval
 
 g = 3 #temp
 p = 7 #temp
@@ -12,7 +13,7 @@ def getCommonValues():
     # n: number of users, t: threshold, R: domain
     # g: generator, p: prime
     n = 4 #temp
-    t = 3 #temp
+    t = 1 #temp
     R = 100 #temp
     # _g, _p = sp.generator()
     # g = _g
@@ -23,9 +24,9 @@ def getCommonValues():
 # Generate two key pairs
 def generateKeyPairs():
     global g, p
-    (c_pk, c_sk) = sp.generate(g, p) #temp
-    (s_pk, s_sk) = sp.generate(g, p) #temp
-    return ((c_pk, c_sk), (s_pk, s_sk))
+    c_pk, c_sk = sp.generateKeyPair(g, p)
+    s_pk, s_sk = sp.generateKeyPair(g, p)
+    return (c_pk, c_sk), (s_pk, s_sk)
 
 # Generate secret-shares of s_sk and bu and encrypt those data
 # users [dictionary]: all users of the current round
@@ -41,8 +42,8 @@ def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
         v = int(i)
         c_pk = user_dic["c_pk"]
         s_uv = sp.agree(c_sk, c_pk, p)
-        plainText = f'{u}|{v}|{s_sk_shares_list[v]}|{bu_shares_list[v]}'
-        euv = sp.encrypt(s_uv, plainText, R)
+        plainText = str([u, v, s_sk_shares_list[v], bu_shares_list[v]])
+        euv = sp.encrypt(s_uv, plainText)
         euv_list.append((u, v, euv))
 
     return euv_list, bu
@@ -91,10 +92,10 @@ def unmasking(u, c_sk, euv_dic, c_pk_dic, users_previous, users_last, R):
 
             # decrypt
             s_uv = sp.agree(c_sk, c_pk_dic[v], p)
-            plainText = sp.decrypt(s_uv, euv, R)
-            _v, _u, s_sk_shares, bu_shares = plainText.split("|")
+            plainText = sp.decrypt(s_uv, euv)
+            _v, _u, s_sk_shares, bu_shares = literal_eval(plainText) # list
 
-            if not(u == _u and v == _v):
+            if not(u == int(_u) and v == int(_v)):
                 raise Exception('Something went wrong during reconstruction.')
             try:
                 users_last.remove(v) # v is in U3

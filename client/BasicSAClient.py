@@ -133,7 +133,7 @@ class BasicSAClient:
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)
 
         # U3 = survived users in round2(MaskedInputCollection) = users_last used in round4(unmasking)
-        self.U3 = response['yu_list']
+        self.U3 = response['users']
 
 
     def unmasking(self):
@@ -149,7 +149,6 @@ class BasicSAClient:
 
         # U2 = survived users in round1(shareKeys) = users_previous
         U2 = list(self.others_euv.keys())
-        U3 = list(map(int, self.U3.keys())) # make str key to int
 
         s_sk_shares_dic, bu_shares_dic = sa.unmasking(
             self.u, 
@@ -157,7 +156,7 @@ class BasicSAClient:
             self.others_euv, 
             c_pk_dic, 
             U2, 
-            U3,
+            self.U3,
             self.commonValues["R"])
         # requests example: {"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk, ...}, "bu_shares": {1: b10, 4: b40, ...}]}
         request = {"idx": self.u, "ssk_shares": str(s_sk_shares_dic), "bu_shares": str(bu_shares_dic)}

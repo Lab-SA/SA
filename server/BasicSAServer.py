@@ -7,7 +7,7 @@ from CommonValue import BasicSARound
 from ast import literal_eval
 
 users_keys = {}
-sum_yu = 0
+yu_list = []
 usersNum = 0
 threshold = 0
 R = 0
@@ -78,7 +78,7 @@ def shareKeys():
     server.foreach(response)
     
 def maskedInputCollection():
-    global sum_yu
+    global yu_list
 
     tag = BasicSARound.MaskedInputCollection.name
     port = BasicSARound.MaskedInputCollection.value
@@ -89,18 +89,18 @@ def maskedInputCollection():
     # (one) request example: {"idx":0, "yu":y0}
     requests = server.requests
 
-    # response example: { "yu_list": [{0: y0}, {1: y1}, {2: y2}, ... ] }
-    response = {}
+    # response example: { "users": [0, 1, 2 ... ] }
+    response = []
     for request in requests:
         requestData = request[1]  # (socket, data)
-        response[requestData["idx"]] = requestData["yu"]
-        sum_yu = sum_yu + int(requestData["yu"])
+        response.append(int(requestData["idx"]))
+        yu_list.append(int(requestData["yu"]))
 
-    server.broadcast({"yu_list": response})
+    server.broadcast({"users": response})
 
 def unmasking():
-    global usersNum, sum_yu, R, users_keys
-    sum_xu = sum_yu # sum(xu) is sum of user3's xu
+    global usersNum, yu_list, R, users_keys
+    sum_xu = sum(yu_list) # sum(xu) is sum of user3's xu
 
     tag = BasicSARound.Unmasking.name
     port = BasicSARound.Unmasking.value
@@ -148,7 +148,8 @@ def unmasking():
         pu = reconstructPu(bu_shares, R)
         sum_xu = sum_xu - pu
     
-    return sum_xu
+    avg = sum_xu / len(yu_list)
+    return avg
 
 
 if __name__ == "__main__":
@@ -157,4 +158,4 @@ if __name__ == "__main__":
     shareKeys()    
     maskedInputCollection()
     final = unmasking()
-    print("[Server] sum_xu: ", final)
+    print("[Server] average of sum_xu): ", final)

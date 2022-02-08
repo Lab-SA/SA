@@ -1,12 +1,13 @@
 from tkinter import *
-import BasicSAClient as sac
+from BasicSAClient import BasicSAClient
 
 root = Tk()
 root.title("Client")
 root.geometry("640x400+100+100")
 
+client = BasicSAClient()
 SARound = ["SetUp", "AdvertiseKeys", "ShareKeys", "MaskedInputCollection", "Unmasking"]
-func = [sac.setUp, sac.advertiseKeys, sac.shareKeys, sac.MaskedInputCollection, sac.Unmasking]
+func = [client.setUp, client.advertiseKeys, client.shareKeys, client.maskedInputCollection, client.unmasking]
 btn = []
 for i, round in enumerate(SARound):
     btn.append(Button(root, text = round, command = func[i]))

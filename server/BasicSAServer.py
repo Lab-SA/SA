@@ -2,22 +2,37 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
-from BasicSA import getCommonValues, reconstructPuv, reconstructPu
+from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct
+from CommonValue import BasicSARound
+from ast import literal_eval
 
-users = {}
-totalNum = 4
-yu = 0
+users_keys = {}
+yu_list = []
+usersNum = 0
+threshold = 0
+R = 0
 
 # broadcast common value
 def setUp():
-    server = MainServer('ServerSetUp', 7000)
+    global usersNum, threshold, R
+
+    tag = BasicSARound.SetUp.name
+    port = BasicSARound.SetUp.value
+    server = MainServer(tag, port)
     server.start()
 
     commonValues = getCommonValues()
+    usersNum = commonValues["n"]
+    threshold = commonValues["t"]
+    R = commonValues["R"]
     server.broadcast(commonValues)
 
 def advertiseKeys():
-    server = MainServer('AdvertiseKeys', 7010)
+    global users_keys
+
+    tag = BasicSARound.AdvertiseKeys.name
+    port = BasicSARound.AdvertiseKeys.value
+    server = MainServer(tag, port)
     server.start()
 
     # requests example: {"c_pk":"VALUE", "s_pk": "VALUE"}
@@ -28,111 +43,119 @@ def advertiseKeys():
     response = {}
     for v, request in enumerate(requests):
         requestData = request[1]  # (socket, data)
-        users[v] = requestData  # store on server
-
-        requestData['index'] = v  # add index
-        requestData = request[1] # (socket, data)
-        users[v] = requestData # store on server
-
+        users_keys[v] = requestData  # store on server
         requestData['index'] = v # add index
         response[v] = requestData
-
     server.broadcast(response)
 
 
 def shareKeys():
-    server = MainServer('ShareKeys', 7020)
+    tag = BasicSARound.ShareKeys.name
+    port = BasicSARound.ShareKeys.value
+    server = MainServer(tag, port)
     server.start()
 
-    # (one) request example: [ 0, (0, 0, e00), (0, 1, e01) ... ]
-    # requests example: [ [ 0, (0, 0, e00), ... ], [ 1, (1, 0, e10), ... ], ... ]
+    # (one) request example: {0: [(0, 0, e00), (0, 1, e01) ... ]}
+    # requests example: [{0: [(0, 0, e00), ... ]}, {1: [(1, 0, e10), ... ]}, ... ]
     requests = server.requests
 
     # response example: { 0: [e00, e10, e20, ...], 1: [e01, e11, e21, ... ] ... }
     response = {}
+    requests_euv = []
     for request in requests:
         requestData = request[1]  # (socket, data)
-        idx = requestData[0]
-        response[idx] = []  # make list
-    for request in requests:
-        requestData = request[1]  # (socket, data)
-        for i, data in enumerate(requestData):
-            if i == 0:
-                continue
-            (u, v, euv) = data
+        for idx, data in requestData.items(): #only one
+            response[idx] = {}  # make dic
+            requests_euv.append(data)
+    for request in requests_euv:
+        for (u, v, euv) in request:
             try:
-                response[v].append(euv)
+                response[str(v)][u] = euv
             except KeyError:  # drop-out # TODO save U2
+                print("KeyError")
                 pass
 
     server.foreach(response)
     
-def MaskedInputCollection():
-    server = MainServer('MaskedInputCollection', 7030)
+def maskedInputCollection():
+    global yu_list
+
+    tag = BasicSARound.MaskedInputCollection.name
+    port = BasicSARound.MaskedInputCollection.value
+    server = MainServer(tag, port)
     server.start()
 
     # if u3 dropped
-    # requests example: { (0, y1), (1, y2), (3, y3), ... }
+    # (one) request example: {"idx":0, "yu":y0}
     requests = server.requests
 
-    # response example: { 0, 1, 3, ... }
-    response = {}
-    for i, request in enumerate(requests):
+    # response example: { "users": [0, 1, 2 ... ] }
+    response = []
+    for request in requests:
         requestData = request[1]  # (socket, data)
-        response[i] = requestData[0]
-        yu = yu + requestData[1]
+        response.append(int(requestData["idx"]))
+        yu_list.append(int(requestData["yu"]))
 
-    server.broadcast(response)
+    server.broadcast({"users": response})
 
-def Unmasking():
-    server = MainServer('Unmasking', 7040)
+def unmasking():
+    global usersNum, yu_list, R, users_keys
+    sum_xu = sum(yu_list) # sum(xu) is sum of user3's xu
+
+    tag = BasicSARound.Unmasking.name
+    port = BasicSARound.Unmasking.value
+    server = MainServer(tag, port)
     server.start()
 
-    # if u2, u3 dropped
-    # requests example: { [{0: s02_sk, 1: s03_sk, ...}, {1: b01, 4: b04, ...}], ... }
+    # (one) request: {"idx": u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
+    # if u2, u3 dropped, requests: [{"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk}, "bu_shares": {1: b10, 4: b40}}, ...]
     requests = server.requests
 
-    drop_usr = {}       # {0: {0: s02_sk, 1: s03_sk, ...}, 1: {0: s12_sk, 1: s13_sk, ...}, ... }
-    survive_usr = {}    # {0: {1: b01, 4: b04, ...}, 1: {0: b10, 4: b14, ...}, ... }
-    share_list = {}     # {0: [s02_sk, s12_sk, ... ], 1: [s03_sk, s13_sk, ... ], ... }
-    bu_list = {}        # {0: [b10, b40, ... ], 1: [b01, b41, ... ], 2: [], ... }
-    requestData = []
+    s_sk_shares_dic = {}     # {2: [s20_sk, s21_sk, ... ], 3: [s30_sk, s31_sk, ... ], ... }
+    bu_shares_dic = {}       # {0: [b10, b04, ... ], 1: [b10, b14, ... ], ... }
 
+    # get s_sk_shares_dic, bu_shares_dic of user2\3, user3
     for request in requests:
-        requestData.append(requests[request])
-        for i, data in enumerate(requestData):
-            drop_usr[i] = data[0]
-            survive_usr[i] = data[1]
-
-    drop_num = totalNum - server.userNum
-    for n in range(drop_num):
-        share_list[n] = []
-    for n in range(totalNum):
-        bu_list[n] = []
-    for n in range(drop_num):
-        for i in range(server.userNum):
-            share_list[n].append(drop_usr[i][n])
-    for n in range(totalNum):
-        for i in range(server.userNum):
-            if n in survive_usr[i]:
-                bu_list[n].append(survive_usr[i][n])
+        requestData = request[1]  # (socket, data)
+        ssk_shares = literal_eval(requestData["ssk_shares"])
+        for i, share in ssk_shares.items():
+            try: 
+                s_sk_shares_dic[i].append(share)
+            except KeyError:
+                s_sk_shares_dic[i] = [share]
+                pass
+        bu_shares = literal_eval(requestData["bu_shares"])
+        for i, share in bu_shares.items():
+            try: 
+                bu_shares_dic[i].append(share)
+            except KeyError:
+                bu_shares_dic[i] = [share]
+                pass
     
+    # reconstruct s_sk of users2\3
+    s_sk_dic = {}
+    for i, ssk_shares in s_sk_shares_dic.items(): # first, reconstruct ssk_u <- ssk_u,v
+        s_sk_dic[i] = reconstruct(ssk_shares)
     # recompute p_vu
-    for d_usr in range(drop_num):
-        for usr in range(server.userNum):
-            p_uv = reconstructPuv(d_usr, usr, share_list[d_usr])
-            yu = yu + p_uv
+    user3list = list(bu_shares_dic.keys())
+    for u in user3list:
+        for v, s_sk in s_sk_dic.items():
+            pvu = reconstructPvu(v, u, s_sk, users_keys[u]["s_pk"], R)
+            sum_xu = sum_xu + pvu
     
-    # recompute p_u
-    for i in range(totalNum):
-        p_u = reconstructPu(bu_list[i])
-        yu = yu - p_u
+    # recompute p_u of users3
+    for i, bu_shares in bu_shares_dic.items(): # first, reconstruct ssk_u <- ssk_u,v
+        pu = reconstructPu(bu_shares, R)
+        sum_xu = sum_xu - pu
+    
+    avg = sum_xu / len(yu_list)
+    return avg
 
-    # z = sum(yu) - sum(p_u) + sum(p_vu)
-    
-    
+
 if __name__ == "__main__":
-    advertiseKeys() # Round 0
-    shareKeys() # Round 1
-    MaskedInputCollection() # Round 2
-    Unmasking() # Round 4
+    setUp()
+    advertiseKeys()
+    shareKeys()    
+    maskedInputCollection()
+    final = unmasking()
+    print("[Server] average of sum_xu): ", final)

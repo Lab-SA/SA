@@ -1,156 +1,173 @@
-import json
-import socket
+import json, socket, os, sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import BasicSA as sa
+from CommonValue import BasicSARound
 
-HOST, PORT = 'localhost', 7
-SIZE = 1024
-ENCODING = 'ascii'
-xu = 0  # temp. local model of this client
+SIZE = 2048
+ENCODING = 'utf-8'
 
-commonValues = {}  # {"n": n, "t": t, "g": g, "p": p, "R": R} from server in setup stage
-u = 0  # u = user index
-my_keys = {}  # c_pk, c_sk, s_pk, s_sk of this client
-others_keys = {}  # other users' public key dic
-euv_list = []  # euv of this client
-others_euv = {}
-bu = 0  # random element to be used as a seed for PRG
-U3 = []  # survived users in round2(MaskedInputCollection)
-
-def setUp():
+def sendRequestAndReceive(host, port, tag, request):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(HOST, PORT)
-    print("connected!")
+    s.connect((host, port))
+    print(f"[{tag}] Server connected!")
 
-    # {"n": n, "t": t, "g": g, "p": p, "R": R}
-    commonValues = json.loads(s.recv(SIZE, ENCODING))
-    print(f"[Client] receive response {commonValues}")
-
-    s.close()
-
-
-def advertiseKeys():
-    ((c_pk, c_sk), (s_pk, s_sk)) = sa.generateKeyPairs()
-    my_keys["c_pk"] = c_pk
-    my_keys["c_sk"] = c_sk
-    my_keys["s_pk"] = s_pk
-    my_keys["s_sk"] = s_sk
-    request = {"c_pk": c_pk, "s_pk": s_pk}
-    response = {}
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(HOST, PORT)
-    print("connected!")
-
-    # send {"c_pk": c_pk, "s_pk": s_pk} to server in json format
+    # add tag to request
+    request['request'] = tag
+    
+    # send request
     s.sendall(bytes(json.dumps(request), ENCODING))
-    print(f"[Client] send request {request}")
+    print(f"[{tag}] Send {request}")
 
-    # receive other users' public keys from server in json format
-    response = json.loads(s.recv(SIZE, ENCODING))
-    print(f"[Client] receive response {response}")
+    # receive
+    receivedStr = str(s.recv(SIZE), ENCODING)
+    response = ''
+    try:
+        response = json.loads(receivedStr)
+        print(f"[{tag}] receive response {response}")
+        return response
+    except json.decoder.JSONDecodeError:
+        #raise Exception(f"[{tag}] Server response with: {response}")
+        print(f"[{tag}] Server response with: {receivedStr}")
+        exit
+    finally:
+        s.close()
 
-    # store response on client
-    # example: {"0": {"c_pk": "2123", "s_pk": "3333", "index": 0}, "1": {"c_pk": "1111", "s_pk": "2222", "index": 1}}
-    others_keys = response
+class BasicSAClient:
+    HOST = 'localhost'
+    xu = 0  # temp. local model of this client
 
-    s.close()
+    commonValues = {}  # {"n": n, "t": t, "g": g, "p": p, "R": R} from server in setup stage
+    u = 0  # u = user index
+    my_keys = {}  # c_pk, c_sk, s_pk, s_sk of this client
+    others_keys = {}  # other users' public key dic
+    euv_list = []  # euv of this client
+    others_euv = {}
+    bu = 0  # random element to be used as a seed for PRG
+    U3 = []  # survived users in round2(MaskedInputCollection)
 
+    def setUp(self):
+        tag = BasicSARound.SetUp.name
+        PORT = BasicSARound.SetUp.value
 
-def shareKeys():
-    # t = threshold, u = user index
-    # request = [[u, v1, euv], [u, v2, euv], ...]
-    request = []
-    # response = []
-    response = {}
+        # response: {"n": n, "t": t, "g": g, "p": p, "R": R}
+        response = sendRequestAndReceive(self.HOST, PORT, tag, {})
+        self.commonValues = response
 
-    for i, user_dic in others_keys.items():
-        if my_keys["c_pk"] == user_dic["c_pk"] and my_keys["s_pk"] == user_dic["s_pk"]:
-            u = user_dic["index"]  # u = user index
-            break
-        else:
-            continue
+    def advertiseKeys(self):
+        tag = BasicSARound.AdvertiseKeys.name
+        PORT = BasicSARound.AdvertiseKeys.value
 
-    euv_list, bu = sa.generateSharesOfMask(commonValues["t"], u, my_keys["s_sk"], my_keys["c_sk"], others_keys, commonValues["R"])
-    request = euv_list
+        (c_pk, c_sk), (s_pk, s_sk) = sa.generateKeyPairs()
+        self.my_keys["c_pk"] = c_pk
+        self.my_keys["c_sk"] = c_sk 
+        self.my_keys["s_pk"] = s_pk
+        self.my_keys["s_sk"] = s_sk
+        request = {"c_pk": c_pk, "s_pk": s_pk}
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(HOST, PORT)
-    print("connected!")
+        # send {"c_pk": c_pk, "s_pk": s_pk} to server in json format
+        # receive other users' public keys from server in json format
+        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
 
-    # send euv_list(encrypted shares of bu and s_sk) to server in list format
-    s.sendall(bytes(request, ENCODING))
-    print(f"[Client] send request {request}")
-
-    # receive euv_list from server in json format
-    # change euv_list format from json to list and store
-    response = json.loads(s.recv(SIZE, ENCODING))
-    print(f"[Client] receive response {response}")
-
-    # store euv from server to client in dic
-    """for v, euv in enumerate(response):  # example response = ["e01", "e11"]
-        others_euv[v] = euv
-    """
-    # if response format {v: euv}. example = {0: "e00", 1: "e10"}
-    for v, euv in response.items():
-        others_euv[v] = euv
-
-    s.close()
-
-
-def MaskedInputCollection():
-    request = {}
-    response = {}
-
-    s_pk_dic = {}
-    for i, user_dic in others_keys.items():
-        v = i
-        s_pk_dic[i] = user_dic.get("s_pk")
-    yu = sa.generateMaskedInput(u, bu, xu, my_keys["s_sk"], euv_list, s_pk_dic, commonValues["R"])
-    request = {u: yu}  # request example: {0: y0}
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(HOST, PORT)
-    print("connected!")
-
-    # send u and yu in json format
-    s.sendall(bytes(json.dumps(request), ENCODING))
-    print(f"[Client] send request {request}")
-
-    # receive sending_yu_list from server
-    response = json.loads(s.recv(SIZE, ENCODING))
-    print(f"[Client] receive response {response}")
-
-    # U3 = survived users in round2(MaskedInputCollection) = users_last used in round4(unmasking)
-    U3 = response
-
-    s.close()
+        # store response on client
+        # example: {"0": {"c_pk": "2123", "s_pk": "3333", "index": 0}, "1": {"c_pk": "1111", "s_pk": "2222", "index": 1}}
+        self.others_keys = response
 
 
-def Unmasking():
-    request = {}
-    s_sk_shares_dic = {}
-    bu_shares_dic = {}
-    temp_request = (s_sk_shares_dic, bu_shares_dic)
+    def shareKeys(self):
+        tag = BasicSARound.ShareKeys.name
+        PORT = BasicSARound.ShareKeys.value
 
-    c_pk_dic = {}
-    for i, user_dic in others_keys.items():
-        v = i
-        c_pk_dic[i] = user_dic.get("c_pk")
+        for i, user_dic in self.others_keys.items():
+            if self.my_keys["c_pk"] == user_dic["c_pk"] and self.my_keys["s_pk"] == user_dic["s_pk"]:
+                self.u = user_dic["index"]  # u = user index
+                break
+            else:
+                continue
 
-    # U2 = survived users in round1(shareKeys) = users_previous
-    U2 = list(others_euv.keys())
+        # t = threshold, u = user index
+        # request = [[u, v1, euv], [u, v2, euv], ...]
+        euv_list, bu = sa.generateSharesOfMask(
+            self.commonValues["t"], 
+            self.u, 
+            self.my_keys["s_sk"], 
+            self.my_keys["c_sk"], 
+            self.others_keys, 
+            self.commonValues["R"])
+        self.euv_list = euv_list
+        self.bu = bu
+        request = {self.u: euv_list}
 
-    # requests example: {u: [{0: s02_sk, 1: s03_sk, ...}, {1: b01, 4: b04, ...}]}
-    temp_request = sa.unmasking(u, my_keys["c_sk"], euv_list, c_pk_dic, U2, U3)
-    request = {u: list(temp_request)}
+        # receive euv_list from server in json format
+        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect(HOST, PORT)
-    print("connected!")
+        # store euv from server to client in dic
+        """for v, euv in enumerate(response):  # example response = ["e01", "e11"]
+            others_euv[v] = euv
+        """
+        # if response format {v: euv}. example = {0: "e00", 1: "e10"}
+        for v, euv in response.items():
+            self.others_euv[int(v)] = euv
 
-    # send u and dropped users' s_sk, survived users' bu in json format
-    s.sendall(bytes(json.dumps(request), ENCODING))
-    print(f"[Client] send request {request}")
 
-    s.close()
+    def maskedInputCollection(self):
+        tag = BasicSARound.MaskedInputCollection.name
+        PORT = BasicSARound.MaskedInputCollection.value
+        request = {}
+        response = {}
 
+        s_pk_dic = {}
+        for i, user_dic in self.others_keys.items():
+            v = int(i)
+            s_pk_dic[v] = user_dic.get("s_pk")
+        yu = sa.generateMaskedInput(
+            self.u, 
+            self.bu, 
+            self.xu, 
+            self.my_keys["s_sk"], 
+            self.euv_list, 
+            s_pk_dic, 
+            self.commonValues["R"])
+        request = {"idx": self.u, "yu": yu}  # request example: {"idx":0, "yu":y0}
+
+        # receive sending_yu_list from server
+        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+
+        # U3 = survived users in round2(MaskedInputCollection) = users_last used in round4(unmasking)
+        self.U3 = response['users']
+
+
+    def unmasking(self):
+        tag = BasicSARound.Unmasking.name
+        PORT = BasicSARound.Unmasking.value
+        s_sk_shares_dic = {}
+        bu_shares_dic = {}
+
+        c_pk_dic = {}
+        for i, user_dic in self.others_keys.items():
+            v = int(i)
+            c_pk_dic[v] = user_dic.get("c_pk")
+
+        # U2 = survived users in round1(shareKeys) = users_previous
+        U2 = list(self.others_euv.keys())
+
+        s_sk_shares_dic, bu_shares_dic = sa.unmasking(
+            self.u, 
+            self.my_keys["c_sk"], 
+            self.others_euv, 
+            c_pk_dic, 
+            U2, 
+            self.U3,
+            self.commonValues["R"])
+        # requests example: {"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk, ...}, "bu_shares": {1: b10, 4: b40, ...}]}
+        request = {"idx": self.u, "ssk_shares": str(s_sk_shares_dic), "bu_shares": str(bu_shares_dic)}
+
+        # send u and dropped users' s_sk, survived users' bu in json format
+        sendRequestAndReceive(self.HOST, PORT, tag, request)
+
+if __name__ == "__main__":
+    client = BasicSAClient() # test
+    client.setUp()
+    client.advertiseKeys()
+    client.shareKeys()    
+    client.maskedInputCollection()
+    client.unmasking()

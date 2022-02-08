@@ -2,6 +2,9 @@
 import random, hashlib
 from Crypto.Protocol.SecretSharing import Shamir
 from Crypto.Cipher import AES
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Util import number
 
 # find prime number
 def primesInRange(x, y):
@@ -53,6 +56,18 @@ def decrypt(key, ciphertext):
     decrypted = decryptor.decrypt(bytes.fromhex(ciphertext)).decode('utf-8')
     return unpad(decrypted)
 
+# Return a random N-bit prime number
+def getPrime(bit):
+    return number.getPrime(bit)
+
+# Return a generator of modulo
+def getOneGenerator(modulo):
+    required_set = set(num for num in range (1, modulo) if gcd(num, modulo) == 1)
+    for g in range(1, modulo):
+        actual_set = set(pow(g, powers) % modulo for powers in range (1, modulo))
+        if required_set == actual_set:
+            return g
+
 # Secret-Sharing
 def make_shares(key, t, n):
     return Shamir.split(t, n, key)
@@ -60,3 +75,16 @@ def make_shares(key, t, n):
 def combine_shares(shares):
     key = Shamir.combine(shares)
     return int.from_bytes(key, 'big')
+
+# RSA
+def generateRSAKeyPair():
+    key = RSA.generate(1028)
+    publicKey = PKCS1_OAEP.new(key.publickey())
+    privateKey = PKCS1_OAEP.new(key)
+    return (publicKey, privateKey)
+
+def encryptRSA(publicKey, plainText):
+    return publicKey.encrypt(plainText.encode())
+
+def decryptRSA(privateKey, cipherText):
+    return privateKey.decrypt(cipherText).decode()

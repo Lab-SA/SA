@@ -83,6 +83,7 @@ def local_update(global_model, train_dataset, user_groups, idx, epoch):
 # 클라언트는 local_model은 리턴받아 저장
 # 서버로 local_weight, local_loss를 전달
 
+
 # [호츌] : 서버
 # [인자] : local_weight_sum (합쳐진 local_weight), local_losses (local_loss 들을 모은 배열) 
 # [리턴] : global_model 

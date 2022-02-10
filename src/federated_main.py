@@ -12,13 +12,10 @@ from update import LocalUpdate, test_inference
 from models import CNNMnist
 from utils import get_dataset, average_weights, exp_details
 
+
 # 전역변수 선언
 args = args_parser()
 train_loss, train_accuracy = [], []
-val_acc_list, net_list = [], []
-cv_loss, cv_acc = [], []
-print_every = 2
-val_loss_pre, counter = 0, 0
 start_time = 0
 
 # [호츌] : 서버, 클라이언트
@@ -27,7 +24,7 @@ start_time = 0
 def setup():
     path_project = os.path.abspath('..')
 
-    args = args_parser()
+    # args = args_parser()
     exp_details(args)
 
     if args.gpu:
@@ -45,7 +42,6 @@ def setup():
     # Set the model to train and send it to device.
     global_model.to(device)
     global_model.train()
-    print(global_model)
 
     return global_model
 
@@ -73,7 +69,7 @@ def get_global_weights(global_model):
 # [인자] : global_model, train_dataset, user_groups, idx(몇 번째 클라이언트인지 인덱스값)
 # [리턴] : local_model, local_weight, local_loss
 # localupdate를 수행한 후 local_weight와 local_loss를 update하여 리턴
-def local_update(global_model, train_dataset, user_groups, idx):
+def local_update(global_model, train_dataset, user_groups, idx, epoch):
     global_model.train()
     local_model = LocalUpdate(args=args, dataset=train_dataset,
                                 idxs=user_groups[idx])
@@ -82,17 +78,18 @@ def local_update(global_model, train_dataset, user_groups, idx):
     local_weight = copy.deepcopy(w)
     local_loss = copy.deepcopy(loss)
 
-    return local_model, local_weight, local_loss
+    return local_model, w, loss
 
 # 클라언트는 local_model은 리턴받아 저장
 # 서버로 local_weight, local_loss를 전달
 
 # [호츌] : 서버
-# [인자] : global_weigth (평균된 local weight), local_losses (local_loss 들을 모은 배열) 
+# [인자] : local_weight_sum (합쳐진 local_weight), local_losses (local_loss 들을 모은 배열) 
 # [리턴] : global_model 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
-def update_globalmodel(global_weight, local_losses):
-    global_model.load_state_dict(global_weight)
+def update_globalmodel(global_model, local_weight_sum, local_losses):
+    average_weight = average_weights(local_weight_sum)
+    global_model.load_state_dict(average_weight)
     loss_avg = sum(local_losses) / len(local_losses)
     train_loss.append(loss_avg)
     return global_model
@@ -114,9 +111,10 @@ def test_accuracy(local_model, global_model):
 # [인자] : list_acc (클라이언트들로부터 전달받은 acc들을 저장해놓은 배열) 
 # [리턴] : X
 # 클라이언트들이 보낸 acc 값들로 해당 학습의 정확도를 저장하고 epoch 매 2회마다 train loss 와 train accuracy를 출력
-def add_accuracy(list_acc):
+def add_accuracy(list_acc, epoch):
     # list_acc.append(acc)
     train_accuracy.append(sum(list_acc)/len(list_acc))
+    print_every = 2
     if (epoch+1) % print_every == 0:
         print(f' \nAvg Training Stats after {epoch+1} global rounds:')
         print(f'Training Loss : {np.mean(np.array(train_loss))}')
@@ -125,10 +123,9 @@ def add_accuracy(list_acc):
 # [호츌] : 서버
 # [인자] : global_model (최종 학습이 끝난 후의 global_model) 
 # [리턴] : X
-# 클라이언트들이 보낸 acc 값들로 해당 학습의 정확도를 저장하고 epoch 매 2회마다 train loss 와 train accuracy를 출력
-# 모든 학습이 끝난후 출력 
+# # 모든 학습이 끝난후 출력 
 # 서버가 함수 호출 (global_model을 인자로 보내야 함)
-def test_result(global_model):
+def test_result(global_model, test_dataset):
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
 
     print(f' \n Results after {args.epochs} global rounds of training:')
@@ -136,12 +133,12 @@ def test_result(global_model):
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
 
     # Saving the objects train_loss and train_accuracy:
-    file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
-        format(args.dataset, args.model, args.epochs, args.frac, args.iid,
-               args.local_ep, args.local_bs)
+    # file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
+    #     format(args.dataset, args.model, args.epochs, args.frac, args.iid,
+    #            args.local_ep, args.local_bs)
 
-    with open(file_name, 'wb') as f:
-        pickle.dump([train_loss, train_accuracy], f)
+    # with open(file_name, 'wb') as f:
+    #     pickle.dump([train_loss, train_accuracy], f)
 
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
-
+    

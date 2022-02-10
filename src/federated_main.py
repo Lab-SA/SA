@@ -12,92 +12,48 @@ from update import LocalUpdate, test_inference
 from models import CNNMnist
 from utils import get_dataset, average_weights, exp_details
 
+# [호츌] : 서버
+# [인자] : global_weigth (평균된 local weight), local_losses (local_loss 들을 모은 배열) 
+# [리턴] : global_model 
+# local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
+def update_globalmodel(global_weight, local_losses):
+    global_model.load_state_dict(global_weight)
+    loss_avg = sum(local_losses) / len(local_losses)
+    train_loss.append(loss_avg)
+    return global_model
 
-if __name__ == '__main__':
-    start_time = time.time()
+# 서버는 전달받은 update된 global model과 서버에서 계산한 global_weights를 클라이언트들에게 전송
 
-    # define paths
-    path_project = os.path.abspath('..')
-    # logger = SummaryWriter('../logs')
+# [호츌] : 클라이언트
+# [인자] : local_model (바로 이전에 클라이언트가 학습한 결과), global_model (서버로부터 전달받은 update된 global_model) 
+# [리턴] : acc (정확도)
+# 매 epoch마다의 검증과 모든 학습 후 정확성 출력을 위해 새롭게 업데이트 된 global_model과 이전에 학습해서 나온 local_model을 비교
+def test_accuracy(local_model, global_model):
+    global_model.eval()
+    acc, loss = local_model.inference(model=global_model)
+    return acc
 
-    args = args_parser()
-    exp_details(args)
+# 클라이언트는 리턴된 acc를 서버로 전달하고 local_train 시작
 
-    if args.gpu:
-        torch.cuda.set_device(int(args.gpu))
-    device = 'cuda' if args.gpu else 'cpu'
+# [호츌] : 서버
+# [인자] : list_acc (클라이언트들로부터 전달받은 acc들을 저장해놓은 배열) 
+# [리턴] : X
+# 클라이언트들이 보낸 acc 값들로 해당 학습의 정확도를 저장하고 epoch 매 2회마다 train loss 와 train accuracy를 출력
+def add_accuracy(list_acc):
+    # list_acc.append(acc)
+    train_accuracy.append(sum(list_acc)/len(list_acc))
+    if (epoch+1) % print_every == 0:
+        print(f' \nAvg Training Stats after {epoch+1} global rounds:')
+        print(f'Training Loss : {np.mean(np.array(train_loss))}')
+        print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
-    print("HELLO")
-
-    # load dataset and user groups
-    train_dataset, test_dataset, user_groups = get_dataset(args)
-
-    # BUILD MODEL
-    if args.model == 'cnn':
-        # Convolutional neural netork
-        if args.dataset == 'mnist':
-            global_model = CNNMnist(args=args)
-    else:
-        exit('Error: unrecognized model')
-
-    # Set the model to train and send it to device.
-    global_model.to(device)
-    global_model.train()
-    print(global_model)
-
-    # copy weights
-    global_weights = global_model.state_dict()
-
-     # Training
-    train_loss, train_accuracy = [], []
-    val_acc_list, net_list = [], []
-    cv_loss, cv_acc = [], []
-    print_every = 2
-    val_loss_pre, counter = 0, 0
-
-    for epoch in tqdm(range(args.epochs)):
-        local_weights, local_losses = [], []
-        print(f'\n | Global Training Round : {epoch+1} |\n')
-
-        global_model.train()
-        m = max(int(args.frac * args.num_users), 1)
-        idxs_users = np.random.choice(range(args.num_users), m, replace=False)
-
-        for idx in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx])
-            w, loss = local_model.update_weights(
-                model=copy.deepcopy(global_model), global_round=epoch)
-            local_weights.append(copy.deepcopy(w))
-            local_losses.append(copy.deepcopy(loss))
-
-        # update global weights
-        global_weights = average_weights(local_weights)
-
-        # update global weights
-        global_model.load_state_dict(global_weights)
-
-        loss_avg = sum(local_losses) / len(local_losses)
-        train_loss.append(loss_avg)
-
-        # Calculate avg training accuracy over all users at every epoch
-        list_acc, list_loss = [], []
-        global_model.eval()
-        for c in range(args.num_users):
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx])
-            acc, loss = local_model.inference(model=global_model)
-            list_acc.append(acc)
-            list_loss.append(loss)
-        train_accuracy.append(sum(list_acc)/len(list_acc))
-
-        # print global training loss after every 'i' rounds
-        if (epoch+1) % print_every == 0:
-            print(f' \nAvg Training Stats after {epoch+1} global rounds:')
-            print(f'Training Loss : {np.mean(np.array(train_loss))}')
-            print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
-
-    # Test inference after completion of training
+# [호츌] : 서버
+# [인자] : global_model (최종 학습이 끝난 후의 global_model) 
+# [리턴] : X
+# 클라이언트들이 보낸 acc 값들로 해당 학습의 정확도를 저장하고 epoch 매 2회마다 train loss 와 train accuracy를 출력
+# 모든 학습이 끝난후 출력 
+# 서버가 함수 호출 (global_model을 인자로 보내야 함)
+def test_result(global_model):
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
 
     print(f' \n Results after {args.epochs} global rounds of training:')
@@ -113,3 +69,4 @@ if __name__ == '__main__':
         pickle.dump([train_loss, train_accuracy], f)
 
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
+

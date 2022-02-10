@@ -12,6 +12,81 @@ from update import LocalUpdate, test_inference
 from models import CNNMnist
 from utils import get_dataset, average_weights, exp_details
 
+# 전역변수 선언
+args = args_parser()
+train_loss, train_accuracy = [], []
+val_acc_list, net_list = [], []
+cv_loss, cv_acc = [], []
+print_every = 2
+val_loss_pre, counter = 0, 0
+start_time = 0
+
+# [호츌] : 서버, 클라이언트
+# [리턴] : global_model 
+# 처음 시작할 때만 호출도는 setup 함수
+def setup():
+    path_project = os.path.abspath('..')
+
+    args = args_parser()
+    exp_details(args)
+
+    if args.gpu:
+        torch.cuda.set_device(int(args.gpu))
+    device = 'cuda' if args.gpu else 'cpu'
+
+    # BUILD MODEL
+    if args.model == 'cnn':
+        # Convolutional neural netork
+        if args.dataset == 'mnist':
+            global_model = CNNMnist(args=args)
+    else:
+        exit('Error: unrecognized model')
+
+    # Set the model to train and send it to device.
+    global_model.to(device)
+    global_model.train()
+    print(global_model)
+
+    return global_model
+
+# [호츌] : 서버
+# [리턴] : train_dataset, test_dataset, user_groups 
+# train_dataset: MNIST, test_dataset: MNIST, user_groups: dict[int, Any]
+# train_dataset: 학습을 위한 데이터셋
+# user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
+def getDataset():
+    start_time = time.time()
+    train_dataset, test_dataset, user_groups = get_dataset(args)
+    return train_dataset, test_dataset, user_groups
+
+# 서버는 train_dataset과 user_groups를 클라이언트로 전달
+
+# [호츌] : 서버
+# [인자] : global_model
+# [리턴] : global_weights
+# global_model의 weights를 리턴받음
+def get_global_weights(global_model):
+    global_weights = global_model.state_dict()
+    return global_weights
+
+# [호츌] : 클라이언트
+# [인자] : global_model, train_dataset, user_groups, idx(몇 번째 클라이언트인지 인덱스값)
+# [리턴] : local_model, local_weight, local_loss
+# localupdate를 수행한 후 local_weight와 local_loss를 update하여 리턴
+def local_update(global_model, train_dataset, user_groups, idx):
+    global_model.train()
+    local_model = LocalUpdate(args=args, dataset=train_dataset,
+                                idxs=user_groups[idx])
+    w, loss = local_model.update_weights(
+        model=copy.deepcopy(global_model), global_round=epoch)
+    local_weight = copy.deepcopy(w)
+    local_loss = copy.deepcopy(loss)
+
+    return local_model, local_weight, local_loss
+
+# 클라언트는 local_model은 리턴받아 저장
+# 서버로 local_weight, local_loss를 전달
+
 # [호츌] : 서버
 # [인자] : global_weigth (평균된 local weight), local_losses (local_loss 들을 모은 배열) 
 # [리턴] : global_model 

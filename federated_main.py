@@ -52,6 +52,7 @@ def setup(args):
 # train_dataset: 학습을 위한 데이터셋
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
 def getDataset(args):
+    global start_time
     start_time = time.time()
     train_dataset, test_dataset, user_groups = get_dataset(args)
     return train_dataset, test_dataset, user_groups
@@ -93,10 +94,11 @@ def update_globalmodel(global_model, local_weight_sum, local_losses):
     average_weight = average_weights(local_weight_sum)
     global_model.load_state_dict(average_weight)
     loss_avg = sum(local_losses) / len(local_losses)
+    global train_loss
     train_loss.append(loss_avg)
     return global_model
 
-# 서버는 전달받은 update된 global model과 서버에서 계산한 global_weights를 클라이언트들에게 전송
+# 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 
 # [호츌] : 클라이언트
 # [인자] : local_model (바로 이전에 클라이언트가 학습한 결과), global_model (서버로부터 전달받은 update된 global_model) 
@@ -115,8 +117,10 @@ def test_accuracy(local_model, global_model):
 # 클라이언트들이 보낸 acc 값들로 해당 학습의 정확도를 저장하고 epoch 매 2회마다 train loss 와 train accuracy를 출력
 def add_accuracy(list_acc, epoch):
     # list_acc.append(acc)
+    global train_accuracy
     train_accuracy.append(sum(list_acc)/len(list_acc))
     print_every = 2
+    global train_loss
     if (epoch+1) % print_every == 0:
         print(f' \nAvg Training Stats after {epoch+1} global rounds:')
         print(f'Training Loss : {np.mean(np.array(train_loss))}')
@@ -127,9 +131,9 @@ def add_accuracy(list_acc, epoch):
 # [리턴] : X
 # # 모든 학습이 끝난후 출력 
 # 서버가 함수 호출 (global_model을 인자로 보내야 함)
-def test_result(global_model, test_dataset):
+def test_result(global_model, test_dataset, args):
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
-
+    global train_accuracy
     print(f' \n Results after {args.epochs} global rounds of training:')
     print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
@@ -141,6 +145,6 @@ def test_result(global_model, test_dataset):
 
     # with open(file_name, 'wb') as f:
     #     pickle.dump([train_loss, train_accuracy], f)
-
+    global start_time
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
     

@@ -91,3 +91,10 @@ class MainServer:
         
         self.serverSocket.close()
         print(f'[{self.tag}] Server finished')
+    
+    # send response for each client (different response) with index
+    def foreachIndex(self, response):
+        # requestData and response's order MUST be same
+        for idx, (clientSocket, requestData) in enumerate(self.requests):
+            response_json = json.dumps(response[idx])
+            clientSocket.sendall(bytes(response_json, self.ENCODING))

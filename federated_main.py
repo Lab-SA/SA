@@ -87,8 +87,8 @@ def local_update(global_model, train_dataset, user_groups, idx, args, epoch):
 
 
 # [호츌] : 서버
-# [인자] : average_weight (local_weight들의 평균값), local_losses (local_loss 들을 모은 배열) 
-# [리턴] : global_model 
+# [인자] : global_model, average_weight (local_weight들의 평균값), local_losses (local_loss 들을 모은 배열) 
+# [리턴] : global_model (업데이트된 global_model) 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
 def update_globalmodel(global_model, average_weight, local_losses):
     global_model.load_state_dict(average_weight)
@@ -126,7 +126,7 @@ def add_accuracy(list_acc, epoch):
         print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
 # [호츌] : 서버
-# [인자] : global_model (최종 학습이 끝난 후의 global_model) 
+# [인자] : global_model (최종 학습이 끝난 후의 global_model)
 # [리턴] : X
 # # 모든 학습이 끝난후 출력 
 # 서버가 함수 호출 (global_model을 인자로 보내야 함)

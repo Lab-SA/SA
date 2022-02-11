@@ -9,10 +9,11 @@ from CommonValue import TurboRound
 usersNum = 0
 threshold = 0
 R = 0
+groups = []
 
 # send common values and index, group of each user
 def setUp():
-    global usersNum, threshold, R
+    global usersNum, threshold, R, groups
 
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
@@ -33,5 +34,20 @@ def setUp():
         response.append(response_i)
     server.foreachIndex(response)
 
+def turbo():
+    global groups, usersNum
+
+    tag = TurboRound.Turbo.name
+    tag_value = TurboRound.Turbo_Value.name
+    port = TurboRound.Turbo.value
+    
+    server = GroupServer(tag, tag_value, port, len(groups), usersNum)
+    server.start()
+    server.close() # temp
+
 if __name__ == "__main__":
     setUp()
+
+def turbo():
+    global groups
+

@@ -87,11 +87,10 @@ def local_update(global_model, train_dataset, user_groups, idx, args, epoch):
 
 
 # [호츌] : 서버
-# [인자] : local_weight_sum (합쳐진 local_weight), local_losses (local_loss 들을 모은 배열) 
+# [인자] : average_weight (local_weight들의 평균값), local_losses (local_loss 들을 모은 배열) 
 # [리턴] : global_model 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
-def update_globalmodel(global_model, local_weight_sum, local_losses):
-    average_weight = average_weights(local_weight_sum)
+def update_globalmodel(global_model, average_weight, local_losses):
     global_model.load_state_dict(average_weight)
     loss_avg = sum(local_losses) / len(local_losses)
     global train_loss

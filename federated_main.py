@@ -79,7 +79,7 @@ def local_update(global_model, train_dataset, user_groups, idx, args, epoch):
     local_weight = copy.deepcopy(w)
     local_loss = copy.deepcopy(loss)
 
-    return local_model, w, loss
+    return local_model, local_weight, local_loss
 
 # 클라언트는 local_model은 리턴받아 저장
 # 서버로 local_weight, local_loss를 전달

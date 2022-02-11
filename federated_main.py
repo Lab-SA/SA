@@ -14,18 +14,18 @@ from utils import get_dataset, average_weights, exp_details
 
 
 # 전역변수 선언
-args = args_parser()
 train_loss, train_accuracy = [], []
 start_time = 0
 
 # [호츌] : 서버, 클라이언트
+# [인자] : args
 # [리턴] : global_model 
-# 처음 시작할 때만 호출도는 setup 함수
-def setup():
+# 처음 시작할 때만 호출도는 setup 함수. args를 인자로 전달
+def setup(args):
     path_project = os.path.abspath('..')
 
     # args = args_parser()
-    exp_details(args)
+    # exp_details(args)
 
     if args.gpu:
         torch.cuda.set_device(int(args.gpu))
@@ -46,11 +46,12 @@ def setup():
     return global_model
 
 # [호츌] : 서버
+# [인자] : args
 # [리턴] : train_dataset, test_dataset, user_groups 
 # train_dataset: MNIST, test_dataset: MNIST, user_groups: dict[int, Any]
 # train_dataset: 학습을 위한 데이터셋
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
-def getDataset():
+def getDataset(args):
     start_time = time.time()
     train_dataset, test_dataset, user_groups = get_dataset(args)
     return train_dataset, test_dataset, user_groups
@@ -66,10 +67,10 @@ def get_global_weights(global_model):
     return global_weights
 
 # [호츌] : 클라이언트
-# [인자] : global_model, train_dataset, user_groups, idx(몇 번째 클라이언트인지 인덱스값)
+# [인자] : global_model, train_dataset, user_groups, idx(몇 번째 클라이언트인지 인덱스값), args, epoch(몇 번째 학습인지 저장)
 # [리턴] : local_model, local_weight, local_loss
 # localupdate를 수행한 후 local_weight와 local_loss를 update하여 리턴
-def local_update(global_model, train_dataset, user_groups, idx, epoch):
+def local_update(global_model, train_dataset, user_groups, idx, args, epoch):
     global_model.train()
     local_model = LocalUpdate(args=args, dataset=train_dataset,
                                 idxs=user_groups[idx])
@@ -109,7 +110,7 @@ def test_accuracy(local_model, global_model):
 # 클라이언트는 리턴된 acc를 서버로 전달하고 local_train 시작
 
 # [호츌] : 서버
-# [인자] : list_acc (클라이언트들로부터 전달받은 acc들을 저장해놓은 배열) 
+# [인자] : list_acc (클라이언트들로부터 전달받은 acc들을 저장해놓은 배열), epoch(몇 번째 학습인지 저장)
 # [리턴] : X
 # 클라이언트들이 보낸 acc 값들로 해당 학습의 정확도를 저장하고 epoch 매 2회마다 train loss 와 train accuracy를 출력
 def add_accuracy(list_acc, epoch):

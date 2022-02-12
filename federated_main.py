@@ -15,17 +15,18 @@ from utils import get_dataset, average_weights, exp_details
 
 # 전역변수 선언
 train_loss, train_accuracy = [], []
+args = args_parser()
 start_time = 0
 
 # [호츌] : 서버, 클라이언트
-# [인자] : args
 # [리턴] : global_model 
 # 처음 시작할 때만 호출도는 setup 함수. args를 인자로 전달
-def setup(args):
+def setup():
     path_project = os.path.abspath('..')
 
+    global args
     # args = args_parser()
-    # exp_details(args)
+    exp_details(args)
 
     if args.gpu:
         torch.cuda.set_device(int(args.gpu))
@@ -52,7 +53,7 @@ def setup(args):
 # train_dataset: 학습을 위한 데이터셋
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
 def getDataset():
-    global start_time
+    global start_time, args
     start_time = time.time()
     train_dataset, test_dataset, user_groups = get_dataset(args)
     return train_dataset, test_dataset, user_groups
@@ -72,6 +73,7 @@ def get_global_weights(global_model):
 # [리턴] : local_model, local_weight, local_loss
 # localupdate를 수행한 후 local_weight와 local_loss를 update하여 리턴
 def local_update(global_model, train_dataset, user_groups, idx, epoch):
+    global args
     global_model.train()
     local_model = LocalUpdate(args=args, dataset=train_dataset,
                                 idxs=user_groups[idx])
@@ -134,8 +136,9 @@ def add_accuracy(list_acc, epoch):
 # # 모든 학습이 끝난후 출력 
 # 서버가 함수 호출 (global_model을 인자로 보내야 함)
 def test_result(global_model, test_dataset):
+    global train_accuracy, args
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
-    global train_accuracy
+    
     print(f' \n Results after {args.epochs} global rounds of training:')
     print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
@@ -149,4 +152,6 @@ def test_result(global_model, test_dataset):
     #     pickle.dump([train_loss, train_accuracy], f)
     global start_time
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
+    
+
     

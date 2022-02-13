@@ -17,6 +17,7 @@ from utils import get_dataset, average_weights, exp_details
 train_loss, train_accuracy = [], []
 args = args_parser()
 start_time = 0
+train_dataset
 
 # [호츌] : 서버, 클라이언트
 # [리턴] : global_model 
@@ -48,17 +49,18 @@ def setup():
 
 # [호츌] : 서버
 # [인자] : X
-# [리턴] : train_dataset, test_dataset, user_groups 
+# [리턴] : test_dataset, user_groups 
 # train_dataset: MNIST, test_dataset: MNIST, user_groups: dict[int, Any]
 # train_dataset: 학습을 위한 데이터셋
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
 def getDataset():
-    global start_time, args
+    global start_time, args, train_dataset
     start_time = time.time()
     train_dataset, test_dataset, user_groups = get_dataset(args)
-    return train_dataset, test_dataset, user_groups
+    return test_dataset, user_groups
 
 # 서버는 train_dataset과 user_groups를 클라이언트로 전달
+# ex) 0번 클라이언트에게 user_groups[0], 1번 클라이언트에게 user_groups[1] 전달
 
 # [호츌] : 서버
 # [인자] : global_model
@@ -69,14 +71,14 @@ def get_global_weights(global_model):
     return global_weights
 
 # [호츌] : 클라이언트
-# [인자] : global_model, train_dataset, user_groups, idx(몇 번째 클라이언트인지 인덱스값), epoch(몇 번째 학습인지 저장해놓은 변수)
+# [인자] : global_model, user_group(서버에게 받은 데이터셋), epoch(몇 번째 학습인지 저장해놓은 변수)
 # [리턴] : local_model, local_weight, local_loss
 # localupdate를 수행한 후 local_weight와 local_loss를 update하여 리턴
-def local_update(global_model, train_dataset, user_groups, idx, epoch):
-    global args
+def local_update(global_model, user_group, epoch):
+    global args, train_dataset
     global_model.train()
     local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                idxs=user_groups[idx])
+                                idxs=user_group)
     w, loss = local_model.update_weights(
         model=copy.deepcopy(global_model), global_round=epoch)
     local_weight = copy.deepcopy(w)
@@ -152,6 +154,8 @@ def test_result(global_model, test_dataset):
     #     pickle.dump([train_loss, train_accuracy], f)
     global start_time
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
+    
+
     
 
     

@@ -10,25 +10,26 @@ import learning.federated_main as fl
 model = {}
 users_keys = {}
 yu_list = []
-usersNum = 0
+n = 0
 threshold = 0
 R = 0
+usersNow = 0
 
 # broadcast common value
 def setUp():
-    global usersNum, threshold, R, model
+    global n, threshold, R, model, usersNow
 
     tag = BasicSARound.SetUp.name
     port = BasicSARound.SetUp.value
-    server = MainServer(tag, port)
-    server.start()
-
+    
     commonValues = getCommonValues()
-    usersNum = commonValues["n"]
+    n = commonValues["n"]
     threshold = commonValues["t"]
     R = commonValues["R"]
-
-    usersNow = len(server.requests)
+    
+    server = MainServer(tag, port, n)
+    server.start()
+    usersNow = server.userNum
     
     model = fl.setup()
     user_groups = fl.get_user_dataset(usersNow)
@@ -42,12 +43,13 @@ def setUp():
     server.foreachIndex(response)
 
 def advertiseKeys():
-    global users_keys
+    global users_keys, usersNow
 
     tag = BasicSARound.AdvertiseKeys.name
     port = BasicSARound.AdvertiseKeys.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # requests example: {"c_pk":"VALUE", "s_pk": "VALUE"}
     requests = server.requests
@@ -64,10 +66,13 @@ def advertiseKeys():
 
 
 def shareKeys():
+    global usersNow
+
     tag = BasicSARound.ShareKeys.name
     port = BasicSARound.ShareKeys.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # (one) request example: {0: [(0, 0, e00), (0, 1, e01) ... ]}
     # requests example: [{0: [(0, 0, e00), ... ]}, {1: [(1, 0, e10), ... ]}, ... ]
@@ -92,12 +97,13 @@ def shareKeys():
     server.foreach(response)
     
 def maskedInputCollection():
-    global yu_list
+    global yu_list, usersNow
 
     tag = BasicSARound.MaskedInputCollection.name
     port = BasicSARound.MaskedInputCollection.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # if u3 dropped
     # (one) request example: {"idx":0, "yu":y0}
@@ -113,13 +119,14 @@ def maskedInputCollection():
     server.broadcast({"users": response})
 
 def unmasking():
-    global usersNum, yu_list, R, users_keys
+    global yu_list, R, users_keys, usersNow
     sum_xu = sum(yu_list) # sum(xu) is sum of user3's xu
 
     tag = BasicSARound.Unmasking.name
     port = BasicSARound.Unmasking.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # (one) request: {"idx": u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
     # if u2, u3 dropped, requests: [{"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk}, "bu_shares": {1: b10, 4: b40}}, ...]
@@ -162,6 +169,8 @@ def unmasking():
         pu = reconstructPu(bu_shares, R)
         sum_xu = sum_xu - pu
     
+    server.broadcast("[Server] End protocol")
+
     avg = sum_xu / len(yu_list)
     return avg
 

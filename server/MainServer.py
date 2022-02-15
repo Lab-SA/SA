@@ -15,9 +15,10 @@ class MainServer:
     userNum = 0
     requests = []
 
-    def __init__(self, tag, port):
+    def __init__(self, tag, port, num):
         self.tag = tag
         self.port = port
+        self.num = num
 
     def start(self):
         self.requests = []
@@ -75,6 +76,8 @@ class MainServer:
                     pass
                 
                 self.endTime = time.time()
+                if self.userNum >= self.num:
+                    break
 
         # check threshold
         if self.t > self.userNum:
@@ -110,4 +113,4 @@ class MainServer:
         # requestData and response's order MUST be same
         for idx, (clientSocket, requestData) in enumerate(self.requests):
             response_json = json.dumps(response[idx])
-            clientSocket.sendall(bytes(response_json, self.ENCODING))
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))

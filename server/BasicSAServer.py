@@ -6,6 +6,7 @@ from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct
 from CommonValue import BasicSARound
 from ast import literal_eval
 import learning.federated_main as fl
+import SecureProtocol as sp
 
 model = {}
 users_keys = {}
@@ -38,7 +39,7 @@ def setUp():
     for i in range(usersNow):
         response_i = copy.deepcopy(commonValues)
         response_i["index"] = i
-        response_i["data"] = list(user_groups[i])
+        response_i["data"] = [int(k) for k in user_groups[i]]
         response.append(response_i)
     server.foreachIndex(response)
 

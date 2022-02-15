@@ -2,7 +2,7 @@ import json, socket, os, sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import BasicSA as sa
 from CommonValue import BasicSARound
-from learning.federated_main import setup, local_update, test_accuracy
+import learning.federated_main as fl
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -63,6 +63,10 @@ class BasicSAClient:
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
         self.commonValues = response
         self.data = response["data"] # user_groups[idx]
+
+        self.model = fl.setup()
+        local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
+        self.weight = local_weight
 
     def advertiseKeys(self):
         tag = BasicSARound.AdvertiseKeys.name

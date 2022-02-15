@@ -26,7 +26,7 @@ def get_mnist_test():
     test_dataset = datasets.MNIST(data_dir, train=False, download=True, transform=apply_transform)
     return test_dataset
 
-def get_users_data(args, train_dataset):
+def get_users_data(args, num_users, train_dataset):
     """ Returns a user group which is a dict where
     the keys are the user index and the values are the corresponding data for each of those users.
     """
@@ -34,15 +34,15 @@ def get_users_data(args, train_dataset):
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from Mnist
-            user_groups = mnist_iid(train_dataset, args.num_users)
+            user_groups = mnist_iid(train_dataset, num_users)
         else:
             # Sample Non-IID user data from Mnist
             if args.unequal:
                 # Chose uneuqal splits for every user
-                user_groups = mnist_noniid_unequal(train_dataset, args.num_users)
+                user_groups = mnist_noniid_unequal(train_dataset, num_users)
             else:
                 # Chose euqal splits for every user
-                user_groups = mnist_noniid(train_dataset, args.num_users)
+                user_groups = mnist_noniid(train_dataset, num_users)
     return user_groups
 
 

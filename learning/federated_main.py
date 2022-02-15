@@ -47,22 +47,14 @@ def setup():
 # [인자] : X
 # [리턴] : user_groups[dict[int, Any]]
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
-def get_user_dataset():
+def get_user_dataset(num_users):
     global start_time, args, train_dataset, user_groups
     start_time = time.time()
-    user_groups = get_users_data(args, train_dataset)
+    user_groups = get_users_data(args, num_users, train_dataset)
     return user_groups
 
 # 서버는 user_groups[idx] 를 클라이언트로 전달
 # ex) 0번 클라이언트에게 user_groups[0], 1번 클라이언트에게 user_groups[1] 전달
-
-# [호츌] : 서버
-# [인자] : global_model
-# [리턴] : global_weights 
-# global_model의 weights를 리턴받음 
-def get_global_weights(global_model):
-    global_weights = global_model.state_dict()
-    return global_weights
 
 # [호츌] : 클라이언트
 # [인자] : global_model, user_group(서버에게 받은 데이터셋), epoch(몇 번째 학습인지 저장해놓은 변수)
@@ -89,14 +81,38 @@ def local_update(global_model, user_group, epoch):
 # [리턴] : global_model (업데이트된 global_model) 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
 def update_globalmodel(global_model, local_weight_sum, local_losses):
+    global train_loss
+
     #local weight의 합 평균 내기
     average_weight = average_weights(local_weight_sum)
-    
-    global_model.load_state_dict(average_weight)
+    global_model.load_state_dict(average_weight) # update
+
+    # loss
     loss_avg = sum(local_losses) / len(local_losses)
-    global train_loss
     train_loss.append(loss_avg)
     return global_model
+
+# [호츌] : 서버
+# [인자] : global_model
+# [리턴] : global_weights 
+# global_model의 weights를 리턴받음 
+def get_global_weights(global_model):
+    dic_weights = {}
+    for param_tensor, value in global_model.state_dict().items():
+        dic_weights[param_tensor] = value.tolist()
+    return dic_weights
+
+# list to tensor, dic to model
+# returns new model of weights
+def list_to_tensor_model(model, dic_weights, isCpu):
+    params = {}
+    for param_tensor, value in dic_weights.items():
+        if isCpu: # cpu
+            params[param_tensor] = torch.Tensor(value).cpu()
+        else: # cuda
+            params[param_tensor] = torch.Tensor(value).cuda()
+    model.load_state_dict(params)
+    return model
 
 # 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 

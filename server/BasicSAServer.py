@@ -1,12 +1,13 @@
-import os, sys
+import os, sys, copy
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
 from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct
 from CommonValue import BasicSARound
 from ast import literal_eval
-from learning.federated_main import setup, getDataset, update_globalmodel, add_accuracy, test_result, get_global_weights
+import learning.federated_main as fl
 
+model = {}
 users_keys = {}
 yu_list = []
 usersNum = 0
@@ -15,7 +16,7 @@ R = 0
 
 # broadcast common value
 def setUp():
-    global usersNum, threshold, R
+    global usersNum, threshold, R, model
 
     tag = BasicSARound.SetUp.name
     port = BasicSARound.SetUp.value
@@ -26,7 +27,19 @@ def setUp():
     usersNum = commonValues["n"]
     threshold = commonValues["t"]
     R = commonValues["R"]
-    server.broadcast(commonValues)
+
+    usersNow = len(server.requests)
+    
+    model = fl.setup()
+    user_groups = fl.get_user_dataset(usersNow)
+
+    response = []
+    for i in range(usersNow):
+        response_i = copy.deepcopy(commonValues)
+        response_i["index"] = i
+        response_i["data"] = list(user_groups[i])
+        response.append(response_i)
+    server.foreachIndex(response)
 
 def advertiseKeys():
     global users_keys

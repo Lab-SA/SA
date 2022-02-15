@@ -62,6 +62,7 @@ class BasicSAClient:
         # response: {"n": n, "t": t, "g": g, "p": p, "R": R}
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
         self.commonValues = response
+        self.data = response["data"] # user_groups[idx]
 
     def advertiseKeys(self):
         tag = BasicSARound.AdvertiseKeys.name

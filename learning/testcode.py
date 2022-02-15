@@ -1,8 +1,8 @@
 import copy
 from tqdm import tqdm
 
-from federated_main import add_accuracy, setup, getDataset, get_global_weights, local_update, test_accuracy, update_globalmodel, test_result
-from utils import average_weights_origin, sum_weights
+from federated_main import add_accuracy, setup, get_user_dataset, get_global_weights, local_update, test_accuracy, update_globalmodel, test_model
+from utils import sum_weights
 
 if __name__ == "__main__":
 
@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     global_model = setup()
 
-    test_dataset, user_groups = getDataset()
+    user_groups = get_user_dataset()
 
     global_weights = get_global_weights(global_model)
 
@@ -52,4 +52,4 @@ if __name__ == "__main__":
         add_accuracy(list_acc, epoch)
 
     
-    test_result(global_model, test_dataset)
+    test_model(global_model)

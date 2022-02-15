@@ -7,10 +7,10 @@ from tqdm import tqdm
 
 import torch
 
-from options import args_parser
-from update import LocalUpdate, test_inference
-from models import CNNMnist
-from utils import get_dataset, average_weights, exp_details
+from .options import args_parser
+from .update import LocalUpdate, test_inference
+from .models import CNNMnist
+from .utils import get_dataset, average_weights, exp_details
 
 
 # 전역변수 선언
@@ -22,8 +22,6 @@ start_time = 0
 # [리턴] : global_model 
 # 처음 시작할 때만 호출도는 setup 함수. args를 인자로 전달
 def setup():
-    path_project = os.path.abspath('..')
-
     global args
     # args = args_parser()
     exp_details(args)
@@ -153,8 +151,3 @@ def test_result(global_model, test_dataset):
     #     pickle.dump([train_loss, train_accuracy], f)
     global start_time
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
-    
-
-    
-
-    

@@ -2,6 +2,7 @@ import json, socket, os, sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import BasicSA as sa
 from CommonValue import BasicSARound
+from learning.federated_main import setup, local_update, test_accuracy
 
 SIZE = 2048
 ENCODING = 'utf-8'

@@ -16,11 +16,20 @@ def sendRequestAndReceive(host, port, tag, request):
     request['request'] = tag
     
     # send request
-    s.sendall(bytes(json.dumps(request), ENCODING))
+    s.sendall(bytes(json.dumps(request) + "\r\n", ENCODING))
     print(f"[{tag}] Send {request}")
 
-    # receive
-    receivedStr = str(s.recv(SIZE), ENCODING)
+    # receive server response
+    # response must ends with "\r\n"
+    receivedStr = ''
+    while True:
+        received = str(s.recv(SIZE), ENCODING)
+        if received.endswith("\r\n"):
+            received = received.replace("\r\n", "")
+            receivedStr = receivedStr + received
+            break
+        receivedStr = receivedStr + received
+
     response = ''
     try:
         response = json.loads(receivedStr)

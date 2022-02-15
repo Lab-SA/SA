@@ -35,8 +35,21 @@ class MainServer:
                     clientSocket, addr = s.accept()
                     currentClient = clientSocket
 
-                    request = str(clientSocket.recv(self.SIZE), self.ENCODING)  # receive client data
+                    # receive client data
+                    # client request must ends with "\r\n"
+                    request = ''
+                    while True:
+                        received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                        print(received)
+                        if received.endswith("\r\n"):
+                            received = received.replace("\r\n", "")
+                            request = request + received
+                            break
+                        request = request + received
+                    print(request)
+
                     requestData = json.loads(request)
+                    print(requestData)
                     if requestData['request'] != self.tag: # check request
                         # request must contain {request: tag}
                         print(requestData)
@@ -54,11 +67,11 @@ class MainServer:
                     pass
                 except AttributeError:
                     print(f'[{self.tag}] Exception: invalid request at {self.tag}')
-                    currentClient.sendall(bytes(f'Exception: invalid request at {self.tag}', self.ENCODING))
+                    currentClient.sendall(bytes(f'Exception: invalid request at {self.tag}\r\n', self.ENCODING))
                     pass
                 except:
                     print(f'[{self.tag}] Exception: invalid request or unknown server error')
-                    currentClient.sendall(bytes('Exception: invalid request or unknown server error', self.ENCODING))
+                    currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
                     pass
                 
                 self.endTime = time.time()
@@ -73,7 +86,7 @@ class MainServer:
         response_json = json.dumps(response)
         for client in self.requests:
             clientSocket = client[0]
-            clientSocket.sendall(bytes(response_json, self.ENCODING))
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
         
         self.serverSocket.close()
         print(f'[{self.tag}] Server finished')
@@ -87,7 +100,7 @@ class MainServer:
             for data in requestData.keys():
                 idx = data
             response_json = json.dumps(response[idx])
-            clientSocket.sendall(bytes(response_json, self.ENCODING))
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
         
         self.serverSocket.close()
         print(f'[{self.tag}] Server finished')

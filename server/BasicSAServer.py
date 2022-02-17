@@ -24,15 +24,21 @@ def setUp():
     port = BasicSARound.SetUp.value
     
     commonValues = getCommonValues()
-    n = commonValues["n"]
-    threshold = commonValues["t"]
     R = commonValues["R"]
+    n = 4 # expected
     
     server = MainServer(tag, port, n)
     server.start()
-    usersNow = server.userNum
     
-    model = fl.setup()
+    usersNow = server.userNum
+    n = usersNow
+    threshold = usersNow - 2 # temp
+    commonValues["n"] = n
+    commonValues["t"] = threshold
+
+    if model == {}:
+        model = fl.setup()
+    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
     user_groups = fl.get_user_dataset(usersNow)
 
     response = []
@@ -40,6 +46,7 @@ def setUp():
         response_i = copy.deepcopy(commonValues)
         response_i["index"] = i
         response_i["data"] = [int(k) for k in user_groups[i]]
+        response_i["weights"] = model_weights_list
         response.append(response_i)
     server.foreachIndex(response)
 
@@ -187,9 +194,9 @@ def unmasking():
 
 
 if __name__ == "__main__":
-    setUp()
-    advertiseKeys()
-    shareKeys()    
-    maskedInputCollection()
-    final = unmasking()
-    print("[Server] average of sum_xu): ", final)
+    for i in range(5): # 5 rounds
+        setUp()
+        advertiseKeys()
+        shareKeys()    
+        maskedInputCollection()
+        unmasking()

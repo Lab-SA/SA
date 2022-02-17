@@ -92,6 +92,9 @@ def update_globalmodel(global_model, local_weight_sum):
     # train_loss.append(loss_avg)
     return global_model
 
+def update_model(model, weights):
+    model.load_state_dict(weights)
+
 def get_model_weights(model):
     return model.state_dict()
 

@@ -11,15 +11,13 @@ p = 7 #temp
 def getCommonValues():
     global g, p
 
-    # n: number of users, t: threshold, R: domain
+    # R: domain
     # g: generator, p: prime
-    n = 1 #temp
-    t = 1 #temp
     R = 100 #temp
     # _g, _p = sp.generator()
     # g = _g
     # p = _p
-    commonValues = {"n": n, "t": t, "g": 3, "p": 7, "R": R}
+    commonValues = {"g": 3, "p": 7, "R": R}
     return commonValues
 
 # Generate two key pairs

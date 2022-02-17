@@ -54,6 +54,7 @@ class BasicSAClient:
     others_euv = {}
     bu = 0  # random element to be used as a seed for PRG
     U3 = []  # survived users in round2(MaskedInputCollection)
+    model = {}
 
     def setUp(self):
         tag = BasicSARound.SetUp.name
@@ -63,8 +64,11 @@ class BasicSAClient:
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
         self.commonValues = response
         self.data = response["data"] # user_groups[idx]
+        global_weights = fl.dic_of_list_to_weights(response["weights"])
 
-        self.model = fl.setup()
+        if self.model == {}:
+            self.model = fl.setup()
+        fl.update_model(self.model, global_weights)
         local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
         self.weight = local_weight
 
@@ -182,8 +186,10 @@ class BasicSAClient:
 
 if __name__ == "__main__":
     client = BasicSAClient() # test
-    client.setUp()
-    client.advertiseKeys()
-    client.shareKeys()    
-    client.maskedInputCollection()
-    client.unmasking()
+
+    for i in range(5): # 5 rounds
+        client.setUp()
+        client.advertiseKeys()
+        client.shareKeys()    
+        client.maskedInputCollection()
+        client.unmasking()

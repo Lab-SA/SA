@@ -17,7 +17,8 @@ def sendRequestAndReceive(host, port, tag, request):
     
     # send request
     s.sendall(bytes(json.dumps(request) + "\r\n", ENCODING))
-    print(f"[{tag}] Send {request}")
+    print(f"[{tag}] Send request")
+    # print(f"[{tag}] Send {request}")
 
     # receive server response
     # response must ends with "\r\n"
@@ -33,7 +34,8 @@ def sendRequestAndReceive(host, port, tag, request):
     response = ''
     try:
         response = json.loads(receivedStr)
-        print(f"[{tag}] receive response {response}")
+        print(f"[{tag}] Receive request")
+        # print(f"[{tag}] receive response {response}")
         return response
     except json.decoder.JSONDecodeError:
         #raise Exception(f"[{tag}] Server response with: {response}")
@@ -44,7 +46,7 @@ def sendRequestAndReceive(host, port, tag, request):
 
 class BasicSAClient:
     HOST = 'localhost'
-    xu = 0  # temp. local model of this client
+    # xu = 0  # temp. local model of this client
 
     commonValues = {}  # {"n": n, "t": t, "g": g, "p": p, "R": R} from server in setup stage
     u = 0  # u = user index

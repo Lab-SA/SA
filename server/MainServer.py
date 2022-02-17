@@ -41,26 +41,21 @@ class MainServer:
                     request = ''
                     while True:
                         received = str(clientSocket.recv(self.SIZE), self.ENCODING)
-                        print(received)
                         if received.endswith("\r\n"):
                             received = received.replace("\r\n", "")
                             request = request + received
                             break
                         request = request + received
-                    print(request)
 
                     requestData = json.loads(request)
-                    print(requestData)
                     if requestData['request'] != self.tag: # check request
                         # request must contain {request: tag}
-                        print(requestData)
-                        print(self.tag)
                         raise AttributeError
                     else:
                         requestData.pop('request')
                     
                     print(f'[{self.tag}] Client: {addr}')
-                    print(f'[{self.tag}] Client request: {request}')
+                    # print(f'[{self.tag}] Client request: {request}')
 
                     self.userNum = self.userNum + 1
                     self.requests.append((clientSocket, requestData))

@@ -80,7 +80,7 @@ def local_update(global_model, user_group, epoch):
 # [인자] : global_model, local_weight_sum (local_weight들의 합), local_losses (local_loss 들을 모은 배열) 
 # [리턴] : global_model (업데이트된 global_model) 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
-def update_globalmodel(global_model, local_weight_sum, local_losses):
+def update_globalmodel(global_model, local_weight_sum):
     global train_loss
 
     #local weight의 합 평균 내기
@@ -88,31 +88,31 @@ def update_globalmodel(global_model, local_weight_sum, local_losses):
     global_model.load_state_dict(average_weight) # update
 
     # loss
-    loss_avg = sum(local_losses) / len(local_losses)
-    train_loss.append(loss_avg)
+    # loss_avg = sum(local_losses) / len(local_losses)
+    # train_loss.append(loss_avg)
     return global_model
 
-# [호츌] : 서버
-# [인자] : global_model
-# [리턴] : global_weights 
-# global_model의 weights를 리턴받음 
-def get_global_weights(global_model):
+def get_model_weights(model):
+    return model.state_dict()
+
+def weights_to_dic_of_list(weights):
     dic_weights = {}
-    for param_tensor, value in global_model.state_dict().items():
+    for param_tensor, value in weights.items():
         dic_weights[param_tensor] = value.tolist()
     return dic_weights
 
-# list to tensor, dic to model
-# returns new model of weights
-def list_to_tensor_model(model, dic_weights, isCpu):
+# list to tensor, dic
+# returns new weights of model
+def dic_of_list_to_weights(dic_weights):
+    global args
     params = {}
     for param_tensor, value in dic_weights.items():
-        if isCpu: # cpu
-            params[param_tensor] = torch.Tensor(value).cpu()
-        else: # cuda
+        if args.gpu: # cuda
             params[param_tensor] = torch.Tensor(value).cuda()
-    model.load_state_dict(params)
-    return model
+        else: # cpu
+            params[param_tensor] = torch.Tensor(value).cpu()
+    #model.load_state_dict(params)
+    return params
 
 # 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 
@@ -151,9 +151,10 @@ def test_model(global_model):
     test_dataset = get_mnist_test()
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
     
-    print(f' \n Results after {args.epochs} global rounds of training:')
-    print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
+    #print(f' \n Results after {args.epochs} global rounds of training:')
+    #print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+    print("|---- Test Loss: {:.2f}%".format(100*test_loss))
 
     # Saving the objects train_loss and train_accuracy:
     # file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\

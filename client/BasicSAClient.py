@@ -137,12 +137,13 @@ class BasicSAClient:
         yu = sa.generateMaskedInput(
             self.u, 
             self.bu, 
-            self.xu, 
+            self.weight,
             self.my_keys["s_sk"], 
             self.euv_list, 
             s_pk_dic, 
             self.commonValues["R"])
-        request = {"idx": self.u, "yu": yu}  # request example: {"idx":0, "yu":y0}
+        
+        request = {"idx": self.u, "yu": fl.weights_to_dic_of_list(yu)}  # request example: {"idx":0, "yu":y0}
 
         # receive sending_yu_list from server
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)

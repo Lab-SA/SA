@@ -2,6 +2,7 @@
 import random, math
 import SecureProtocol as sp
 from ast import literal_eval
+from learning.utils import sum_weights, add_to_weights
 
 g = 3 #temp
 p = 7 #temp
@@ -12,7 +13,7 @@ def getCommonValues():
 
     # n: number of users, t: threshold, R: domain
     # g: generator, p: prime
-    n = 4 #temp
+    n = 1 #temp
     t = 1 #temp
     R = 100 #temp
     # _g, _p = sp.generator()
@@ -67,8 +68,9 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
     random.seed(bu)
     pu = random.randrange(1, R) # 1~R
 
-    # make masked xu
-    yu = xu + pu + sum(p_uv_list)
+    # make masked xu(: dic of weights)
+    mask = pu + sum(p_uv_list)
+    yu = add_to_weights(xu, mask)
     return yu
 
 # users_previous [list]: users who were alive in the previous round
@@ -125,10 +127,9 @@ def reconstructPu(bu_shares_list, R): # list of user u
     pu = random.randrange(1, R)
     return pu
 
-def generatingOutput(yu_list, pu_list, puv_list):
-    # yu, pu: user u in U3
-    # puv: user u in U3, user v in U2\U3
-    sum_xu = sum(yu_list) - sum(pu_list) + sum(puv_list)
+def generatingOutput(yu_list, mask):
+    sum_yu = sum_weights(yu_list)
+    sum_xu = add_to_weights(sum_yu, mask)
     return sum_xu
 
 def stochasticQuantization(x, q, p):

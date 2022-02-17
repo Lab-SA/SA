@@ -1,7 +1,7 @@
 import copy
 from tqdm import tqdm
 
-from federated_main import add_accuracy, setup, get_user_dataset, get_global_weights, local_update, test_accuracy, update_globalmodel, test_model
+from federated_main import add_accuracy, setup, get_user_dataset, get_model_weights, local_update, test_accuracy, update_globalmodel, test_model
 from utils import sum_weights
 
 if __name__ == "__main__":
@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     user_groups = get_user_dataset()
 
-    global_weights = get_global_weights(global_model)
+    global_weights = get_model_weights(global_model)
 
 
     print(f'\n | TESTING CODE |\n')

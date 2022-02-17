@@ -65,6 +65,10 @@ def sum_weights(w):
             w_sum[key] += w[i][key]
     return w_sum
 
+def add_to_weights(w, a):
+    for param_tensor, value in w.items():
+        w[param_tensor] = torch.add(value, a)
+    return w
 
 def average_weights_origin(w):
     """

@@ -2,7 +2,7 @@ import os, sys, copy
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
-from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct
+from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct, generatingOutput
 from CommonValue import BasicSARound
 from ast import literal_eval
 import learning.federated_main as fl
@@ -115,13 +115,13 @@ def maskedInputCollection():
     for request in requests:
         requestData = request[1]  # (socket, data)
         response.append(int(requestData["idx"]))
-        yu_list.append(int(requestData["yu"]))
+        yu_ = fl.dic_of_list_to_weights(requestData["yu"])
+        yu_list.append(yu_)
 
     server.broadcast({"users": response})
 
 def unmasking():
-    global yu_list, R, users_keys, usersNow
-    sum_xu = sum(yu_list) # sum(xu) is sum of user3's xu
+    global yu_list, R, users_keys, usersNow, model
 
     tag = BasicSARound.Unmasking.name
     port = BasicSARound.Unmasking.value
@@ -160,20 +160,30 @@ def unmasking():
         s_sk_dic[i] = reconstruct(ssk_shares)
     # recompute p_vu
     user3list = list(bu_shares_dic.keys())
+    sum_pvu = 0
     for u in user3list:
         for v, s_sk in s_sk_dic.items():
             pvu = reconstructPvu(v, u, s_sk, users_keys[u]["s_pk"], R)
-            sum_xu = sum_xu + pvu
+            sum_pvu = sum_pvu + pvu
+            #sum_xu = sum_xu + pvu
     
+    sum_pu = 0
     # recompute p_u of users3
     for i, bu_shares in bu_shares_dic.items(): # first, reconstruct ssk_u <- ssk_u,v
         pu = reconstructPu(bu_shares, R)
-        sum_xu = sum_xu - pu
+        sum_pu = sum_pu + pu
+        #sum_xu = sum_xu - pu
     
+    # sum_yu
+    mask = sum_pvu - sum_pu
+    sum_xu = generatingOutput(yu_list, mask)
+    
+    # update global model
+    model = fl.update_globalmodel(model, sum_xu)
+    
+    # End
     server.broadcast("[Server] End protocol")
-
-    avg = sum_xu / len(yu_list)
-    return avg
+    fl.test_model(model)
 
 
 if __name__ == "__main__":

@@ -29,8 +29,8 @@ def setUp():
     response = []
     for i in range(usersNow):
         response_i = copy.deepcopy(commonValues)
-        response_i["group"] = 0 # TODO: grouping
-        response_i["index"] = i
+        response_i["group"] = i # TODO: grouping
+        response_i["index"] = 0 # TODO
         response.append(response_i)
     server.foreachIndex(response)
 
@@ -38,16 +38,13 @@ def turbo():
     global groups, usersNum
 
     tag = TurboRound.Turbo.name
-    tag_value = TurboRound.Turbo_Value.name
+    tag_value = TurboRound.TurboValue.name
     port = TurboRound.Turbo.value
     
-    server = GroupServer(tag, tag_value, port, len(groups), usersNum)
+    server = GroupServer(tag, tag_value, port, 3, usersNum) # len(groups)
     server.start()
-    server.close() # temp
+    #server.close() # temp
 
 if __name__ == "__main__":
     setUp()
-
-def turbo():
-    global groups
-
+    turbo()

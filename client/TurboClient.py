@@ -16,6 +16,7 @@ class TurboClient:
     n = t = g = p = R = 0 # common values
     group = 0
     index = 0
+    weights = {1: 123} # temp
 
     # need?
     my_keys = {}  # c_pk, c_sk, s_pk, s_sk of this client
@@ -35,8 +36,33 @@ class TurboClient:
         self.group = response["group"]
         self.index = response["index"]
         print(response)
-        print(self.n, self.t, self.g, self.p, self.R, self.group, self.index)
+        return self.group
+    
+    def turbo(self):
+        tag = TurboRound.Turbo.name
+        PORT = TurboRound.Turbo.value
+
+        request = {"group": self.group, "index": self.index}
+        # response = {"maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}}
+        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+
+        self.maskedxij = response["maskedxij"]
+        self.encodedxij = response["encodedxij"]
+        self.si = response["si"]
+        self.codedsi = response["codedsi"]
+        print(response)
+        print(self.maskedxij, self.encodedxij, self.si, self.codedsi)
+    
+    def turbo_value(self):
+        tag = TurboRound.TurboValue.name
+        PORT = TurboRound.Turbo.value
+        request = {"group": self.group, "index": self.index, "maskedxij": {0: 1}, "encodedxij": {0: 2}, "si": 3, "codedsi": 4}
+        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+
 
 if __name__ == "__main__":
     client = TurboClient() # test
-    client.setUp()
+    group = client.setUp()
+    if group != 0:
+        client.turbo()
+    client.turbo_value()

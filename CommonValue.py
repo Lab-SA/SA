@@ -10,5 +10,5 @@ class BasicSARound(Enum):
 class TurboRound(Enum):
     SetUp = 7000
     Turbo = 7010
-    Turbo_Value = 7010,
+    TurboValue = 7011
     Final = 7020

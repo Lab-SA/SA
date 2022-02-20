@@ -19,10 +19,10 @@ class GroupServer:
         self.port = port
         self.groupNum = groupNum
         self.userNum = userNum
-        self.requests = { idx: [] for idx in range(groupNum) }
+        self.requests = [[] for i in range(groupNum+1)] # temp +1
+        self.requestsNum = [0 for i in range(groupNum+1)] # temp +1
 
     def start(self):
-        self.startTime = self.endTime = time.time()
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             self.serverSocket = s
             s.bind((self.host, self.port))
@@ -32,6 +32,7 @@ class GroupServer:
 
             for i in range(self.groupNum):
                 # for each one group
+                self.startTime = self.endTime = time.time()
 
                 while (self.endTime - self.startTime) < self.interval:
                     currentClient = socket
@@ -47,10 +48,12 @@ class GroupServer:
                             if requestGroup < i:
                                 raise ValueError
                             self.requests[requestGroup].append((clientSocket, requestData))
+                            self.requestsNum[requestGroup] = self.requestsNum[requestGroup] + 1
                         elif requestData['request'] == self.tag_value and requestData['group'] == i: # check request and group
                             # {request: TAG_VALUE, group: GROUP_INDEX, index: INDEX, maskedxij: {idx: , ...}, encodedxij: {idx: , ...}, si: VALUE, codedsi: VALUE}
                             self.userNow = self.userNow + 1
-                            self.requests_value.append((clientSocket, requestData))
+                            self.requests_value.append(requestData)
+                            currentClient.sendall(bytes(f'[{self.tag}] OK \r\n', self.ENCODING))
                         else:
                             raise AttributeError
                         
@@ -62,32 +65,33 @@ class GroupServer:
                         pass
                     except AttributeError:
                         print(f'[{self.tag}] Exception: invalid request at {self.tag}')
-                        currentClient.sendall(bytes(f'Exception: invalid request at {self.tag}', self.ENCODING))
+                        currentClient.sendall(bytes(f'Exception: invalid request at {self.tag} \r\n', self.ENCODING))
                         pass
                     except ValueError:
                         print(f'[{self.tag}] Exception: invalid request at group {i}')
-                        currentClient.sendall(bytes(f'Exception: requested group is over', self.ENCODING))
+                        currentClient.sendall(bytes(f'Exception: requested group is over \r\n', self.ENCODING))
                     except:
                         print(f'[{self.tag}] Exception: invalid request or unknown server error')
-                        currentClient.sendall(bytes('Exception: invalid request or unknown server error', self.ENCODING))
+                        currentClient.sendall(bytes('Exception: invalid request or unknown server error \r\n', self.ENCODING))
                         pass
                     
                     self.endTime = time.time()
 
                 # check threshold
-                nextGroupRequests = len(self.requests[i+1])
+                nextGroupRequests = self.requestsNum[i+1]
                 if self.t > self.userNow and self.t > nextGroupRequests:
                     print(f'[{self.tag}] Exception: insufficient {self.userNow} or {nextGroupRequests} users with {self.t} threshold')
                     raise Exception(f"Need at least {self.t} users, but only {self.userNow} in L and {nextGroupRequests} in L+1.")
                 
-                # send data of group l-1 to group L
-                threading.Thread(target=self.foreach, args=(self.requests[i+1], self.requests_value))
+                # send data of group L-1 to group L
+                # threading.Thread(target=self.foreach, args=(self.requests[i+1], self.requests_value))
+                self.foreach(self.requests[i+1], self.requests_value)
     
     # send response to requests-client
     def foreach(self, requests, requests_value):
         for (clientSocket, requestData) in requests:
             response = {"maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}}
-            targetIndex = requestData["index"]
+            targetIndex = str(requestData["index"])
             for value in requests_value:
                 idx = value["index"]
                 response["maskedxij"][idx] = value["maskedxij"][targetIndex]
@@ -95,7 +99,7 @@ class GroupServer:
                 response["si"][idx] = value["si"]
                 response["codedsi"][idx] = value["codedsi"]
             response_json = json.dumps(response)
-            clientSocket.sendall(bytes(response_json, self.ENCODING))
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
     
     def close(self):
         self.serverSocket.close()

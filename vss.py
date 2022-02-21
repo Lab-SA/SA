@@ -79,41 +79,5 @@ def verify(g, cld, s, c, t, q):
         return True
     else:
         return False
-
-
-if __name__ == "__main__":
-    n = 4   # 사용자수
-    g = 127 # temp
-    q = 67 # temp
-
-    # rij = []    # 각 사용자들이 랜덤 생성하는 벡터
-    # t = []      # theta를 저장
-    cld = [0, 2, 3]     # collude 사용자 인덱스 리스트 (0,2,3이라 가정)
-    t = make_theta(n, q)
-    print("t : ", t)
-
-    # 0번 user인 경우
-    list0 = [1, 2, 3]
-    r0j = get_rij(n, q)
-    w0 = 67
-    s0 = make_shares(list0, w0, t, cld, r0j, q)
-    c0 = commitment(w0, cld, r0j, g, q)
-    print("r0j = ", r0j)
-    print("s0 = ", s0)
-    print("c0 = ", c0)
-
-    # 1번 user인 경우
-    list1 = [0, 2, 3]
-    r1j = get_rij(n, q)
-    w1 = 150
-    s1 = make_shares(list1, w1, t, cld, r1j, q)
-    c1 = commitment(w1, cld, r1j, g, q)
-    print("r1j = ", r1j)
-    print("s1 = ", s1)
-    print("c1 = ", c1)
-
-    # 0번 user가 1번 user에게 받은 s_10 verify
-    print(verify(g, cld, s1[0], c1, t[0], q))
-
   
   

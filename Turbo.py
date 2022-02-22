@@ -180,7 +180,7 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     return pre_tildeS_dic
 
 
-def computeFinalOutput(x, final_tildeS, u_i_dic):
+def computeFinalOutput(final_tildeS, u_i_dic):
     # final_tildeS = users' masked model dic in final stage
     # u_i_dic = all u_i (random mask from server)
 

@@ -2,7 +2,7 @@ import os, sys, copy
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
-from GroupServer import GroupServer
+from TurboBaseServer import TurboBaseServer
 from BasicSA import getCommonValues
 from CommonValue import TurboRound
 
@@ -39,12 +39,31 @@ def turbo():
 
     tag = TurboRound.Turbo.name
     tag_value = TurboRound.TurboValue.name
+    tag_final = TurboRound.TurboFinal.name
     port = TurboRound.Turbo.value
     
-    server = GroupServer(tag, tag_value, port, 3, usersNum) # len(groups)
+    server = TurboBaseServer(tag, tag_value, tag_final, port, 3, usersNum) # len(groups)
     server.start()
-    #server.close() # temp
+
+def final():
+    tag = TurboRound.Final.name
+    port = TurboRound.Final.value
+
+    server = MainServer(tag, port)
+    server.start()
+    final_tildeS = []
+    final_barS = []
+
+    for request in server.requests:
+        requestData = request[1]  # (socket, data)
+        final_tildeS.append(int(requestData["final_tildeS"]))
+        final_barS.append(int(requestData["final_barS"]))
+    server.broadcast({})
+
+    print(final_tildeS)
+    print(final_barS)
 
 if __name__ == "__main__":
     setUp()
     turbo()
+    final()

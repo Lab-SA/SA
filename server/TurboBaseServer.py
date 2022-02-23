@@ -1,6 +1,6 @@
-import socket, json, time, threading
+import socket, json, time, threading, random
 
-class GroupServer:
+class TurboBaseServer:
     host = 'localhost'
     port = 20
     SIZE = 2048
@@ -13,14 +13,17 @@ class GroupServer:
     requests = {}
     requests_value = []
 
-    def __init__(self, tag, tag_value, port, groupNum, userNum):
+    def __init__(self, tag, tag_value, tag_final, port, groupNum, userNum):
         self.tag = tag
         self.tag_value = tag_value
+        self.tag_final = tag_final
         self.port = port
         self.groupNum = groupNum
         self.userNum = userNum
+        self.finalUserNum = 0
         self.requests = [[] for i in range(groupNum+1)] # temp +1
         self.requestsNum = [0 for i in range(groupNum+1)] # temp +1
+        self.requests_final = []
 
     def start(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -54,6 +57,9 @@ class GroupServer:
                             self.userNow = self.userNow + 1
                             self.requests_value.append(requestData)
                             currentClient.sendall(bytes(f'[{self.tag}] OK \r\n', self.ENCODING))
+                        elif requestData['request'] == self.tag_final:
+                            self.finalUserNum = self.finalUserNum + 1
+                            self.requests_final.append((clientSocket, requestData))
                         else:
                             raise AttributeError
                         
@@ -85,10 +91,18 @@ class GroupServer:
                 
                 # send data of group L-1 to group L
                 # threading.Thread(target=self.foreach, args=(self.requests[i+1], self.requests_value))
-                self.foreach(self.requests[i+1], self.requests_value)
+                self.sendTurboValue(self.requests[i+1], self.requests_value)
+            
+            # End of for loop
+            # final stage
+            self.sendFinalValue(self.finalUserNum, self.requests_final)
+
+            # close
+            self.close()
+
     
     # send response to requests-client
-    def foreach(self, requests, requests_value):
+    def sendTurboValue(self, requests, requests_value):
         for (clientSocket, requestData) in requests:
             response = {"maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}}
             targetIndex = str(requestData["index"])
@@ -101,6 +115,23 @@ class GroupServer:
             response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
     
+
+    def sendFinalValue(self, finalUserNum, requests):
+        if finalUserNum < 1:
+            raise Exception(f"Need at least 1 users at final stage.")
+        
+        # Send final values to one random user
+        finalIdx = random.randrange(0, finalUserNum)
+        (socket, data) = requests[finalIdx]
+        response = {"chosen": True} # TODO final S
+        response_json = json.dumps(response)
+        socket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+        # to other users
+        for (clientSocket, requestData) in requests:
+            clientSocket.sendall(bytes(json.dumps({"chosen": False}) + "\r\n", self.ENCODING))
+    
+        
     def close(self):
         self.serverSocket.close()
         print(f'[{self.tag}] Server finished')    

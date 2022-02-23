@@ -57,8 +57,22 @@ class TurboClient:
         tag = TurboRound.TurboValue.name
         PORT = TurboRound.Turbo.value
         request = {"group": self.group, "index": self.index, "maskedxij": {0: 1}, "encodedxij": {0: 2}, "si": 3, "codedsi": 4}
-        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+        sendRequestAndReceive(self.HOST, PORT, tag, request)
 
+    def turbo_final(self):
+        tag = TurboRound.TurboFinal.name
+        PORT = TurboRound.Turbo.value
+        response = sendRequestAndReceive(self.HOST, PORT, tag, {})
+        if response["chosen"] == True:
+            # TODO final stage
+            self.final()
+
+    def final(self):
+        tag = TurboRound.Final.name
+        PORT = TurboRound.Final.value
+        # TODO final stage
+        request = {"final_tildeS": 1, "final_barS": 2}
+        sendRequestAndReceive(self.HOST, PORT, tag, request)
 
 if __name__ == "__main__":
     client = TurboClient() # test
@@ -66,3 +80,4 @@ if __name__ == "__main__":
     if group != 0:
         client.turbo()
     client.turbo_value()
+    client.turbo_final()

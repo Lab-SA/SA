@@ -24,24 +24,23 @@ def generate_rij(T, q):
 
 
 # share를 생성하기 위한 다항식 f
-# [인자] : theta(자신의 theta), w(weights. quantization한 값), T(collude한 사용자 수), rij(get_rij()의 리턴값), q
+# [인자] : theta(자신의 theta), w(weights. quantization한 값), T(collude한 사용자 수), rij(get_rij()의 리턴값)
 # [리턴] : y
-def f(theta, w, T, rij, q):
+def f(theta, w, T, rij):
     y = w
     for j in range(1, T+1):
         y = y + (rij[j] * (theta ** j))
-        y = y % q
     return y
 
 
 # make shares
 # [호출] : 클라이언트
-# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list, q
+# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
-def make_shares(w, theta_list, T, rij_list, q):
+def make_shares(w, theta_list, T, rij_list):
     shares = []
     for theta in theta_list:
-        shares.append(f(theta, w, T, rij_list, q))
+        shares.append(f(theta, w, T, rij_list))
     return shares
 
 
@@ -86,7 +85,7 @@ if __name__ == "__main__":
     
     theta_list = make_theta(n, q)
     rij_list = generate_rij(T, q)
-    shares = make_shares(w, theta_list, T, rij_list, q)
+    shares = make_shares(w, theta_list, T, rij_list)
     commitments = generate_commitments(w, rij_list, g, q)
     result = verify(g, shares[0], commitments, theta_list[0], q)
 

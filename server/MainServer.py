@@ -9,15 +9,16 @@ class MainServer:
     SIZE = 2048
     ENCODING = 'utf-8'
     t = 1 # threshold
-    interval = 5 # server waits in one round # second
+    interval = 60 * 10 # server waits in one round # second
     timeout = 3 #temp
 
     userNum = 0
     requests = []
 
-    def __init__(self, tag, port):
+    def __init__(self, tag, port, num):
         self.tag = tag
         self.port = port
+        self.num = num
 
     def start(self):
         self.requests = []
@@ -35,18 +36,26 @@ class MainServer:
                     clientSocket, addr = s.accept()
                     currentClient = clientSocket
 
-                    request = str(clientSocket.recv(self.SIZE), self.ENCODING)  # receive client data
+                    # receive client data
+                    # client request must ends with "\r\n"
+                    request = ''
+                    while True:
+                        received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                        if received.endswith("\r\n"):
+                            received = received.replace("\r\n", "")
+                            request = request + received
+                            break
+                        request = request + received
+
                     requestData = json.loads(request)
                     if requestData['request'] != self.tag: # check request
                         # request must contain {request: tag}
-                        print(requestData)
-                        print(self.tag)
                         raise AttributeError
                     else:
                         requestData.pop('request')
                     
                     print(f'[{self.tag}] Client: {addr}')
-                    print(f'[{self.tag}] Client request: {request}')
+                    # print(f'[{self.tag}] Client request: {request}')
 
                     self.userNum = self.userNum + 1
                     self.requests.append((clientSocket, requestData))
@@ -54,14 +63,16 @@ class MainServer:
                     pass
                 except AttributeError:
                     print(f'[{self.tag}] Exception: invalid request at {self.tag}')
-                    currentClient.sendall(bytes(f'Exception: invalid request at {self.tag}', self.ENCODING))
+                    currentClient.sendall(bytes(f'Exception: invalid request at {self.tag}\r\n', self.ENCODING))
                     pass
                 except:
                     print(f'[{self.tag}] Exception: invalid request or unknown server error')
-                    currentClient.sendall(bytes('Exception: invalid request or unknown server error', self.ENCODING))
+                    currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
                     pass
                 
                 self.endTime = time.time()
+                if self.userNum >= self.num:
+                    break
 
         # check threshold
         if self.t > self.userNum:
@@ -73,7 +84,7 @@ class MainServer:
         response_json = json.dumps(response)
         for client in self.requests:
             clientSocket = client[0]
-            clientSocket.sendall(bytes(response_json, self.ENCODING))
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
         
         self.serverSocket.close()
         print(f'[{self.tag}] Server finished')
@@ -87,7 +98,14 @@ class MainServer:
             for data in requestData.keys():
                 idx = data
             response_json = json.dumps(response[idx])
-            clientSocket.sendall(bytes(response_json, self.ENCODING))
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
         
         self.serverSocket.close()
         print(f'[{self.tag}] Server finished')
+    
+     # send response for each client (different response) with index
+    def foreachIndex(self, response):
+        # requestData and response's order MUST be same
+        for idx, (clientSocket, requestData) in enumerate(self.requests):
+            response_json = json.dumps(response[idx])
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))

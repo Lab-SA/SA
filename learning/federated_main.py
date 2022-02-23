@@ -1,16 +1,12 @@
-import os
-import copy
-import time
-import pickle
+import copy, time
 import numpy as np
-from tqdm import tqdm
 
 import torch
 
-from options import args_parser
-from update import LocalUpdate, test_inference
-from models import CNNMnist
-from utils import get_dataset, average_weights, exp_details
+from .options import args_parser
+from .update import LocalUpdate, test_inference
+from .models import CNNMnist
+from .utils import get_mnist_train, get_mnist_test, get_users_data, average_weights, exp_details
 
 
 # 전역변수 선언
@@ -20,13 +16,11 @@ start_time = 0
 
 # [호츌] : 서버, 클라이언트
 # [리턴] : global_model 
-# 처음 시작할 때만 호출도는 setup 함수. args를 인자로 전달
+# 처음 시작할 때만 호출도는 setup 함수.
 def setup():
-    path_project = os.path.abspath('..')
-
-    global args
+    global args, train_dataset
     # args = args_parser()
-    exp_details(args)
+    # exp_details(args)
 
     if args.gpu:
         torch.cuda.set_device(int(args.gpu))
@@ -43,31 +37,24 @@ def setup():
     # Set the model to train and send it to device.
     global_model.to(device)
     global_model.train()
-
+    
+    # get train data
+    train_dataset = get_mnist_train()
+    
     return global_model
 
 # [호츌] : 서버
 # [인자] : X
-# [리턴] : test_dataset, user_groups 
-# train_dataset: MNIST, test_dataset: MNIST, user_groups: dict[int, Any]
-# train_dataset: 학습을 위한 데이터셋
+# [리턴] : user_groups[dict[int, Any]]
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
-def getDataset():
-    global start_time, args, train_dataset
+def get_user_dataset(num_users):
+    global start_time, args, train_dataset, user_groups
     start_time = time.time()
-    train_dataset, test_dataset, user_groups = get_dataset(args)
-    return test_dataset, user_groups
+    user_groups = get_users_data(args, num_users, train_dataset)
+    return user_groups
 
-# 서버는 train_dataset과 user_groups를 클라이언트로 전달
+# 서버는 user_groups[idx] 를 클라이언트로 전달
 # ex) 0번 클라이언트에게 user_groups[0], 1번 클라이언트에게 user_groups[1] 전달
-
-# [호츌] : 서버
-# [인자] : global_model
-# [리턴] : global_weights 
-# global_model의 weights를 리턴받음 
-def get_global_weights(global_model):
-    global_weights = global_model.state_dict()
-    return global_weights
 
 # [호츌] : 클라이언트
 # [인자] : global_model, user_group(서버에게 받은 데이터셋), epoch(몇 번째 학습인지 저장해놓은 변수)
@@ -93,15 +80,42 @@ def local_update(global_model, user_group, epoch):
 # [인자] : global_model, local_weight_sum (local_weight들의 합), local_losses (local_loss 들을 모은 배열) 
 # [리턴] : global_model (업데이트된 global_model) 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
-def update_globalmodel(global_model, local_weight_sum, local_losses):
+def update_globalmodel(global_model, local_weight_sum):
+    global train_loss
+
     #local weight의 합 평균 내기
     average_weight = average_weights(local_weight_sum)
-    
-    global_model.load_state_dict(average_weight)
-    loss_avg = sum(local_losses) / len(local_losses)
-    global train_loss
-    train_loss.append(loss_avg)
+    global_model.load_state_dict(average_weight) # update
+
+    # loss
+    # loss_avg = sum(local_losses) / len(local_losses)
+    # train_loss.append(loss_avg)
     return global_model
+
+def update_model(model, weights):
+    model.load_state_dict(weights)
+
+def get_model_weights(model):
+    return model.state_dict()
+
+def weights_to_dic_of_list(weights):
+    dic_weights = {}
+    for param_tensor, value in weights.items():
+        dic_weights[param_tensor] = value.tolist()
+    return dic_weights
+
+# list to tensor, dic
+# returns new weights of model
+def dic_of_list_to_weights(dic_weights):
+    global args
+    params = {}
+    for param_tensor, value in dic_weights.items():
+        if args.gpu: # cuda
+            params[param_tensor] = torch.Tensor(value).cuda()
+        else: # cpu
+            params[param_tensor] = torch.Tensor(value).cpu()
+    #model.load_state_dict(params)
+    return params
 
 # 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 
@@ -132,17 +146,18 @@ def add_accuracy(list_acc, epoch):
         print('Train Accuracy: {:.2f}% \n'.format(100*train_accuracy[-1]))
 
 # [호츌] : 서버
-# [인자] : global_model (최종 학습이 끝난 후의 global_model), test_dataset(검증을 위한 dataset)
+# [인자] : global_model
 # [리턴] : X
 # # 모든 학습이 끝난후 출력 
-# 서버가 함수 호출 (global_model을 인자로 보내야 함)
-def test_result(global_model, test_dataset):
+def test_model(global_model):
     global train_accuracy, args
+    test_dataset = get_mnist_test()
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
     
-    print(f' \n Results after {args.epochs} global rounds of training:')
-    print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
+    #print(f' \n Results after {args.epochs} global rounds of training:')
+    #print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
     print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+    print("|---- Test Loss: {:.2f}%".format(100*test_loss))
 
     # Saving the objects train_loss and train_accuracy:
     # file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
@@ -153,8 +168,3 @@ def test_result(global_model, test_dataset):
     #     pickle.dump([train_loss, train_accuracy], f)
     global start_time
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
-    
-
-    
-
-    

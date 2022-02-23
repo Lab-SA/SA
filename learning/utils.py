@@ -5,44 +5,45 @@
 import copy
 import torch
 from torchvision import datasets, transforms
-from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
+from .sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
 
+def get_mnist_train():
+    data_dir = '../data/mnist/'
+    apply_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
 
-def get_dataset(args):
-    """ Returns train and test datasets and a user group which is a dict where
-    the keys are the user index and the values are the corresponding data for
-    each of those users.
+    train_dataset = datasets.MNIST(data_dir, train=True, download=True, transform=apply_transform)
+    return train_dataset
+
+def get_mnist_test():
+    data_dir = '../data/mnist/'
+    apply_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
+    test_dataset = datasets.MNIST(data_dir, train=False, download=True, transform=apply_transform)
+    return test_dataset
+
+def get_users_data(args, num_users, train_dataset):
+    """ Returns a user group which is a dict where
+    the keys are the user index and the values are the corresponding data for each of those users.
     """
     if args.dataset == 'mnist':
-
-        data_dir = '../data/mnist/'
-
-        apply_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))])
-        
-
-        train_dataset = datasets.MNIST(data_dir, train=True, download=True,
-                                       transform=apply_transform)
- 
-
-        test_dataset = datasets.MNIST(data_dir, train=False, download=True,
-                                      transform=apply_transform)
-
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from Mnist
-            user_groups = mnist_iid(train_dataset, args.num_users)
+            user_groups = mnist_iid(train_dataset, num_users)
         else:
             # Sample Non-IID user data from Mnist
             if args.unequal:
                 # Chose uneuqal splits for every user
-                user_groups = mnist_noniid_unequal(train_dataset, args.num_users)
+                user_groups = mnist_noniid_unequal(train_dataset, num_users)
             else:
                 # Chose euqal splits for every user
-                user_groups = mnist_noniid(train_dataset, args.num_users)
-
-    return train_dataset, test_dataset, user_groups
+                user_groups = mnist_noniid(train_dataset, num_users)
+    return user_groups
 
 
 def average_weights(w):
@@ -64,6 +65,10 @@ def sum_weights(w):
             w_sum[key] += w[i][key]
     return w_sum
 
+def add_to_weights(w, a):
+    for param_tensor, value in w.items():
+        w[param_tensor] = torch.add(value, a)
+    return w
 
 def average_weights_origin(w):
     """

@@ -74,24 +74,42 @@ def verify(g, share, commitments, theta, q):
         return True
     else:
         return False
-  
-  
+
+
+# [호출] : 클라이언트
+# [인자] : shares1, shares2(사용자 1과 사용자 2의 거리를 계산하기 위해 1에게 받은 shares와 2에게 받은 shares를 인자로)
+# [리턴] : distance(계산한 거리)
+def calculate_distance(shares1, shares2):
+    distance = 0
+    for i in range(len(shares1)):
+        distance += abs(shares1[i] - shares2[i]) ** 2
+    return distance
+
+
 if __name__ == "__main__":
-    w = 100
+    w1 = 100
+    w2 = 120
     q = 7
     g = 3
     n = 10
     T = 3
     
     theta_list = make_theta(n, q)
-    rij_list = generate_rij(T, q)
-    shares = make_shares(w, theta_list, T, rij_list)
-    commitments = generate_commitments(w, rij_list, g, q)
-    result = verify(g, shares[0], commitments, theta_list[0], q)
+    rij_list1 = generate_rij(T, q)
+    shares1 = make_shares(w1, theta_list, T, rij_list1)
+    commitments = generate_commitments(w1, rij_list1, g, q)
+    result = verify(g, shares1[0], commitments, theta_list[0], q)
+
+    rij_list2 = generate_rij(T, q)
+    shares2 = make_shares(w2, theta_list, T, rij_list2)
 
     print(theta_list)
-    print(rij_list)
-    print(shares)
+    print(rij_list1)
+    print(rij_list2)
+    print(shares1)
+    print(shares2)
     print(commitments)
     print(result)
+
+    print(calculate_distance(shares1, shares2))
 

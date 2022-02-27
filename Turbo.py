@@ -39,7 +39,7 @@ def additiveMasking(next_users, q):
     r_ij_dic = {}
     temp_sum = 0
 
-    for j in range(len(next_users)-1):
+    for j in range(n-1):
         r_ij = random.randrange(1, q)  # temp
         r_ij_dic[next_users[j]] = r_ij
 
@@ -51,13 +51,14 @@ def additiveMasking(next_users, q):
 
 
 # update aggregate value tildeS
-def updateSumofMaskedModel(l, n, pre_tildeX_dic, pre_tildeS_dic):
+def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
     # l = group index of this user.  ex) 0,1,2,...,L
     # n = the number of users per one group
     # pre_tildeS_dic = [dic] tildeS of users in l-1 group
     # tildeX_dic = [dic] masked model(=tildeX) between user i(this) and users in l-1
     # tildeS = a variable that each user holds corresponding to the aggregated masked models from the previous group
     tildeS = 0
+    n = len(pre_tildeS_dic)
 
     """
         initialize tildeS(0) = 0
@@ -76,15 +77,19 @@ def updateSumofMaskedModel(l, n, pre_tildeX_dic, pre_tildeS_dic):
 
 # compute partial summation = p_sum (= s(l))
 def computePartialSum(l, pre_tildeS_dic):
+    p_sum = 0
+    n = len(pre_tildeS_dic)
+
     # initial partial sum s(0), s(1) = 0
     if l == 0:
         print("Initialize p_sum(0) = 0")
     elif l > 0:
-        p_sum = sum(pre_tildeS_dic.values()) / len(pre_tildeS_dic)
+        p_sum = sum(pre_tildeS_dic.values()) / n
     else:
         print("wrong group index")
 
     return p_sum
+
 
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
@@ -145,11 +150,11 @@ def generateLagrangePolynomial(x_list, y_list):
 
 
 # update the encoded aggregate value barS
-def updateSumofEncodedModel(l, pre_barX_dic, p_sum_dic):
+def updateSumofEncodedModel(pre_barX_dic, p_sum):
     # pre_barX_dic = encoded model dic of group l-1
     # barS = encoded_sum
 
-    barS = p_sum_dic[l] + sum(pre_barX_dic.values())
+    barS = p_sum + sum(pre_barX_dic.values())
     return barS
 
 
@@ -183,7 +188,8 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
 def computeFinalOutput(final_tildeS, u_i_dic):
     # final_tildeS = users' masked model dic in final stage
     # u_i_dic = all u_i (random mask from server)
+    final_n = len(final_tildeS)
 
-    sum_x = sum(final_tildeS.values()) / len(final_tildeS) - sum(u_i_dic)
+    sum_x = sum(final_tildeS.values()) / final_n - sum(u_i_dic)
     return sum_x
 

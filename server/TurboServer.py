@@ -6,6 +6,7 @@ from TurboBaseServer import TurboBaseServer
 from BasicSA import getCommonValues
 from CommonValue import TurboRound
 
+groupNum = 0
 usersNum = 0
 threshold = 0
 R = 0
@@ -13,7 +14,7 @@ groups = []
 
 # send common values and index, group of each user
 def setUp():
-    global usersNum, threshold, R, groups
+    global groupNum, usersNum, threshold, R, groups
 
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
@@ -24,14 +25,17 @@ def setUp():
     usersNum = commonValues["n"]
     threshold = commonValues["t"]
     R = commonValues["R"]
+    perGroup = 2 # temp
 
-    usersNow = len(server.requests)
+    usersNow = len(server.requests) # MUST be multiple of perGroup
+    groupNum = int(usersNow / perGroup)
     response = []
-    for i in range(usersNow):
-        response_i = copy.deepcopy(commonValues)
-        response_i["group"] = i # TODO: grouping
-        response_i["index"] = 0 # TODO
-        response.append(response_i)
+    for i in range(groupNum):
+        for j in range(perGroup):
+            response_ij = copy.deepcopy(commonValues)
+            response_ij["group"] = i
+            response_ij["index"] = j
+            response.append(response_ij)
     server.foreachIndex(response)
 
 def turbo():

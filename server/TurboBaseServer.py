@@ -13,13 +13,14 @@ class TurboBaseServer:
     requests = {}
     requests_value = []
 
-    def __init__(self, tag, tag_value, tag_final, port, groupNum, userNum):
+    def __init__(self, tag, tag_value, tag_final, port, groupNum, userNum, perGroup):
         self.tag = tag
         self.tag_value = tag_value
         self.tag_final = tag_final
         self.port = port
         self.groupNum = groupNum
         self.userNum = userNum
+        self.perGroup = perGroup
         self.finalUserNum = 0
         self.requests = [[] for i in range(groupNum+1)] # temp +1
         self.requestsNum = [0 for i in range(groupNum+1)] # temp +1
@@ -59,7 +60,7 @@ class TurboBaseServer:
                             currentClient.sendall(bytes(f'[{self.tag}] OK \r\n', self.ENCODING))
                         elif requestData['request'] == self.tag_final:
                             self.finalUserNum = self.finalUserNum + 1
-                            self.requests_final.append((clientSocket, requestData))
+                            self.requests_final.append(clientSocket)
                         else:
                             raise AttributeError
                         
@@ -117,18 +118,21 @@ class TurboBaseServer:
     
 
     def sendFinalValue(self, finalUserNum, requests):
-        if finalUserNum < 1:
-            raise Exception(f"Need at least 1 users at final stage.")
+        if finalUserNum < self.perGroup:
+            raise Exception(f"Need at least {self.perGroup} users at final stage.")
         
-        # Send final values to one random user
-        finalIdx = random.randrange(0, finalUserNum)
-        (socket, data) = requests[finalIdx]
-        response = {"chosen": True} # TODO final S
+        # Send final values to final group (size: perGroup)
+        response = {"chosen": True}
         response_json = json.dumps(response)
-        socket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+        
+        # random perGroup users
+        finalGroup = random.sample(requests, self.perGroup)
+        for clientSocket in finalGroup:
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+            requests.remove(clientSocket)
 
         # to other users
-        for (clientSocket, requestData) in requests:
+        for clientSocket in requests:
             clientSocket.sendall(bytes(json.dumps({"chosen": False}) + "\r\n", self.ENCODING))
     
         

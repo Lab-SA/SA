@@ -77,12 +77,10 @@ def verify(g, share, commitments, theta, q):
 
 
 # [호출] : 클라이언트
-# [인자] : shares1, shares2(사용자 1과 사용자 2의 거리를 계산하기 위해 1에게 받은 shares와 2에게 받은 shares를 인자로)
+# [인자] : share1, share2(사용자 1과 사용자 2의 거리를 계산하기 위해 1에게 받은 share와 2에게 받은 share를 인자로)
 # [리턴] : distance(계산한 거리)
-def calculate_distance(shares1, shares2):
-    distance = 0
-    for i in range(len(shares1)):
-        distance += abs(shares1[i] - shares2[i]) ** 2
+def calculate_distance(share1, share2):
+    distance = abs(share1 - share2) ** 2
     return distance
 
 
@@ -111,5 +109,5 @@ if __name__ == "__main__":
     print(commitments)
     print(result)
 
-    print(calculate_distance(shares1, shares2))
+    print(calculate_distance(shares1[0], shares2[0]))
 

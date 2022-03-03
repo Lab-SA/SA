@@ -12,10 +12,11 @@ usersNum = 0
 threshold = 0
 R = 0
 groups = []
+mask_u_list = []
 
 # send common values and index, group of each user
 def setUp():
-    global groupNum, usersNum, threshold, R, groups, perGroup
+    global groupNum, usersNum, threshold, R, groups, perGroup, mask_u_list
 
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
@@ -38,7 +39,9 @@ def setUp():
             response_ij = copy.deepcopy(commonValues)
             response_ij["group"] = i
             response_ij["index"] = j
-            response_ij["mask_u"] = random.randrange(1, R) # 1~R
+            mask_u = random.randrange(1, R) # 1~R
+            mask_u_list.append(mask_u)
+            response_ij["mask_u"] = mask_u
             response.append(response_ij)
     server.foreachIndex(response)
 
@@ -54,6 +57,8 @@ def turbo():
     server.start()
 
 def final():
+    global mask_u_list
+
     tag = TurboRound.Final.name
     port = TurboRound.Final.value
 
@@ -68,8 +73,7 @@ def final():
         final_barS.append(int(requestData["final_barS"]))
     server.broadcast({})
 
-    print(final_tildeS)
-    print(final_barS)
+    return sum(final_tildeS) / len(final_tildeS) - sum(mask_u_list)
 
 if __name__ == "__main__":
     setUp()

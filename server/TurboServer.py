@@ -1,4 +1,4 @@
-import os, sys, copy
+import os, sys, copy, random
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
@@ -25,7 +25,9 @@ def setUp():
     usersNum = commonValues["n"]
     threshold = commonValues["t"]
     R = commonValues["R"]
+
     perGroup = 2 # temp
+    commonValues["perGroup"] = perGroup
 
     usersNow = len(server.requests) # MUST be multiple of perGroup
     groupNum = int(usersNow / perGroup)
@@ -35,6 +37,7 @@ def setUp():
             response_ij = copy.deepcopy(commonValues)
             response_ij["group"] = i
             response_ij["index"] = j
+            response_ij["mask_u"] = random.randrange(1, R) # 1~R
             response.append(response_ij)
     server.foreachIndex(response)
 

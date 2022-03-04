@@ -43,13 +43,15 @@ class TurboClient:
         PORT = TurboRound.Turbo.value
 
         request = {"group": self.group, "index": self.index}
-        # response = {"maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}}
+        # response = {"maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}, "perGroup": 0, "mask_u": 0}
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)
 
         self.maskedxij = response["maskedxij"]
         self.encodedxij = response["encodedxij"]
         self.si = response["si"]
         self.codedsi = response["codedsi"]
+        self.perGroup = response["perGroup"]
+        self.mask_u = response["mask_u"]
         print(response)
         print(self.maskedxij, self.encodedxij, self.si, self.codedsi)
     

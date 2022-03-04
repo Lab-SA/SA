@@ -1,4 +1,4 @@
-import os, sys, copy
+import os, sys, copy, random
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
@@ -6,14 +6,17 @@ from TurboBaseServer import TurboBaseServer
 from BasicSA import getCommonValues
 from CommonValue import TurboRound
 
+groupNum = 0
+perGroup = 0
 usersNum = 0
 threshold = 0
 R = 0
 groups = []
+mask_u_list = []
 
 # send common values and index, group of each user
 def setUp():
-    global usersNum, threshold, R, groups
+    global groupNum, usersNum, threshold, R, groups, perGroup, mask_u_list
 
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
@@ -25,27 +28,37 @@ def setUp():
     threshold = commonValues["t"]
     R = commonValues["R"]
 
-    usersNow = len(server.requests)
+    perGroup = 2 # temp
+    commonValues["perGroup"] = perGroup
+
+    usersNow = len(server.requests) # MUST be multiple of perGroup
+    groupNum = int(usersNow / perGroup)
     response = []
-    for i in range(usersNow):
-        response_i = copy.deepcopy(commonValues)
-        response_i["group"] = i # TODO: grouping
-        response_i["index"] = 0 # TODO
-        response.append(response_i)
+    for i in range(groupNum):
+        for j in range(perGroup):
+            response_ij = copy.deepcopy(commonValues)
+            response_ij["group"] = i
+            response_ij["index"] = j
+            mask_u = random.randrange(1, R) # 1~R
+            mask_u_list.append(mask_u)
+            response_ij["mask_u"] = mask_u
+            response.append(response_ij)
     server.foreachIndex(response)
 
 def turbo():
-    global groups, usersNum
+    global groups, usersNum, perGroup
 
     tag = TurboRound.Turbo.name
     tag_value = TurboRound.TurboValue.name
     tag_final = TurboRound.TurboFinal.name
     port = TurboRound.Turbo.value
     
-    server = TurboBaseServer(tag, tag_value, tag_final, port, 3, usersNum) # len(groups)
+    server = TurboBaseServer(tag, tag_value, tag_final, port, 3, usersNum, perGroup) # len(groups)
     server.start()
 
 def final():
+    global mask_u_list
+
     tag = TurboRound.Final.name
     port = TurboRound.Final.value
 
@@ -60,8 +73,7 @@ def final():
         final_barS.append(int(requestData["final_barS"]))
     server.broadcast({})
 
-    print(final_tildeS)
-    print(final_barS)
+    return sum(final_tildeS) / len(final_tildeS) - sum(mask_u_list)
 
 if __name__ == "__main__":
     setUp()

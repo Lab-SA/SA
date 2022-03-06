@@ -150,10 +150,11 @@ def generateLagrangePolynomial(x_list, y_list):
 
 
 # update the encoded aggregate value barS
-def updateSumofEncodedModel(pre_barX_dic, p_sum):
+def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
     # pre_barX_dic = encoded model dic of group l-1
     # barS = encoded_sum
 
+    p_sum = computePartialSum(l, pre_tildeS_dic)
     barS = p_sum + sum(pre_barX_dic.values())
     return barS
 

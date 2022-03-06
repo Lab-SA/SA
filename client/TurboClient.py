@@ -1,4 +1,6 @@
 import json, socket, os, sys
+import Turbo
+
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import BasicSA as sa
@@ -43,22 +45,37 @@ class TurboClient:
         PORT = TurboRound.Turbo.value
 
         request = {"group": self.group, "index": self.index}
-        # response = {"maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}, "perGroup": 0, "mask_u": 0}
+        # response = {"pre_maskedxij": {}, "pre_encodedxij": {}, "pre_si": {}, "pre_codedsi": {}, "perGroup": 0, "mask_u": 0}
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)
 
-        self.maskedxij = response["maskedxij"]
-        self.encodedxij = response["encodedxij"]
-        self.si = response["si"]
-        self.codedsi = response["codedsi"]
+        self.pre_maskedxij = response["maskedxij"]
+        self.pre_encodedxij = response["encodedxij"]
+        self.pre_si = response["si"]
+        self.pre_codedsi = response["codedsi"]
         self.perGroup = response["perGroup"]
         self.mask_u = response["mask_u"]
         print(response)
-        print(self.maskedxij, self.encodedxij, self.si, self.codedsi)
+        print(self.pre_maskedxij, self.pre_encodedxij, self.pre_si, self.pre_codedsi)
     
     def turbo_value(self):
         tag = TurboRound.TurboValue.name
         PORT = TurboRound.Turbo.value
-        request = {"group": self.group, "index": self.index, "maskedxij": {0: 1}, "encodedxij": {0: 2}, "si": 3, "codedsi": 4}
+
+        alpha_list = []
+        beta_list = []
+        next_users = [idx for idx in range(self.perGroup)]
+
+        self.maskedxij = Turbo.computeMaskedModel(self.xu, self.mask_u, next_users, self.p)
+        alpha_list, beta_list = Turbo.generateRandomVectorSet(next_users, self.p)
+        self.encodedxij = Turbo.generateEncodedModel(alpha_list, beta_list, self.maskedxij)
+        self.si = 0
+        self.codedsi = 0
+
+        if self.group > 0:
+            self.si = Turbo.updateSumofMaskedModel(self.group, self.pre_maskedxij, self.pre_si)
+            self.codedsi = Turbo.updateSumofEncodedModel(self.group, self.pre_codedsi, self.pre_maskedxij)
+
+        request = {"group": self.group, "index": self.index, "maskedxij": self.maskedxij, "encodedxij": self.pre_encodedxij, "si": self.si, "codedsi": self.codedsi}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
     def turbo_final(self):
@@ -67,13 +84,22 @@ class TurboClient:
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
         if response["chosen"] == True:
             # TODO final stage
+            self.pre_maskedxij = response["maskedxij"]
+            self.pre_encodedxij = response["encodedxij"]
+            self.pre_si = response["si"]
+            self.pre_codedsi = response["codedsi"]
+            self.perGroup = response["perGroup"]
+            print(response)
+            print(self.pre_maskedxij, self.pre_encodedxij, self.pre_si, self.pre_codedsi)
             self.final()
 
     def final(self):
         tag = TurboRound.Final.name
         PORT = TurboRound.Final.value
         # TODO final stage
-        request = {"final_tildeS": 1, "final_barS": 2}
+        final_tildeS = Turbo.updateSumofMaskedModel(self.group + 1, self.pre_maskedxij, self.pre_si)
+        final_barS = Turbo.updateSumofEncodedModel(self.group + 1, self.pre_encodedxij, self.pre_maskedxij)
+        request = {"final_tildeS": final_tildeS, "final_barS": final_barS}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from MainServer import MainServer
 from TurboBaseServer import TurboBaseServer
 from BasicSA import getCommonValues
+from Turbo import generateRandomVectorSet
 from CommonValue import TurboRound
 
 groupNum = 0
@@ -11,12 +12,11 @@ perGroup = 0
 usersNum = 0
 threshold = 0
 R = 0
-groups = []
 mask_u_list = []
 
 # send common values and index, group of each user
 def setUp():
-    global groupNum, usersNum, threshold, R, groups, perGroup, mask_u_list
+    global groupNum, usersNum, threshold, R, perGroup, mask_u_list
 
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
@@ -30,6 +30,9 @@ def setUp():
 
     perGroup = 2 # temp
     commonValues["perGroup"] = perGroup
+
+    # generate common alpha/beta
+    commonValues["alpha"], commonValues["beta"] = generateRandomVectorSet(perGroup, commonValues["p"])
 
     usersNow = len(server.requests) # MUST be multiple of perGroup
     groupNum = int(usersNow / perGroup)
@@ -46,14 +49,14 @@ def setUp():
     server.foreachIndex(response)
 
 def turbo():
-    global groups, usersNum, perGroup
+    global groupNum, usersNum, perGroup
 
     tag = TurboRound.Turbo.name
     tag_value = TurboRound.TurboValue.name
     tag_final = TurboRound.TurboFinal.name
     port = TurboRound.Turbo.value
     
-    server = TurboBaseServer(tag, tag_value, tag_final, port, 3, usersNum, perGroup) # len(groups)
+    server = TurboBaseServer(tag, tag_value, tag_final, port, groupNum, usersNum, perGroup)
     server.start()
 
 def final():
@@ -78,4 +81,5 @@ def final():
 if __name__ == "__main__":
     setUp()
     turbo()
-    final()
+    final_value = final()
+    print(f'final value: {final_value}')

@@ -37,6 +37,7 @@ class TurboBaseServer:
             for i in range(self.groupNum):
                 # for each one group
                 self.startTime = self.endTime = time.time()
+                self.requests_value = []
 
                 while (self.endTime - self.startTime) < self.interval:
                     currentClient = socket
@@ -96,7 +97,7 @@ class TurboBaseServer:
             
             # End of for loop
             # final stage
-            self.sendFinalValue(self.finalUserNum, self.requests_final)
+            self.sendFinalValue(self.finalUserNum, self.requests_final, self.requests_value)
 
             # close
             self.close()
@@ -117,17 +118,22 @@ class TurboBaseServer:
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
     
 
-    def sendFinalValue(self, finalUserNum, requests):
+    def sendFinalValue(self, finalUserNum, requests, requests_value):
         if finalUserNum < self.perGroup:
             raise Exception(f"Need at least {self.perGroup} users at final stage.")
         
-        # Send final values to final group (size: perGroup)
-        response = {"chosen": True}
-        response_json = json.dumps(response)
-        
         # random perGroup users
         finalGroup = random.sample(requests, self.perGroup)
-        for clientSocket in finalGroup:
+        for i, clientSocket in enumerate(finalGroup):
+            # Send final values to final group (size: perGroup)
+            response = {"chosen": True, "maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}}
+            for value in requests_value: # final values
+                idx = value["index"]
+                response["maskedxij"][idx] = value["maskedxij"][str(i)]
+                response["encodedxij"][idx] = value["encodedxij"][str(i)]
+                response["si"][idx] = value["si"]
+                response["codedsi"][idx] = value["codedsi"]
+            response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
             requests.remove(clientSocket)
 

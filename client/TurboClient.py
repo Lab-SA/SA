@@ -1,9 +1,8 @@
-import json, socket, os, sys
-import Turbo
+import os, sys
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-import BasicSA as sa
+import Turbo
 from CommonValue import TurboRound
 from BasicSAClient import sendRequestAndReceive
 
@@ -20,9 +19,9 @@ class TurboClient:
     index = 0
     weights = {1: 123} # temp
 
-    pre_maskedxij, pre_encodedxij, pre_si, pre_codedsi = 0 # for l-1 group
-    maskedxij, encodedxij, si, codedsi = 0
-    perGroup, mask_u = 0
+    pre_maskedxij = pre_encodedxij = pre_si = pre_codedsi = 0 # for l-1 group
+    maskedxij = encodedxij = si = codedsi = 0
+    perGroup = mask_u = 0
 
     # alpha_list, beta_list = Turbo.generateRandomVectorSet(next_users, self.p)
     alpha = []
@@ -36,7 +35,7 @@ class TurboClient:
         tag = TurboRound.SetUp.name
         PORT = TurboRound.SetUp.value
 
-        # response: {"n": n, "t": t, "g": g, "p": p, "R": R, "index": index, "group": group}
+        # response: {"n": n, "t": t, "g": g, "p": p, "R": R, "index": index, "group": group, "perGroup": 0, "mask_u": 0, "alpha": [], "beta": []}
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
         self.n = response["n"]
         self.t = response["t"]
@@ -45,7 +44,10 @@ class TurboClient:
         self.R = response["R"]
         self.group = response["group"]
         self.index = response["index"]
-        print(response)
+        self.perGroup = response["perGroup"]
+        self.mask_u = response["mask_u"]
+        self.alpha = response["alpha"]
+        self.beta = response["beta"]
         return self.group
     
     def turbo(self):
@@ -53,20 +55,14 @@ class TurboClient:
         PORT = TurboRound.Turbo.value
 
         request = {"group": self.group, "index": self.index}
-        # response = {"pre_maskedxij": {}, "pre_encodedxij": {}, "pre_si": {}, "pre_codedsi": {}, "perGroup": 0, "mask_u": 0, "alpha": [], "beta": []}
+        # response = {"maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}}
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)
 
         self.pre_maskedxij = response["maskedxij"]
         self.pre_encodedxij = response["encodedxij"]
         self.pre_si = response["si"]
         self.pre_codedsi = response["codedsi"]
-        self.perGroup = response["perGroup"]
-        self.mask_u = response["mask_u"]
-        self.alpha = response["alpha"]
-        self.beta = response["beta"]
-        print(response)
-        print(self.pre_maskedxij, self.pre_encodedxij, self.pre_si, self.pre_codedsi)
-        print(self.perGroup, self.mask_u, self.alpha, self.beta)
+        # print(self.pre_maskedxij, self.pre_encodedxij, self.pre_si, self.pre_codedsi)
     
     def turbo_value(self):
         tag = TurboRound.TurboValue.name
@@ -79,13 +75,13 @@ class TurboClient:
 
         self.si = 0
         self.codedsi = 0
-        self.reconstruct()
 
         if self.group > 0:
+            self.reconstruct()
             self.si = Turbo.updateSumofMaskedModel(self.group, self.pre_maskedxij, self.pre_si)
             self.codedsi = Turbo.updateSumofEncodedModel(self.group, self.pre_encodedxij, self.pre_si)
 
-        request = {"group": self.group, "index": self.index, "maskedxij": self.maskedxij, "encodedxij": {self.encodedxij}, "si": self.si, "codedsi": self.codedsi}
+        request = {"group": self.group, "index": self.index, "maskedxij": self.maskedxij, "encodedxij": self.encodedxij, "si": self.si, "codedsi": self.codedsi}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
     # reconstruct l-1 group's si and codedsi
@@ -103,9 +99,7 @@ class TurboClient:
             self.pre_encodedxij = response["encodedxij"]
             self.pre_si = response["si"]
             self.pre_codedsi = response["codedsi"]
-            self.perGroup = response["perGroup"]
-            print(response)
-            print(self.pre_maskedxij, self.pre_encodedxij, self.pre_si, self.pre_codedsi)
+            # print(self.pre_maskedxij, self.pre_encodedxij, self.pre_si, self.pre_codedsi)
             self.final()
 
     def final(self):
@@ -113,8 +107,8 @@ class TurboClient:
         PORT = TurboRound.Final.value
         # TODO final stage
         self.reconstruct()
-        final_tildeS = Turbo.updateSumofMaskedModel(self.group + 1, self.pre_maskedxij, self.pre_si)
-        final_barS = Turbo.updateSumofEncodedModel(self.group + 1, self.pre_encodedxij, self.pre_si)
+        final_tildeS = Turbo.updateSumofMaskedModel(1, self.pre_maskedxij, self.pre_si) # any l > 0
+        final_barS = Turbo.updateSumofEncodedModel(1, self.pre_encodedxij, self.pre_si) # any l > 0
 
         request = {"final_tildeS": final_tildeS, "final_barS": final_barS}
         sendRequestAndReceive(self.HOST, PORT, tag, request)

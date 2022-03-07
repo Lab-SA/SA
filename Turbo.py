@@ -115,11 +115,10 @@ def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
 
 def generateRandomVectorSet(next_users, q):
     # next_users = users' index of l+1 group
-    n = len(next_users)
-    alpha_list = random.sample(range(1, q), n)
+    alpha_list = random.sample(range(1, q), next_users)
     beta_list = []
 
-    for j in next_users:
+    for j in range(next_users):
         while True:
             beta = random.randrange(1, q)
             if beta not in alpha_list and beta not in beta_list:
@@ -168,9 +167,9 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     x_list = []
 
     for i in pre_tildeS_dic.keys():
-        x_list.append(alpha_list[i])
+        x_list.append(alpha_list[int(i)])
     for i in pre_barS_dic.keys():
-        x_list.append(beta_list[i])
+        x_list.append(beta_list[int(i)])
     y_list = list(pre_tildeS_dic.values()) + list(pre_barS_dic.values())
 
     g_i = generateLagrangePolynomial(x_list, y_list)

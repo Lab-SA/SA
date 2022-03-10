@@ -33,19 +33,19 @@ def computeMaskedModel(x, u_i, next_users, q):
 
 
 def additiveMasking(next_users, q):
-    # next_users = users' index in other group (= j)
+    # next_users = number of users (-> index = j)
     # r_ij_dic = additive random vector dictionary by user i
-    n = len(next_users)
+    n = next_users
     r_ij_dic = {}
     temp_sum = 0
 
     for j in range(n-1):
         r_ij = random.randrange(1, q)  # temp
-        r_ij_dic[next_users[j]] = r_ij
+        r_ij_dic[j] = r_ij
 
     temp_sum = sum(r_ij_dic.values())
     temp_r = 0 - temp_sum
-    r_ij_dic[next_users[n - 1]] = temp_r
+    r_ij_dic[n-1] = temp_r
 
     return r_ij_dic
 
@@ -165,23 +165,18 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     # pre_barS_dic = [dic] { surviving users'(group l-1) index: surviving users' barS }
     # g_i = lagrange polynomial of group l-1 for reconstruct
     x_list = []
-
     for i in pre_tildeS_dic.keys():
         x_list.append(alpha_list[int(i)])
     for i in pre_barS_dic.keys():
         x_list.append(beta_list[int(i)])
     y_list = list(pre_tildeS_dic.values()) + list(pre_barS_dic.values())
-
     g_i = generateLagrangePolynomial(x_list, y_list)
 
-    for index in range(len(alpha_list)):
-        alpha = alpha_list[index]
+    for index, alpha in enumerate(alpha_list):
         if alpha not in x_list:
             recon_tildeS = np.polyval(g_i, alpha)
             pre_tildeS_dic[index] = recon_tildeS
-        else:
-            continue
-
+            print(f'alpha: {alpha_list[index]}, recon_tildeS: {recon_tildeS}')
     return pre_tildeS_dic
 
 

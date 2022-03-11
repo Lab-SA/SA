@@ -172,12 +172,15 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     y_list = list(pre_tildeS_dic.values()) + list(pre_barS_dic.values())
     g_i = generateLagrangePolynomial(x_list, y_list)
 
+    drop_out = []
     for index, alpha in enumerate(alpha_list):
         if alpha not in x_list:
             recon_tildeS = np.polyval(g_i, alpha)
             pre_tildeS_dic[index] = recon_tildeS
             print(f'alpha: {alpha_list[index]}, recon_tildeS: {recon_tildeS}')
-    return pre_tildeS_dic
+            drop_out.append(index)
+    
+    return pre_tildeS_dic, drop_out
 
 
 def computeFinalOutput(final_tildeS, u_i_dic):

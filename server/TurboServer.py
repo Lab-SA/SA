@@ -12,11 +12,12 @@ perGroup = 0
 usersNum = 0
 threshold = 0
 R = 0
-mask_u_list = []
+mask_u_dic = {}
+drop_out = {}
 
 # send common values and index, group of each user
 def setUp():
-    global groupNum, usersNum, threshold, R, perGroup, mask_u_list
+    global groupNum, usersNum, threshold, R, perGroup, mask_u_dic
 
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
@@ -37,19 +38,20 @@ def setUp():
     usersNow = len(server.requests) # MUST be multiple of perGroup
     groupNum = int(usersNow / perGroup)
     response = []
+    mask_u_dic = {i:{} for i in range(groupNum)}
     for i in range(groupNum):
         for j in range(perGroup):
             response_ij = copy.deepcopy(commonValues)
             response_ij["group"] = i
             response_ij["index"] = j
             mask_u = random.randrange(1, R) # 1~R
-            mask_u_list.append(mask_u)
+            mask_u_dic[i][j] = mask_u
             response_ij["mask_u"] = mask_u
             response.append(response_ij)
     server.foreachIndex(response)
 
 def turbo():
-    global groupNum, usersNum, perGroup
+    global groupNum, usersNum, perGroup, drop_out
 
     tag = TurboRound.Turbo.name
     tag_value = TurboRound.TurboValue.name
@@ -58,9 +60,10 @@ def turbo():
     
     server = TurboBaseServer(tag, tag_value, tag_final, port, groupNum, usersNum, perGroup)
     server.start()
+    drop_out = server.drop_out
 
 def final():
-    global mask_u_list
+    global mask_u_dic, drop_out
 
     tag = TurboRound.Final.name
     port = TurboRound.Final.value
@@ -74,9 +77,23 @@ def final():
         requestData = request[1]  # (socket, data)
         final_tildeS.append(int(requestData["final_tildeS"]))
         final_barS.append(int(requestData["final_barS"]))
+    # TODO recontruct
+
     server.broadcast({})
 
-    return sum(final_tildeS) / len(final_tildeS) - sum(mask_u_list)
+    # calculate sum of surviving user's mask_u
+    for group, item in drop_out.items():
+        group = int(group)
+        for i in item: # drop out
+            i = int(i)
+            del mask_u_dic[group][i]
+    
+    surviving_mask_u = 0
+    for group, item in mask_u_dic.items():
+        surviving_mask_u = surviving_mask_u + sum(item.values())
+    
+    # final value (sum_xu)
+    return sum(final_tildeS) / len(final_tildeS) - surviving_mask_u
 
 if __name__ == "__main__":
     setUp()

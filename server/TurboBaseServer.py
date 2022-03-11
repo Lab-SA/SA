@@ -12,6 +12,7 @@ class TurboBaseServer:
     userNum = userNow = 0
     requests = {}
     requests_value = []
+    drop_out = {}
 
     def __init__(self, tag, tag_value, tag_final, port, groupNum, userNum, perGroup):
         self.tag = tag
@@ -58,6 +59,7 @@ class TurboBaseServer:
                             # {request: TAG_VALUE, group: GROUP_INDEX, index: INDEX, maskedxij: {idx: , ...}, encodedxij: {idx: , ...}, si: VALUE, codedsi: VALUE}
                             self.userNow = self.userNow + 1
                             self.requests_value.append(requestData)
+                            self.drop_out[i-1] = requestData['drop_out']
                             currentClient.sendall(bytes(f'[{self.tag}] OK \r\n', self.ENCODING))
                         elif requestData['request'] == self.tag_final:
                             self.finalUserNum = self.finalUserNum + 1

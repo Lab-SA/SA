@@ -26,6 +26,7 @@ class TurboClient:
     # alpha_list, beta_list = Turbo.generateRandomVectorSet(next_users, self.p)
     alpha = []
     beta = []
+    drop_out = []
 
     # need?
     my_keys = {}  # c_pk, c_sk, s_pk, s_sk of this client
@@ -79,7 +80,7 @@ class TurboClient:
             self.si = Turbo.updateSumofMaskedModel(self.group, self.pre_maskedxij, self.pre_si)
             self.codedsi = Turbo.updateSumofEncodedModel(self.group, self.pre_encodedxij, self.pre_si)
 
-        request = {"group": self.group, "index": self.index, "maskedxij": self.maskedxij, "encodedxij": self.encodedxij, "si": self.si, "codedsi": self.codedsi}
+        request = {"group": self.group, "index": self.index, "maskedxij": self.maskedxij, "encodedxij": self.encodedxij, "si": self.si, "codedsi": self.codedsi, "drop_out": self.drop_out}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
     def turbo_final(self):
@@ -100,12 +101,12 @@ class TurboClient:
         final_tildeS = Turbo.updateSumofMaskedModel(1, self.pre_maskedxij, self.pre_si) # any l > 0
         final_barS = Turbo.updateSumofEncodedModel(1, self.pre_encodedxij, self.pre_si) # any l > 0
 
-        request = {"final_tildeS": final_tildeS, "final_barS": final_barS}
+        request = {"final_tildeS": final_tildeS, "final_barS": final_barS, "drop_out": self.drop_out}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
     # reconstruct l-1 group's si and codedsi
     def reconstruct(self, group):
-        self.pre_si = Turbo.reconstruct(self.alpha, self.beta, self.pre_si, self.pre_codedsi)
+        self.pre_si, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, self.pre_si, self.pre_codedsi)
         self.pre_codedsi = Turbo.updateSumofEncodedModel(group, self.pre_encodedxij, self.pre_si)
 
 if __name__ == "__main__":

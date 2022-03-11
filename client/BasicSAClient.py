@@ -2,6 +2,7 @@ import json, socket, os, sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import BasicSA as sa
 from CommonValue import BasicSARound
+import learning.federated_main as fl
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -15,15 +16,26 @@ def sendRequestAndReceive(host, port, tag, request):
     request['request'] = tag
     
     # send request
-    s.sendall(bytes(json.dumps(request), ENCODING))
-    print(f"[{tag}] Send {request}")
+    s.sendall(bytes(json.dumps(request) + "\r\n", ENCODING))
+    print(f"[{tag}] Send request")
+    # print(f"[{tag}] Send {request}")
 
-    # receive
-    receivedStr = str(s.recv(SIZE), ENCODING)
+    # receive server response
+    # response must ends with "\r\n"
+    receivedStr = ''
+    while True:
+        received = str(s.recv(SIZE), ENCODING)
+        if received.endswith("\r\n"):
+            received = received.replace("\r\n", "")
+            receivedStr = receivedStr + received
+            break
+        receivedStr = receivedStr + received
+
     response = ''
     try:
         response = json.loads(receivedStr)
-        print(f"[{tag}] receive response {response}")
+        print(f"[{tag}] Receive request")
+        # print(f"[{tag}] receive response {response}")
         return response
     except json.decoder.JSONDecodeError:
         #raise Exception(f"[{tag}] Server response with: {response}")
@@ -34,7 +46,7 @@ def sendRequestAndReceive(host, port, tag, request):
 
 class BasicSAClient:
     HOST = 'localhost'
-    xu = 0  # temp. local model of this client
+    # xu = 0  # temp. local model of this client
 
     commonValues = {}  # {"n": n, "t": t, "g": g, "p": p, "R": R} from server in setup stage
     u = 0  # u = user index
@@ -44,6 +56,7 @@ class BasicSAClient:
     others_euv = {}
     bu = 0  # random element to be used as a seed for PRG
     U3 = []  # survived users in round2(MaskedInputCollection)
+    model = {}
 
     def setUp(self):
         tag = BasicSARound.SetUp.name
@@ -52,6 +65,14 @@ class BasicSAClient:
         # response: {"n": n, "t": t, "g": g, "p": p, "R": R}
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
         self.commonValues = response
+        self.data = response["data"] # user_groups[idx]
+        global_weights = fl.dic_of_list_to_weights(response["weights"])
+
+        if self.model == {}:
+            self.model = fl.setup()
+        fl.update_model(self.model, global_weights)
+        local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
+        self.weight = local_weight
 
     def advertiseKeys(self):
         tag = BasicSARound.AdvertiseKeys.name
@@ -122,12 +143,13 @@ class BasicSAClient:
         yu = sa.generateMaskedInput(
             self.u, 
             self.bu, 
-            self.xu, 
+            self.weight,
             self.my_keys["s_sk"], 
             self.euv_list, 
             s_pk_dic, 
             self.commonValues["R"])
-        request = {"idx": self.u, "yu": yu}  # request example: {"idx":0, "yu":y0}
+        
+        request = {"idx": self.u, "yu": fl.weights_to_dic_of_list(yu)}  # request example: {"idx":0, "yu":y0}
 
         # receive sending_yu_list from server
         response = sendRequestAndReceive(self.HOST, PORT, tag, request)
@@ -166,8 +188,10 @@ class BasicSAClient:
 
 if __name__ == "__main__":
     client = BasicSAClient() # test
-    client.setUp()
-    client.advertiseKeys()
-    client.shareKeys()    
-    client.maskedInputCollection()
-    client.unmasking()
+
+    for i in range(5): # 5 rounds
+        client.setUp()
+        client.advertiseKeys()
+        client.shareKeys()    
+        client.maskedInputCollection()
+        client.unmasking()

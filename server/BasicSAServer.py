@@ -1,39 +1,63 @@
-import os, sys
+import os, sys, copy
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
-from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct
+from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct, generatingOutput
 from CommonValue import BasicSARound
 from ast import literal_eval
+import learning.federated_main as fl
+import SecureProtocol as sp
 
+model = {}
 users_keys = {}
 yu_list = []
-usersNum = 0
+n = 0
 threshold = 0
 R = 0
+usersNow = 0
 
 # broadcast common value
 def setUp():
-    global usersNum, threshold, R
+    global n, threshold, R, model, usersNow
 
     tag = BasicSARound.SetUp.name
     port = BasicSARound.SetUp.value
-    server = MainServer(tag, port)
-    server.start()
-
+    
     commonValues = getCommonValues()
-    usersNum = commonValues["n"]
-    threshold = commonValues["t"]
     R = commonValues["R"]
-    server.broadcast(commonValues)
+    n = 4 # expected
+    
+    server = MainServer(tag, port, n)
+    server.start()
+    
+    usersNow = server.userNum
+    n = usersNow
+    threshold = usersNow - 2 # temp
+    commonValues["n"] = n
+    commonValues["t"] = threshold
+
+    if model == {}:
+        model = fl.setup()
+    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
+    user_groups = fl.get_user_dataset(usersNow)
+
+    response = []
+    for i in range(usersNow):
+        response_i = copy.deepcopy(commonValues)
+        response_i["index"] = i
+        response_i["data"] = [int(k) for k in user_groups[i]]
+        response_i["weights"] = model_weights_list
+        response.append(response_i)
+    server.foreachIndex(response)
 
 def advertiseKeys():
-    global users_keys
+    global users_keys, usersNow
 
     tag = BasicSARound.AdvertiseKeys.name
     port = BasicSARound.AdvertiseKeys.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # requests example: {"c_pk":"VALUE", "s_pk": "VALUE"}
     requests = server.requests
@@ -50,10 +74,13 @@ def advertiseKeys():
 
 
 def shareKeys():
+    global usersNow
+
     tag = BasicSARound.ShareKeys.name
     port = BasicSARound.ShareKeys.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # (one) request example: {0: [(0, 0, e00), (0, 1, e01) ... ]}
     # requests example: [{0: [(0, 0, e00), ... ]}, {1: [(1, 0, e10), ... ]}, ... ]
@@ -78,12 +105,13 @@ def shareKeys():
     server.foreach(response)
     
 def maskedInputCollection():
-    global yu_list
+    global yu_list, usersNow
 
     tag = BasicSARound.MaskedInputCollection.name
     port = BasicSARound.MaskedInputCollection.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # if u3 dropped
     # (one) request example: {"idx":0, "yu":y0}
@@ -94,18 +122,19 @@ def maskedInputCollection():
     for request in requests:
         requestData = request[1]  # (socket, data)
         response.append(int(requestData["idx"]))
-        yu_list.append(int(requestData["yu"]))
+        yu_ = fl.dic_of_list_to_weights(requestData["yu"])
+        yu_list.append(yu_)
 
     server.broadcast({"users": response})
 
 def unmasking():
-    global usersNum, yu_list, R, users_keys
-    sum_xu = sum(yu_list) # sum(xu) is sum of user3's xu
+    global yu_list, R, users_keys, usersNow, model
 
     tag = BasicSARound.Unmasking.name
     port = BasicSARound.Unmasking.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNow)
     server.start()
+    usersNow = server.userNum
 
     # (one) request: {"idx": u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
     # if u2, u3 dropped, requests: [{"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk}, "bu_shares": {1: b10, 4: b40}}, ...]
@@ -138,24 +167,36 @@ def unmasking():
         s_sk_dic[i] = reconstruct(ssk_shares)
     # recompute p_vu
     user3list = list(bu_shares_dic.keys())
+    sum_pvu = 0
     for u in user3list:
         for v, s_sk in s_sk_dic.items():
             pvu = reconstructPvu(v, u, s_sk, users_keys[u]["s_pk"], R)
-            sum_xu = sum_xu + pvu
+            sum_pvu = sum_pvu + pvu
+            #sum_xu = sum_xu + pvu
     
+    sum_pu = 0
     # recompute p_u of users3
     for i, bu_shares in bu_shares_dic.items(): # first, reconstruct ssk_u <- ssk_u,v
         pu = reconstructPu(bu_shares, R)
-        sum_xu = sum_xu - pu
+        sum_pu = sum_pu + pu
+        #sum_xu = sum_xu - pu
     
-    avg = sum_xu / len(yu_list)
-    return avg
+    # sum_yu
+    mask = sum_pvu - sum_pu
+    sum_xu = generatingOutput(yu_list, mask)
+    
+    # update global model
+    model = fl.update_globalmodel(model, sum_xu)
+    
+    # End
+    server.broadcast("[Server] End protocol")
+    fl.test_model(model)
 
 
 if __name__ == "__main__":
-    setUp()
-    advertiseKeys()
-    shareKeys()    
-    maskedInputCollection()
-    final = unmasking()
-    print("[Server] average of sum_xu): ", final)
+    for i in range(5): # 5 rounds
+        setUp()
+        advertiseKeys()
+        shareKeys()    
+        maskedInputCollection()
+        unmasking()

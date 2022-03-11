@@ -131,6 +131,7 @@ class TurboBaseServer:
             response = {"chosen": True, "maskedxij": {}, "encodedxij": {}, "si": {}, "codedsi": {}}
             for value in requests_value: # final values
                 idx = value["index"]
+                response["index"] = i
                 response["maskedxij"][idx] = value["maskedxij"][str(i)]
                 response["encodedxij"][idx] = value["encodedxij"][str(i)]
                 response["si"][idx] = value["si"]

@@ -88,6 +88,7 @@ class TurboClient:
         PORT = TurboRound.Turbo.value
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
         if response["chosen"] == True:
+            self.index = response["index"]
             self.pre_maskedxij = response["maskedxij"]
             self.pre_encodedxij = response["encodedxij"]
             self.pre_si = {int(k):v for k,v in response["si"].items()}
@@ -100,8 +101,8 @@ class TurboClient:
         self.reconstruct(1) # any l > 0
         final_tildeS = Turbo.updateSumofMaskedModel(1, self.pre_maskedxij, self.pre_si) # any l > 0
         final_barS = Turbo.updateSumofEncodedModel(1, self.pre_encodedxij, self.pre_si) # any l > 0
-
-        request = {"final_tildeS": final_tildeS, "final_barS": final_barS, "drop_out": self.drop_out}
+        
+        request = {"index": self.index, "final_tildeS": final_tildeS, "final_barS": final_barS, "drop_out": self.drop_out}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
     # reconstruct l-1 group's si and codedsi

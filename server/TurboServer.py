@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from MainServer import MainServer
 from TurboBaseServer import TurboBaseServer
 from BasicSA import getCommonValues
-from Turbo import generateRandomVectorSet
+from Turbo import generateRandomVectorSet, reconstruct
 from CommonValue import TurboRound
 
 groupNum = 0
@@ -14,10 +14,11 @@ threshold = 0
 R = 0
 mask_u_dic = {}
 drop_out = {}
+alpha = beta = []
 
 # send common values and index, group of each user
 def setUp():
-    global groupNum, usersNum, threshold, R, perGroup, mask_u_dic
+    global groupNum, usersNum, threshold, R, perGroup, mask_u_dic, alpha, beta
 
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
@@ -33,7 +34,7 @@ def setUp():
     commonValues["perGroup"] = perGroup
 
     # generate common alpha/beta
-    commonValues["alpha"], commonValues["beta"] = generateRandomVectorSet(perGroup, commonValues["p"])
+    commonValues["alpha"], commonValues["beta"] = alpha, beta = generateRandomVectorSet(perGroup, commonValues["p"])
 
     usersNow = len(server.requests) # MUST be multiple of perGroup
     groupNum = int(usersNow / perGroup)
@@ -63,22 +64,25 @@ def turbo():
     drop_out = server.drop_out
 
 def final():
-    global mask_u_dic, drop_out
+    global mask_u_dic, drop_out, groupNum, alpha, beta
 
     tag = TurboRound.Final.name
     port = TurboRound.Final.value
 
     server = MainServer(tag, port)
     server.start()
-    final_tildeS = []
-    final_barS = []
+    final_tildeS = {}
+    final_barS = {}
 
     for request in server.requests:
         requestData = request[1]  # (socket, data)
-        final_tildeS.append(int(requestData["final_tildeS"]))
-        final_barS.append(int(requestData["final_barS"]))
-    # TODO recontruct
-
+        index = int(requestData["index"])
+        final_tildeS[index] = int(requestData["final_tildeS"])
+        final_barS[index] = int(requestData["final_barS"])
+        drop_out[groupNum-1] = requestData["drop_out"] # last group
+    
+    # reconstruct
+    reconstruct(alpha, beta, final_tildeS, final_barS)
     server.broadcast({})
 
     # calculate sum of surviving user's mask_u
@@ -93,7 +97,7 @@ def final():
         surviving_mask_u = surviving_mask_u + sum(item.values())
     
     # final value (sum_xu)
-    return sum(final_tildeS) / len(final_tildeS) - surviving_mask_u
+    return sum(final_tildeS.values()) / len(final_tildeS) - surviving_mask_u
 
 if __name__ == "__main__":
     setUp()

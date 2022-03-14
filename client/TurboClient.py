@@ -6,9 +6,6 @@ import Turbo
 from CommonValue import TurboRound
 from BasicSAClient import sendRequestAndReceive
 
-SIZE = 2048
-ENCODING = 'utf-8'
-
 class TurboClient:
     HOST = 'localhost'
     xu = 0  # temp. local model of this client

@@ -20,15 +20,15 @@ alpha = beta = []
 def setUp():
     global groupNum, usersNum, threshold, R, perGroup, mask_u_dic, alpha, beta
 
+    commonValues = getCommonValues()
+    R = commonValues["R"]
+    commonValues["n"] = usersNum = 4
+    commonValues["t"] = threshold = 2
+
     tag = TurboRound.SetUp.name
     port = TurboRound.SetUp.value
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, usersNum)
     server.start()
-
-    commonValues = getCommonValues()
-    usersNum = commonValues["n"]
-    threshold = commonValues["t"]
-    R = commonValues["R"]
 
     perGroup = 2 # temp
     commonValues["perGroup"] = perGroup
@@ -64,12 +64,12 @@ def turbo():
     drop_out = server.drop_out
 
 def final():
-    global mask_u_dic, drop_out, groupNum, alpha, beta
+    global mask_u_dic, drop_out, groupNum, alpha, beta, perGroup
 
     tag = TurboRound.Final.name
     port = TurboRound.Final.value
 
-    server = MainServer(tag, port)
+    server = MainServer(tag, port, perGroup)
     server.start()
     final_tildeS = {}
     final_barS = {}

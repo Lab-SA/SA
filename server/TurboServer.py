@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from MainServer import MainServer
 from TurboBaseServer import TurboBaseServer
 from BasicSA import getCommonValues
-from Turbo import generateRandomVectorSet, reconstruct
+from Turbo import generateRandomVectorSet, reconstruct, computeFinalOutput
 from CommonValue import TurboRound
 
 groupNum = 0
@@ -92,12 +92,8 @@ def final():
             i = int(i)
             del mask_u_dic[group][i]
     
-    surviving_mask_u = 0
-    for group, item in mask_u_dic.items():
-        surviving_mask_u = surviving_mask_u + sum(item.values())
-    
     # final value (sum_xu)
-    return sum(final_tildeS.values()) / len(final_tildeS) - surviving_mask_u
+    return computeFinalOutput(final_tildeS, mask_u_dic)
 
 if __name__ == "__main__":
     setUp()

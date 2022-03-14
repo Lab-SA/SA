@@ -183,11 +183,14 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     return pre_tildeS_dic, drop_out
 
 
-def computeFinalOutput(final_tildeS, u_i_dic):
+def computeFinalOutput(final_tildeS, mask_u_dic):
     # final_tildeS = users' masked model dic in final stage
-    # u_i_dic = all u_i (random mask from server)
-    final_n = len(final_tildeS)
+    # mask_u_dic = all surviving u_l_i (random mask from server)
 
-    sum_x = sum(final_tildeS.values()) / final_n - sum(u_i_dic)
+    surviving_mask_u = 0
+    for group, item in mask_u_dic.items():
+        surviving_mask_u = surviving_mask_u + sum(item.values())
+    
+    sum_x = sum(final_tildeS.values()) / len(final_tildeS) - surviving_mask_u
     return sum_x
 

@@ -11,3 +11,14 @@ class HeteroSetupDto(NamedTuple):
     B: list
     # data: dict
     # weights: dict
+
+class HeteroKeysRequestDto(NamedTuple):
+    group: int
+    index: int
+    c_pk: int
+    s_pk: int
+
+class HeteroMaskedInputRequestDto(NamedTuple):
+    group: int
+    index: int
+    encodedx: list # [group, index, segment, encodecx]

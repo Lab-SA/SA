@@ -1,6 +1,7 @@
 import random
 from scipy.interpolate import lagrange
 import numpy as np
+from learning.utils import sum_weights, add_to_weights
 
 def grouping(users, n):
     # users = [list] ordered user index list
@@ -26,8 +27,9 @@ def computeMaskedModel(x, u_i, next_users, q):
     print(f"r_ij_dic: {r_ij_dic}")
 
     for j in r_ij_dic.keys():
-        temp = x + u_i + r_ij_dic[j]
-        tildeX_dic[j] = temp
+        temp = u_i + r_ij_dic[j]
+        masked_x = add_to_weights(x, temp)
+        tildeX_dic[j] = masked_x
 
     return tildeX_dic
 

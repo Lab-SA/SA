@@ -6,7 +6,9 @@ from TurboBaseServer import TurboBaseServer
 from BasicSA import getCommonValues
 from Turbo import generateRandomVectorSet, reconstruct, computeFinalOutput
 from CommonValue import TurboRound
+import learning.federated_main as fl
 
+model = {}
 groupNum = 0
 perGroup = 0
 usersNum = 0
@@ -18,7 +20,7 @@ alpha = beta = []
 
 # send common values and index, group of each user
 def setUp():
-    global groupNum, usersNum, threshold, R, perGroup, mask_u_dic, alpha, beta
+    global groupNum, usersNum, threshold, R, perGroup, mask_u_dic, alpha, beta, model
 
     commonValues = getCommonValues()
     R = commonValues["R"]
@@ -40,6 +42,12 @@ def setUp():
     groupNum = int(usersNow / perGroup)
     response = []
     mask_u_dic = {i:{} for i in range(groupNum)}
+
+    if model == {}:
+        model = fl.setup()
+    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
+    user_groups = fl.get_user_dataset(usersNow)
+
     for i in range(groupNum):
         for j in range(perGroup):
             response_ij = copy.deepcopy(commonValues)
@@ -48,6 +56,8 @@ def setUp():
             mask_u = random.randrange(1, R) # 1~R
             mask_u_dic[i][j] = mask_u
             response_ij["mask_u"] = mask_u
+            response_ij["data"] = [int(k) for k in user_groups[i*perGroup+j]]
+            response_ij["weights"] = model_weights_list
             response.append(response_ij)
     server.foreachIndex(response)
 

@@ -6,6 +6,8 @@ from CommonValue import BasicSARound
 from BasicSAClient import sendRequestAndReceive
 from dto.HeteroSetupDto import HeteroSetupDto
 import BasicSA as sa
+from HeteroSAg import generateMaskedInputOfSegments
+import learning.federated_main as fl
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -19,13 +21,14 @@ class HeteroSAClient:
     group = 0
     index = 0
     B = []
-
-    perGroup  = 0
+    G = perGroup = 0
     
     my_keys = {}  # c_pk, c_sk, s_pk, s_sk of this client
     others_keys = {}  # other users' public key dic\
     euv_list = []  # euv of this client
     others_euv = {}
+
+    weight = 0 # temp
 
     def setUp(self):
         tag = BasicSARound.SetUp.name
@@ -41,9 +44,10 @@ class HeteroSAClient:
         self.g = setupDto.g
         self.p = setupDto.p
         self.R = setupDto.R
-        self.group = self.perGroup = setupDto.group
+        self.group = setupDto.group
         self.index = setupDto.index
         self.B = setupDto.B
+        self.G = self.perGroup = setupDto.G # (For now,) G == groups num == users num of one group
     
     def advertiseKeys(self):
         tag = BasicSARound.AdvertiseKeys.name
@@ -94,8 +98,43 @@ class HeteroSAClient:
             self.others_euv[int(v)] = euv
         print(self.others_euv)
 
+    def maskedInputCollection(self):
+        tag = BasicSARound.MaskedInputCollection.name
+        PORT = BasicSARound.MaskedInputCollection.value
+        
+        # quantization first
+        # TODO quantization weights (xu)
+
+        s_pk_dic = {}
+        for i, user_dic in self.others_keys.items():
+            v = int(i)
+            s_pk_dic[v] = user_dic.get("s_pk")
+        
+        segment_yu = generateMaskedInputOfSegments(
+                self.index,
+                self.bu, 
+                self.weight,
+                self.my_keys["s_sk"], 
+                self.B,
+                self.group,
+                self.perGroup,
+                self.euv_list, 
+                s_pk_dic,
+                self.p,
+                self.R
+        )
+        print(segment_yu)
+        request = {"group": self.group, "index": self.index, "segment_yu": segment_yu}  # request example: {"group": 0, "index":0, "segment_yu": {0: y0}, {1: y1}}
+
+        # receive sending_yu_list from server
+        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+
+        # U3 = survived users in round2(MaskedInputCollection) = users_last used in round4(unmasking)
+        self.U3 = response['users']
+
 if __name__ == "__main__":
     client = HeteroSAClient()
     client.setUp()
     client.advertiseKeys()
     client.shareKeys()
+    client.maskedInputCollection()

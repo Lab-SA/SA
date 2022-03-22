@@ -17,6 +17,7 @@ B = [] # The SS Matrix B
 G = 2 # group num
 perGroup = 2
 usersNow = 0
+segment_yu = {}
 
 # broadcast common value
 def setUp():
@@ -44,7 +45,7 @@ def setUp():
     for i in range(G):
         for j in range(perGroup):
             response_ij = HeteroSetupDto(
-                n, threshold, g, p, R, i, i*perGroup + j, B
+                n, threshold, g, p, R, i, i*perGroup + j, B, G
             )._asdict()
             response.append(response_ij)
     server.foreachIndex(response)
@@ -101,8 +102,38 @@ def shareKeys():
 
     server.foreach(response)
 
+def maskedInputCollection():
+    global segment_yu, usersNow, G
+
+    tag = BasicSARound.MaskedInputCollection.name
+    port = BasicSARound.MaskedInputCollection.value
+    server = MainServer(tag, port, usersNow)
+    server.start()
+    usersNow = server.userNum
+
+    # if u3 dropped
+    # (one) request example: {"group":0, "index":0, "segment_yu":{0: y0, 1: y1}}
+    requests = server.requests
+
+    # response example: { "users": [0, 1, 2 ... ] }
+    response = []
+    segment_yu = {i: {} for i in range(G)}
+    for request in requests:
+        requestData = request[1]  # (socket, data)
+        index = int(requestData["index"])
+        response.append(index)
+        for i, yu in requestData["segment_yu"].items():
+            # yu_ = fl.dic_of_list_to_weights(yu)
+            i = int(i)
+            segment_yu[i][index] = yu
+
+    server.broadcast({"users": response})
+    print(response)
+    print(segment_yu)
+
 if __name__ == "__main__":
     setUp()
     advertiseKeys()
     shareKeys()
+    maskedInputCollection()
     

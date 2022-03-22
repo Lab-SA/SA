@@ -9,6 +9,7 @@ class HeteroSetupDto(NamedTuple):
     group: int
     index: int
     B: list
+    G: int
     # data: dict
     # weights: dict
 

@@ -82,21 +82,15 @@ def unmasking(u, c_sk, euv_dic, c_pk_dic, users_previous, users_last, R):
         if v == u:
             continue
         try:
-            idx = euv = -1
-            for _v, _euv in euv_dic.items():
-                if _v == v:
-                    idx = _v
-                    euv = _euv
-                    break
-            euv_dic.pop(idx)
-
             # decrypt
             s_uv = sp.agree(c_sk, c_pk_dic[v], p)
-            plainText = sp.decrypt(s_uv, euv)
+            plainText = sp.decrypt(s_uv, euv_dic[v])
             _v, _u, s_sk_shares, bu_shares = literal_eval(plainText) # list
 
             if not(u == int(_u) and v == int(_v)):
                 raise Exception('Something went wrong during reconstruction.')
+            
+            # s_sk_shares for drop-out users / bu_shars for surviving users
             try:
                 users_last.remove(v) # v is in U3
                 bu_shares_dic[v] = bu_shares

@@ -1,4 +1,5 @@
-import os, sys, json
+import os, sys
+
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
@@ -102,8 +103,10 @@ def shareKeys():
 
     server.foreach(response)
 
+surviving_users = []
+
 def maskedInputCollection():
-    global segment_yu, usersNow, G
+    global segment_yu, usersNow, G, surviving_users
 
     tag = BasicSARound.MaskedInputCollection.name
     port = BasicSARound.MaskedInputCollection.value
@@ -116,20 +119,19 @@ def maskedInputCollection():
     requests = server.requests
 
     # response example: { "users": [0, 1, 2 ... ] }
-    response = []
-    segment_yu = {i: {} for i in range(G)}
+    segment_yu = {i: {j: [] for j in range(G)} for i in range(G)} # i: segment level, j: quantization level
     for request in requests:
         requestData = request[1]  # (socket, data)
         index = int(requestData["index"])
-        response.append(index)
-        for i, yu in requestData["segment_yu"].items():
-            # yu_ = fl.dic_of_list_to_weights(yu)
-            i = int(i)
-            segment_yu[i][index] = yu
+        surviving_users.append(index)
+        for i, segment in requestData["segment_yu"].items():
+            for q, yu in segment.items():
+                # yu_ = fl.dic_of_list_to_weights(yu)
+                segment_yu[int(i)][int(q)].append(yu)
 
-    server.broadcast({"users": response})
-    print(response)
-    print(segment_yu)
+    server.broadcast({"users": surviving_users})
+    print(f'surviving_users: {surviving_users}')
+    print(f'segment_yu: {segment_yu}')
 
 if __name__ == "__main__":
     setUp()

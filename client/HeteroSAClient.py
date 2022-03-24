@@ -116,6 +116,7 @@ class HeteroSAClient:
                 self.weight,
                 self.my_keys["s_sk"], 
                 self.B,
+                self.G,
                 self.group,
                 self.perGroup,
                 self.euv_list, 
@@ -123,7 +124,7 @@ class HeteroSAClient:
                 self.p,
                 self.R
         )
-        print(segment_yu)
+        print(f'segment_yu: {segment_yu}')
         request = {"group": self.group, "index": self.index, "segment_yu": segment_yu}  # request example: {"group": 0, "index":0, "segment_yu": {0: y0}, {1: y1}}
 
         # receive sending_yu_list from server

@@ -1,10 +1,11 @@
 import os, sys
+from ast import literal_eval
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from MainServer import MainServer
 from BasicSA import getCommonValues
-from HeteroSAg import SS_Matrix
+import HeteroSAg as hetero
 from dto.HeteroSetupDto import HeteroSetupDto, HeteroKeysRequestDto
 from CommonValue import BasicSARound
 import learning.federated_main as fl
@@ -40,7 +41,7 @@ def setUp():
     p = commonValues["p"]
 
     # Segment Grouping Strategy: G x G Segment selection matrix B
-    B = SS_Matrix(G)
+    B = hetero.SS_Matrix(G)
     
     response = []
     for i in range(G):
@@ -133,9 +134,69 @@ def maskedInputCollection():
     print(f'surviving_users: {surviving_users}')
     print(f'segment_yu: {segment_yu}')
 
+def unmasking():
+    global segment_yu, B, G, R, users_keys, usersNow, model, perGroup, surviving_users, n
+
+    tag = BasicSARound.Unmasking.name
+    port = BasicSARound.Unmasking.value
+    server = MainServer(tag, port, usersNow)
+    server.start()
+    usersNow = server.userNum
+
+    # (one) request: {"index": u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
+    # if u2, u3 dropped, requests: [{"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk}, "bu_shares": {1: b10, 4: b40}}, ...]
+    requests = server.requests
+
+    s_sk_shares_dic = {}     # {2: [s20_sk, s21_sk, ... ], 3: [s30_sk, s31_sk, ... ], ... }
+    bu_shares_dic = {}       # {0: [b10, b04, ... ], 1: [b10, b14, ... ], ... }
+
+    # get s_sk_shares_dic, bu_shares_dic of user2\3, user3
+    for request in requests:
+        requestData = request[1]  # (socket, data)
+
+        ssk_shares = literal_eval(requestData["ssk_shares"])
+        for i, share in ssk_shares.items():
+            try: 
+                s_sk_shares_dic[i].append(share)
+            except KeyError:
+                s_sk_shares_dic[i] = [share]
+                pass
+        
+        bu_shares = literal_eval(requestData["bu_shares"])
+        for i, share in bu_shares.items():
+            try: 
+                bu_shares_dic[i].append(share)
+            except KeyError:
+                bu_shares_dic[i] = [share]
+                pass
+    
+    # reconstruct s_sk of drop-out users
+    s_sk_dic = hetero.reconstructSSKofSegments(B, G, perGroup, s_sk_shares_dic)
+    
+    # unmasking
+    segment_xu = hetero.unmasking(
+        hetero.getSegmentInfoFromB(B, G, perGroup), 
+        G, 
+        segment_yu, 
+        surviving_users, 
+        users_keys, 
+        s_sk_dic,
+        bu_shares_dic, 
+        R
+    )
+    print(f'segment_xu: {segment_xu}')
+
+    # TODO dequantization encoded xu
+
+    # update global model
+
+    # End
+    server.broadcast("[Server] End protocol")
+
 if __name__ == "__main__":
     setUp()
     advertiseKeys()
     shareKeys()
     maskedInputCollection()
+    unmasking()
     

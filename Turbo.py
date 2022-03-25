@@ -2,6 +2,8 @@ import random
 from scipy.interpolate import lagrange
 import numpy as np
 from learning.utils import sum_weights, add_to_weights
+from learning.federated_main import weights_to_dic_of_list, dic_of_list_to_weights
+from iteration_utilities import deepflatten
 
 def grouping(users, n):
     # users = [list] ordered user index list
@@ -24,8 +26,8 @@ def computeMaskedModel(x, u_i, next_users, q):
     # tildeX_dic = [dic] masked model(=tildeX) between user i(this) and users in l-1
     tildeX_dic = {}
     r_ij_dic = additiveMasking(next_users, q)
-    print(f"r_ij_dic: {r_ij_dic}")
 
+    print(f"r_ij_dic: {r_ij_dic}")
     for j in r_ij_dic.keys():
         temp = u_i + r_ij_dic[j]
         masked_x = add_to_weights(x, temp)
@@ -70,7 +72,12 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
     if l == 0:
         print("Initialize tildeS(0) = 0")
     elif l > 0:
-        tildeS = sum(pre_tildeS_dic.values()) / n + sum(pre_tildeX_dic.values())
+        # dic of list 타입의 weights의 합을 구한 뒤 다시 tensor 타입으로 형변환 후 tildeS 계산
+        # 즉 pre_tildeX_dic은 dic of list 타입, tildeS는 tensor 타입
+
+        weights_sum = sum_weights(list(pre_tildeX_dic.values()))
+        weights = dic_of_list_to_weights(weights_sum)
+        tildeS = add_to_weights(weights, sum(pre_tildeS_dic.values()) / n)
     else:
         print("wrong group index")
 
@@ -93,6 +100,24 @@ def computePartialSum(l, pre_tildeS_dic):
     return p_sum
 
 
+# 어떤 값이 길이가 1이 아니면 즉 요소가 하나가 아니라면 => 마지막 괄호안이 요소가 1개가 아닐수도 있음... 이거는 안돼
+
+# weight 레이어 내부를 쪼개서 라그랑제에 사용가능한 1차원의 리스트로 변형하는 함수
+# 중첩 리스트 평면화 => iteration_utilities.deepflatten()
+def weights_to_1dList(maskedxij):
+    all_maskedxij_list = []
+    print("start to flatten weight")
+
+    for j, weights in maskedxij.items():
+        j_weights = weights_to_dic_of_list(weights)
+        for layer in j_weights.values():
+            layer1d = list(deepflatten(layer))
+            all_maskedxij_list = all_maskedxij_list + layer1d
+    print("finish flatten")
+
+    return all_maskedxij_list
+
+
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
     """
@@ -105,8 +130,8 @@ def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
         이 barX들의 모음 = barX_dic
     """
     barX_dic = {}
-
-    f_i = generateLagrangePolynomial(alpha_list, list(tildeX_dic.values()))
+    flatten_maskedxij = weights_to_1dList(tildeX_dic)
+    f_i = generateLagrangePolynomial(alpha_list, flatten_maskedxij)
 
     for j in range(len(beta_list)):
         barX = np.polyval(f_i, beta_list[j])
@@ -146,6 +171,7 @@ def generateLagrangePolynomial(x_list, y_list):
     y = np.array(y_list)
     f_i = lagrange(x, y)
     # co = f_i.coef[::-1]
+    print(f"라그랑제 보간다항식 f_i = {f_i}")
 
     return f_i
 

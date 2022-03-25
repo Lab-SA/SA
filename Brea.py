@@ -1,5 +1,6 @@
 import random
-
+import numpy as np
+import learning.federated_main as fl
 
 # make N theta_i
 # [호출] : 서버
@@ -40,6 +41,16 @@ def f(theta, w, T, rij):
 def make_shares(w, theta_list, T, rij_list):
     shares = []
     for theta in theta_list:
+        s = []
+        for k in w.keys():
+            s.append(f(theta, np.array(w[k]), T, rij_list))
+        shares.append(s)
+    return shares
+
+
+def make_shares2(w, theta_list, T, rij_list):
+    shares = []
+    for theta in theta_list:
         shares.append(f(theta, w, T, rij_list))
     return shares
 
@@ -74,24 +85,54 @@ def verify(g, share, commitments, theta, q):
         return True
     else:
         return False
-  
-  
+
+
+# [호출] : 클라이언트
+# [인자] : share1, share2(사용자 1과 사용자 2의 거리를 계산하기 위해 1에게 받은 share와 2에게 받은 share를 인자로)
+# [리턴] : distance(계산한 거리)
+def calculate_distance(shares1, shares2):
+    distance = abs(np.array(shares1) - np.array(shares2)) ** 2
+    # distance = 0
+    # for i in range(len(shares1)):
+    #     distance += abs(np.array(shares1[i]) - np.array(shares2[i])) ** 2
+    return distance
+
+
 if __name__ == "__main__":
-    w = 100
+    model = fl.setup()
+    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
+    # ww = np.array(model_weights_list[0])
+    # print(model_weights_list)
+    w1 = 100
+    w2 = 120
     q = 7
     g = 3
     n = 10
     T = 3
     
     theta_list = make_theta(n, q)
-    rij_list = generate_rij(T, q)
-    shares = make_shares(w, theta_list, T, rij_list)
-    commitments = generate_commitments(w, rij_list, g, q)
-    result = verify(g, shares[0], commitments, theta_list[0], q)
+    rij_list1 = generate_rij(T, q)
+    shares1 = make_shares2(w1, theta_list, T, rij_list1)
+    commitments = generate_commitments(w1, rij_list1, g, q)
+    result = verify(g, shares1[0], commitments, theta_list[0], q)
+
+    rij_list2 = generate_rij(T, q)
+    shares2 = make_shares(model_weights_list, theta_list, T, rij_list2)
 
     print(theta_list)
-    print(rij_list)
-    print(shares)
+    print(rij_list1)
+    print(rij_list2)
+    print(shares1)
+    # print("share2: ", shares2)
+    print("share2[0]: ", shares2[0])
     print(commitments)
     print(result)
+
+    distance = calculate_distance(shares2[0], shares2[1])
+    print("distance: ", distance)
+    print("len: ", len(distance))
+    print("len: ", len(shares2))
+    A = np.array([[0.1,2,0.3], [4,4.5,6]])
+    # print(A)
+    # print(A + 2)
 

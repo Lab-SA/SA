@@ -1,11 +1,12 @@
 # Lab-SA Basic SA for Federated Learning
 import random, math
+import numpy as np
 import SecureProtocol as sp
 from ast import literal_eval
 from learning.utils import sum_weights, add_to_weights
 
 g = 3 #temp
-p = 7 #temp
+p = 7 #temp #BREA -> p = 2 ** 32 - 5
 
 # Get common values for server set-up: n, t, ...
 def getCommonValues():
@@ -136,7 +137,21 @@ def stochasticQuantization(x, q, p):
     # p = modulo p
 
     # var_x = quantized x
-    var_x = mappingX(q * stochasticRounding(x, q), p)
+    
+    var_x = []
+    ret_x = stochasticRounding(x, q)
+    print("ret_x", len(ret_x[0]))
+    for each_x in ret_x:
+        # print("each_x: ", each_x)
+        ko = np.array(each_x)
+        # print("ndim: ", ko.shape)
+        # print("=============!!==============", q * ko.reshape(-1))
+        var_x.append(mappingX(q * np.array(each_x).reshape(-1), p))
+        # print("=============^^==============", mappingX(q * np.array(each_x).reshape(-1), p))
+        # print("||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
+        # print("=============!!==============", ko.reshape(-1))
+        # print("ndim: ", ko.shape)
+    
     return var_x
 
 def stochasticRounding(x, q):
@@ -146,20 +161,35 @@ def stochasticRounding(x, q):
     # ret_list = return value list after rounding x
     # prob_list = probability list (weight for random.choices)
     # ret_x = rounded x
-
-    ret_list = [math.floor(q * x) / q, (math.floor(q * x) + 1) / q]
-    prob_list = [1 - (q * x - math.floor(q * x)), q * x - math.floor(q * x)]
-    ret_x = random.choices(ret_list, prob_list)
+    ret_x = []
+    for k in range(len(x)):
+        print("x[k][0]: ", x[k][0])
+        
+        # ret_list = [(q ** x[k]) / q, (-(q ** x[k]) + 1) / q]
+        ret_list = []
+        prob_list = []
+        for i in range(len(x[k])):
+            ret_list.append([math.floor(q * x[k][i]) / q, (math.floor(q * x[k][i]) + 1) / q])
+            prob_list.append([1 - (q * x[k][i] - math.floor(q * x[k][i])), q * x[k][i] - math.floor(q * x[k][i])])
+        # print("prob_list: ", ret_list[0])
+        # print("len(x[k]): ", len(x[k]))
+        tx = []
+        for weight in range(len(x[k])):
+            r_choice = random.choices(ret_list[weight], prob_list[weight])
+            tx.append(r_choice)
+            # print("r_choice: ",r_choice)
+            # tx.append(random.choices(ret_list[weight], prob_list[weight]))
+        ret_x.append(tx)
     return ret_x
 
 def mappingX(x, p):
     """mappingX(x, p) is to represent a negative integer in the finite field
     by using two’s complement representation"""
     # % mod 연산으로 대체가 가능한 부분인가...?
-    if x < 0:
-        return p + x
-    else:
-        return x
+    
+    y = np.where(x < 0, x + p, x)
+    
+    return y
 
 def SS_Matrix(G):
     # G = the number of groups
@@ -226,4 +256,5 @@ def Quantization(x, G, q, r1, r2):
 
 
 # just for testing
-# if __name__ == "__main__":
+if __name__ == "__main__":
+    print(3 ** 2205)

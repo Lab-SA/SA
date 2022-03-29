@@ -140,17 +140,8 @@ def stochasticQuantization(x, q, p):
     
     var_x = []
     ret_x = stochasticRounding(x, q)
-    print("ret_x", len(ret_x[0]))
     for each_x in ret_x:
-        # print("each_x: ", each_x)
-        ko = np.array(each_x)
-        # print("ndim: ", ko.shape)
-        # print("=============!!==============", q * ko.reshape(-1))
         var_x.append(mappingX(q * np.array(each_x).reshape(-1), p))
-        # print("=============^^==============", mappingX(q * np.array(each_x).reshape(-1), p))
-        # print("||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||")
-        # print("=============!!==============", ko.reshape(-1))
-        # print("ndim: ", ko.shape)
     
     return var_x
 
@@ -161,25 +152,21 @@ def stochasticRounding(x, q):
     # ret_list = return value list after rounding x
     # prob_list = probability list (weight for random.choices)
     # ret_x = rounded x
+
     ret_x = []
-    for k in range(len(x)):
-        print("x[k][0]: ", x[k][0])
-        
-        # ret_list = [(q ** x[k]) / q, (-(q ** x[k]) + 1) / q]
+    for each_x in x:
         ret_list = []
         prob_list = []
-        for i in range(len(x[k])):
-            ret_list.append([math.floor(q * x[k][i]) / q, (math.floor(q * x[k][i]) + 1) / q])
-            prob_list.append([1 - (q * x[k][i] - math.floor(q * x[k][i])), q * x[k][i] - math.floor(q * x[k][i])])
-        # print("prob_list: ", ret_list[0])
-        # print("len(x[k]): ", len(x[k]))
-        tx = []
-        for weight in range(len(x[k])):
-            r_choice = random.choices(ret_list[weight], prob_list[weight])
-            tx.append(r_choice)
-            # print("r_choice: ",r_choice)
-            # tx.append(random.choices(ret_list[weight], prob_list[weight]))
-        ret_x.append(tx)
+        for w in each_x:
+            ret_list.append([math.floor(q * w) / q, (math.floor(q * w) + 1) / q])
+            prob_list.append([1 - (q * w - math.floor(q * w)), q * w - math.floor(q * w)])
+        
+        temp_list = []
+        for idx in range(len(each_x)):
+            r_choice = random.choices(ret_list[idx], prob_list[idx])
+            temp_list.append(r_choice)
+        ret_x.append(temp_list)
+
     return ret_x
 
 def mappingX(x, p):
@@ -256,5 +243,4 @@ def Quantization(x, G, q, r1, r2):
 
 
 # just for testing
-if __name__ == "__main__":
-    print(3 ** 2205)
+# if __name__ == "__main__":

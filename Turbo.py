@@ -74,10 +74,11 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
     elif l > 0:
         # dic of list 타입의 weights의 합을 구한 뒤 다시 tensor 타입으로 형변환 후 tildeS 계산
         # 즉 pre_tildeX_dic은 dic of list 타입, tildeS는 tensor 타입
-
+        p_sum = computePartialSum(l, pre_tildeS_dic)
         weights_sum = sum_weights(list(pre_tildeX_dic.values()))
         weights = dic_of_list_to_weights(weights_sum)
-        tildeS = add_to_weights(weights, sum(pre_tildeS_dic.values()) / n)
+        tildeS = add_to_weights(weights, p_sum)
+        print(f"tildeS: {tildeS}")
     else:
         print("wrong group index")
 
@@ -94,29 +95,14 @@ def computePartialSum(l, pre_tildeS_dic):
         print("Initialize p_sum(0) = 0")
     elif l > 0:
         p_sum = sum(pre_tildeS_dic.values()) / n
+        print(f"p_sum= {p_sum}")
     else:
         print("wrong group index")
 
     return p_sum
 
 
-# 어떤 값이 길이가 1이 아니면 즉 요소가 하나가 아니라면 => 마지막 괄호안이 요소가 1개가 아닐수도 있음... 이거는 안돼
-
-# weight 레이어 내부를 쪼개서 라그랑제에 사용가능한 1차원의 리스트로 변형하는 함수
 # 중첩 리스트 평면화 => iteration_utilities.deepflatten()
-def weights_to_1dList(maskedxij):
-    all_maskedxij_list = []
-    print("start to flatten weight")
-
-    for j, weights in maskedxij.items():
-        j_weights = weights_to_dic_of_list(weights)
-        for layer in j_weights.values():
-            layer1d = list(deepflatten(layer))
-            all_maskedxij_list = all_maskedxij_list + layer1d
-    print("finish flatten")
-
-    return all_maskedxij_list
-
 
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
@@ -130,12 +116,50 @@ def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
         이 barX들의 모음 = barX_dic
     """
     barX_dic = {}
-    flatten_maskedxij = weights_to_1dList(tildeX_dic)
-    f_i = generateLagrangePolynomial(alpha_list, flatten_maskedxij)
+    # tildeX_dic = maskedxij_
+    # flatten_maskedxij = weights_to_1dList(tildeX_dic)
+    print(f"alpha_list: {alpha_list}")
+    print(f"beta_list: {beta_list}")
+    # f_i = generateLagrangePolynomial(alpha_list, flatten_maskedxij)
+    # print(f"flatten_maskedxij: {flatten_maskedxij}")
+    # layer_shape_dic = {}
+    # tildeX_changed = {}
 
-    for j in range(len(beta_list)):
-        barX = np.polyval(f_i, beta_list[j])
-        barX_dic[j] = barX
+    y = []
+
+    layer_name = list(tildeX_dic[0].keys())
+    print(layer_name)
+    layer_dic = {}
+
+    for layer in layer_name:
+        a = list(deepflatten(tildeX_dic[0].get(layer)))
+        b = list(deepflatten(tildeX_dic[1].get(layer)))
+        layer_dic[layer] = list(zip(a, b))
+    # print(f"layer_dic: {layer_dic}")
+
+    for i in range(len(alpha_list)):
+        barX_dic[i] = {}
+        # barX_dic = { 0: {}, 1: {} }
+
+    userdic1 = {}
+    userdic2 = {}
+    for layer, li in layer_dic.items():
+        a_ = []
+        b_ = []
+        for pair in li:
+            y = list(pair)
+            # print(f"y: {y}")
+            f_i = generateLagrangePolynomial(alpha_list, y)
+            a_.append(np.polyval(f_i, beta_list[0]))
+            # print(f"a_={a_}")
+            b_.append(np.polyval(f_i, beta_list[1]))
+            # print(f"b_={b_}")
+        userdic1[layer] = a_
+        userdic2[layer] = b_
+
+    barX_dic[0] = userdic1
+    barX_dic[1] = userdic2
+    # print(f"barX_dic: {barX_dic}")
 
     return barX_dic
 
@@ -171,7 +195,7 @@ def generateLagrangePolynomial(x_list, y_list):
     y = np.array(y_list)
     f_i = lagrange(x, y)
     # co = f_i.coef[::-1]
-    print(f"라그랑제 보간다항식 f_i = {f_i}")
+    # print(f"라그랑제 보간다항식 f_i = {f_i}")
 
     return f_i
 
@@ -182,7 +206,16 @@ def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
     # barS = encoded_sum
 
     p_sum = computePartialSum(l, pre_tildeS_dic)
-    barS = p_sum + sum(pre_barX_dic.values())
+    # barS = p_sum + sum(pre_barX_dic.values())
+
+    # dic of list 타입의 weights의 합을 구한 뒤 다시 tensor 타입으로 형변환 후 barS 계산
+    # 즉 pre_barX_dic은 dic of list 타입, barS는 tensor 타입
+
+    weights_sum = sum_weights(list(pre_barX_dic.values()))
+    weights = dic_of_list_to_weights(weights_sum)
+    barS = add_to_weights(weights, p_sum)
+    # print(f"barS: {barS}")
+
     return barS
 
 
@@ -192,11 +225,15 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     # pre_tildeS_dic = [dic] { surviving users'(group l-1) index: surviving users' tildeS }
     # pre_barS_dic = [dic] { surviving users'(group l-1) index: surviving users' barS }
     # g_i = lagrange polynomial of group l-1 for reconstruct
+    # print(f"pre_tildeS_dic= {pre_tildeS_dic}")
+    # print(f"pre_barS_dic= {pre_barS_dic}")
+
     x_list = []
     for i in pre_tildeS_dic.keys():
         x_list.append(alpha_list[int(i)])
     for i in pre_barS_dic.keys():
         x_list.append(beta_list[int(i)])
+
     y_list = list(pre_tildeS_dic.values()) + list(pre_barS_dic.values())
     g_i = generateLagrangePolynomial(x_list, y_list)
 
@@ -205,7 +242,7 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
         if alpha not in x_list:
             recon_tildeS = np.polyval(g_i, alpha)
             pre_tildeS_dic[index] = recon_tildeS
-            print(f'alpha: {alpha_list[index]}, recon_tildeS: {recon_tildeS}')
+            # print(f'alpha: {alpha_list[index]}, recon_tildeS: {recon_tildeS}')
             drop_out.append(index)
     
     return pre_tildeS_dic, drop_out

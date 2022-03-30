@@ -79,11 +79,20 @@ class TurboClient:
         PORT = TurboRound.Turbo.value
 
         # this client
+        # maskedxij = tildeX / encodedxij = barX / si = tildeS / codedsi = barS
+
         self.maskedxij = Turbo.computeMaskedModel(self.weight, self.mask_u, self.perGroup, self.p)
+        # print("self.maskedxij")
         # print(self.maskedxij)  # 0번 users와의 weight
         # print(len(self.maskedxij))  # 각 weight당 8개의 레이어
-        self.encodedxij = Turbo.generateEncodedModel(self.alpha, self.beta, self.maskedxij)
+        
+        # 형변환
+        maskedxij_ = {}
+        for j, weights in self.maskedxij.items():
+            j_weights = fl.weights_to_dic_of_list(weights)
+            maskedxij_[j] = j_weights
 
+        self.encodedxij = Turbo.generateEncodedModel(self.alpha, self.beta, maskedxij_)
         self.si = 0
         self.codedsi = 0
 
@@ -92,15 +101,10 @@ class TurboClient:
             self.si = Turbo.updateSumofMaskedModel(self.group, self.pre_maskedxij, self.pre_si)
             si_ = fl.weights_to_dic_of_list(self.si)
             self.codedsi = Turbo.updateSumofEncodedModel(self.group, self.pre_encodedxij, self.pre_si)
+            codedsi_ = fl.weights_to_dic_of_list(self.codedsi)
 
-        maskedxij_ = {}
-        for j, weights in self.maskedxij.items():
-            j_weights = fl.weights_to_dic_of_list(weights)
-            maskedxij_[j] = j_weights
-
-        if self.group > 0:
             request = {"group": self.group, "index": self.index, "maskedxij": maskedxij_, "encodedxij": self.encodedxij,
-                       "si": si_, "codedsi": self.codedsi, "drop_out": self.drop_out}
+                       "si": si_, "codedsi": codedsi_, "drop_out": self.drop_out}
         else:
             request = {"group": self.group, "index": self.index, "maskedxij": maskedxij_, "encodedxij": self.encodedxij,
                    "si": self.si, "codedsi": self.codedsi, "drop_out": self.drop_out}
@@ -112,13 +116,17 @@ class TurboClient:
         tag = TurboRound.TurboFinal.name
         PORT = TurboRound.Turbo.value
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
+        # print(response)
+        print(f"response[chosen]= {response['chosen']}")
 
         if response["chosen"] == True:
             self.index = response["index"]
             self.pre_maskedxij = response["maskedxij"]
             self.pre_encodedxij = response["encodedxij"]
             self.pre_si = {int(k): v for k, v in response["si"].items()}
+            #print(f"self.pre_si:{self.pre_si}")
             self.pre_codedsi = response["codedsi"]
+            #print(f"self.pre_codedsi:{self.pre_codedsi}")
             self.final()
 
     def final(self):
@@ -128,11 +136,27 @@ class TurboClient:
         final_tildeS = Turbo.updateSumofMaskedModel(1, self.pre_maskedxij, self.pre_si)  # any l > 0
         final_barS = Turbo.updateSumofEncodedModel(1, self.pre_encodedxij, self.pre_si)  # any l > 0
 
-        request = {"index": self.index, "final_tildeS": final_tildeS, "final_barS": final_barS, "drop_out": self.drop_out}
+        request = {"index": self.index, "final_tildeS": final_tildeS, "final_barS": final_barS,
+                   "drop_out": self.drop_out}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
     # reconstruct l-1 group's si and codedsi
     def reconstruct(self, group):
+        """
+        # 형변환
+        pre_si_ = {}
+        for j, weights in self.pre_si_.items():
+            j_weights = fl.weights_to_dic_of_list(weights)
+            pre_si_[j] = j_weights
+
+        pre_codedsi_ = {}
+        for j, weights in self.pre_codedsi_.items():
+            j_weights = fl.weights_to_dic_of_list(weights)
+            pre_codedsi_[j] = j_weights
+
+        pre_si_, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, pre_si_, pre_codedsi_)
+        self.pre_codedsi = Turbo.updateSumofEncodedModel(group, self.pre_encodedxij, self.pre_si)
+        """
         self.pre_si, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, self.pre_si, self.pre_codedsi)
         self.pre_codedsi = Turbo.updateSumofEncodedModel(group, self.pre_encodedxij, self.pre_si)
 

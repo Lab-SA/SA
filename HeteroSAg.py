@@ -5,6 +5,27 @@ from BasicSA import reconstruct, reconstructPu, reconstructPvu, generatingOutput
 from learning.utils import add_to_weights
 import learning.federated_main as fl
 
+def quantization(x, Kg, r1, r2):
+    # x = local model value of user i
+    # Kg = number of quantization levels
+    # [r1, r2] = quantization range
+
+    # delK = quantization interval
+    delK = (r2 - r1) / (Kg - 1)
+
+    # T = discrete value from quantization range point list
+    T = [r1 + l * delK for l in range(0, Kg)]
+
+    for l in range(0, len(T)-1):
+        if T[l] <= x < T[l + 1]:
+            p = (x - T[l]) / (T[l + 1] - T[l])
+            prob_list = [p, 1-p]
+            return random.choices([l+1, l], prob_list, k=1)[0]
+    if T[Kg-1] == x:
+        return Kg-1 # r2 choose Kg-1 with 100% probability
+    
+    return -1 # fail (only when x < r1 or x > r2)
+
 def SS_Matrix(G):
     # G = the number of groups
     B = [['*' for x in range(G)] for y in range(G)]

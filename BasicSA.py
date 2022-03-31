@@ -181,29 +181,5 @@ def returnQuantizer(mode, l, g, B, Q):
         print("wrong input")
         return 0
 
-def Quantization(x, G, q, r1, r2):
-    # x = local model value of user i
-    # G = the number of groups
-    # q = quantization level
-    # [r1, r2] = quantization range
-    """ q = returnQuantizer(mode, l, g, B, Q)
-    => Quantization(x, G, q) can do both homo quantization and hetero quantization. """
-
-    # delK = quantization interval
-    # T = discrete value from quantization range point list
-    delK = (r2 - r1) / (q - 1)
-    T = []
-    for l in range(0, G):
-        T.append(r1 + l * delK)
-
-    for l in range(0, G - 1):
-        if T[l] <= x < T[l + 1]:
-            ret_list = [T[l], T[l+1]]
-            prob_list = [(x - T[l]) / (T[l + 1] - T[l]), 1-((x - T[l]) / (T[l + 1] - T[l]))]
-            ret_x = random.choices(ret_list, prob_list)
-            break
-    return ret_x
-
-
 # just for testing
 # if __name__ == "__main__":

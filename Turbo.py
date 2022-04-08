@@ -54,14 +54,13 @@ def additiveMasking(next_users, q):
     return r_ij_dic
 
 
-# update aggregate value tildeS
+# update aggregate value tildeS => tensor
 def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
     # l = group index of this user.  ex) 0,1,2,...,L
     # n = the number of users per one group
     # pre_tildeS_dic = [dic] tildeS of users in l-1 group
     # tildeX_dic = [dic] masked model(=tildeX) between user i(this) and users in l-1
     # tildeS = a variable that each user holds corresponding to the aggregated masked models from the previous group
-    tildeS = 0
     n = len(pre_tildeS_dic)
 
     """
@@ -71,13 +70,21 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
     """
     if l == 0:
         print("Initialize tildeS(0) = 0")
+        tildeS = 0
     elif l > 0:
-        # dic of list 타입의 weights의 합을 구한 뒤 다시 tensor 타입으로 형변환 후 tildeS 계산
-        # 즉 pre_tildeX_dic은 dic of list 타입, tildeS는 tensor 타입
-        p_sum = computePartialSum(l, pre_tildeS_dic)
+        # tildeS = p_sum_dic + pre_tildeX_dic's weights_sum => [dic of list] + [dic of list]
+        p_sum_dic = computePartialSum(l, pre_tildeS_dic)
+        if p_sum_dic == 0:
+            temp_tildeS = sum_weights(list(pre_tildeX_dic.values()))
+            tildeS = dic_of_list_to_weights(temp_tildeS)
+            return tildeS
         weights_sum = sum_weights(list(pre_tildeX_dic.values()))
-        weights = dic_of_list_to_weights(weights_sum)
-        tildeS = add_to_weights(weights, p_sum)
+        layer = list(weights_sum.keys())
+        wArr = np.array(list(weights_sum.values()))
+        pArr = np.array(list(p_sum_dic.values()))
+        temp_tildeS = (wArr + pArr).tolist()
+        tildeS = {lname:value for lname, value in zip(layer, temp_tildeS)}
+        tildeS = dic_of_list_to_weights(tildeS)
         print(f"tildeS: {tildeS}")
     else:
         print("wrong group index")
@@ -85,24 +92,55 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
     return tildeS
 
 
-# compute partial summation = p_sum (= s(l))
+# compute partial summation = p_sum_dic (= s(l)) => dic of list type
 def computePartialSum(l, pre_tildeS_dic):
-    p_sum = 0
+    #pre_tildeS_dic = {user_idx:si_}
+    print(f"l={l}, pre_tildeS_dic={pre_tildeS_dic}")
+    # si_ = dic of list type
     n = len(pre_tildeS_dic)
 
     # initial partial sum s(0), s(1) = 0
-    if l == 0:
+    if l >= 1:
+        p_sum = 0
         print("Initialize p_sum(0) = 0")
-    elif l > 0:
-        p_sum = sum(pre_tildeS_dic.values()) / n
-        print(f"p_sum= {p_sum}")
+        return p_sum
+    elif l > 1:
+        tempArray = []
+        for user_idx in pre_tildeS_dic.keys():
+            layer = list(pre_tildeS_dic[user_idx].keys())
+            temp = list(pre_tildeS_dic[user_idx].values())
+            if user_idx == 0:
+                tempArray = np.array(temp)
+            else:
+                tempArray = tempArray + np.array(temp)
+        ret_list = (tempArray/n).tolist()
+        # print(layer, ret_list)
+        p_sum_dic = {lname: arr for lname, arr in zip(layer, ret_list)}
+        print(f"p_sum_dic= {p_sum_dic}")
+        return p_sum_dic
     else:
         print("wrong group index")
+        return 0
 
-    return p_sum
 
+# 어떤 값이 길이가 1이 아니면 즉 요소가 하나가 아니라면 => 마지막 괄호안이 요소가 1개가 아닐수도 있음... 이거는 안돼
 
+# weight 레이어 내부를 쪼개서 라그랑제에 사용가능한 1차원의 리스트로 변형하는 함수
 # 중첩 리스트 평면화 => iteration_utilities.deepflatten()
+"""def weights_to_1dList(maskedxij):
+    all_maskedxij_list = []
+    print("start to flatten weight")
+
+    for j, weights in maskedxij.items():
+        j_weights = weights_to_dic_of_list(weights)
+        for layer in j_weights.values():
+            layer1d = list(deepflatten(layer))
+            all_maskedxij_list = all_maskedxij_list + layer1d
+    print("finish flatten")
+
+    return all_maskedxij_list
+"""
+
 
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
@@ -131,6 +169,14 @@ def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
     print(layer_name)
     layer_dic = {}
 
+    """for j, weights in tildeX_dic.items():
+        j_weights = weights_to_dic_of_list(weights)
+        tildeX_changed[j] = j_weights
+    print(f"tildeX_changed: {tildeX_changed}")
+    print(f"tildeX_changed[0] = {tildeX_changed[0]}")
+    print(f"tildeX_changed[0].get(layer_name[0]) = {tildeX_changed[0].get(layer_name[0])}")
+    """
+
     for layer in layer_name:
         a = list(deepflatten(tildeX_dic[0].get(layer)))
         b = list(deepflatten(tildeX_dic[1].get(layer)))
@@ -141,6 +187,8 @@ def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
         barX_dic[i] = {}
         # barX_dic = { 0: {}, 1: {} }
 
+
+    # user가 2명인 경우만 가능한 코드.. 구조수정필요
     userdic1 = {}
     userdic2 = {}
     for layer, li in layer_dic.items():
@@ -200,21 +248,26 @@ def generateLagrangePolynomial(x_list, y_list):
     return f_i
 
 
-# update the encoded aggregate value barS
+# update the encoded aggregate value barS => tensor type
 def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
     # pre_barX_dic = encoded model dic of group l-1
     # barS = encoded_sum
-
-    p_sum = computePartialSum(l, pre_tildeS_dic)
+    p_sum_dic = computePartialSum(l, pre_tildeS_dic)
     # barS = p_sum + sum(pre_barX_dic.values())
+    if p_sum_dic == 0:
+        temp_barS = sum_weights(list(pre_barX_dic.values()))
+        barS = dic_of_list_to_weights(temp_barS)
+        return barS
 
-    # dic of list 타입의 weights의 합을 구한 뒤 다시 tensor 타입으로 형변환 후 barS 계산
-    # 즉 pre_barX_dic은 dic of list 타입, barS는 tensor 타입
-
-    weights_sum = sum_weights(list(pre_barX_dic.values()))
-    weights = dic_of_list_to_weights(weights_sum)
-    barS = add_to_weights(weights, p_sum)
-    # print(f"barS: {barS}")
+    p_sum_dic = computePartialSum(l, pre_tildeS_dic)
+    weights_sum = sum_weights(list(pre_tildeS_dic.values()))
+    layer = list(weights_sum.keys())
+    wArr = np.array(list(weights_sum.values()))
+    pArr = np.array(list(p_sum_dic.values()))
+    temp_barS = (wArr + pArr).tolist()
+    barS = {lname: value for lname, value in zip(layer, temp_barS)}
+    barS = dic_of_list_to_weights(barS)
+    print(f"barS: {barS}")
 
     return barS
 

@@ -123,25 +123,6 @@ def computePartialSum(l, pre_tildeS_dic):
         return 0
 
 
-# 어떤 값이 길이가 1이 아니면 즉 요소가 하나가 아니라면 => 마지막 괄호안이 요소가 1개가 아닐수도 있음... 이거는 안돼
-
-# weight 레이어 내부를 쪼개서 라그랑제에 사용가능한 1차원의 리스트로 변형하는 함수
-# 중첩 리스트 평면화 => iteration_utilities.deepflatten()
-"""def weights_to_1dList(maskedxij):
-    all_maskedxij_list = []
-    print("start to flatten weight")
-
-    for j, weights in maskedxij.items():
-        j_weights = weights_to_dic_of_list(weights)
-        for layer in j_weights.values():
-            layer1d = list(deepflatten(layer))
-            all_maskedxij_list = all_maskedxij_list + layer1d
-    print("finish flatten")
-
-    return all_maskedxij_list
-"""
-
-
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
     """

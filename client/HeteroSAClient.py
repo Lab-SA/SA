@@ -14,6 +14,7 @@ ENCODING = 'utf-8'
 
 class HeteroSAClient:
     HOST = 'localhost'
+    PORT = 7000
     xu = 0  # temp. local model of this client
 
     u = 0  # u = user index
@@ -32,10 +33,9 @@ class HeteroSAClient:
 
     def setUp(self):
         tag = BasicSARound.SetUp.name
-        PORT = BasicSARound.SetUp.value
 
         # response: HeteroSetupDto
-        response = sendRequestAndReceive(self.HOST, PORT, tag, {})
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {})
         setupDto = json.loads(json.dumps(response), object_hook=lambda d: HeteroSetupDto(**d)) #
         print(setupDto)
         
@@ -51,7 +51,6 @@ class HeteroSAClient:
     
     def advertiseKeys(self):
         tag = BasicSARound.AdvertiseKeys.name
-        PORT = BasicSARound.AdvertiseKeys.value
 
         (c_pk, c_sk), (s_pk, s_sk) = sa.generateKeyPairs()
         self.my_keys["c_pk"] = c_pk
@@ -59,10 +58,10 @@ class HeteroSAClient:
         self.my_keys["s_pk"] = s_pk
         self.my_keys["s_sk"] = s_sk
         request = {"group": self.group, "index": self.index, "c_pk": c_pk, "s_pk": s_pk}
-
+        print(f'reqeust : {request}')
         # send {"group:, "index", "c_pk": c_pk, "s_pk": s_pk} to server in json format
         # receive other users' public keys from server in json format
-        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
         # store response on client
         # example: {"0": {"c_pk": "2123", "s_pk": "3333"}, "1": {"c_pk": "1111", "s_pk": "2222"}}
@@ -71,7 +70,6 @@ class HeteroSAClient:
 
     def shareKeys(self):
         tag = BasicSARound.ShareKeys.name
-        PORT = BasicSARound.ShareKeys.value
 
         # t = threshold, u = user index
         # request = [[u, v1, euv], [u, v2, euv], ...]
@@ -87,7 +85,7 @@ class HeteroSAClient:
         request = {self.index: euv_list}
 
         # receive euv_list from server in json format
-        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
         # store euv from server to client in dic
         """for v, euv in enumerate(response):  # example response = ["e01", "e11"]
@@ -100,7 +98,6 @@ class HeteroSAClient:
 
     def maskedInputCollection(self):
         tag = BasicSARound.MaskedInputCollection.name
-        PORT = BasicSARound.MaskedInputCollection.value
         
         # quantization first
         # TODO quantization weights (xu)
@@ -128,14 +125,13 @@ class HeteroSAClient:
         request = {"group": self.group, "index": self.index, "segment_yu": segment_yu}  # request example: {"group": 0, "index":0, "segment_yu": {0: y0}, {1: y1}}
 
         # receive sending_yu_list from server
-        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
         # U3 = survived users in round2(MaskedInputCollection) = users_last used in round4(unmasking)
         self.U3 = response['users']
 
     def unmasking(self): # same as unmasking of BasicSACLient
         tag = BasicSARound.Unmasking.name
-        PORT = BasicSARound.Unmasking.value
         s_sk_shares_dic = {}
         bu_shares_dic = {}
 
@@ -160,7 +156,7 @@ class HeteroSAClient:
         print(request)
 
         # send u and dropped users' s_sk, survived users' bu in json format
-        sendRequestAndReceive(self.HOST, PORT, tag, request)
+        sendRequestAndReceive(self.HOST, self.PORT, tag, request)
     
 
 if __name__ == "__main__":

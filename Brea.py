@@ -1,6 +1,8 @@
-import random
+import random, copy
 import numpy as np
+from sympy import true
 import learning.federated_main as fl
+import BasicSA as bs
 
 # make N theta_i
 # [호출] : 서버
@@ -25,7 +27,7 @@ def generate_rij(T, q):
 
 
 # share를 생성하기 위한 다항식 f
-# [인자] : theta(자신의 theta), w(weights. quantization한 값), T(collude한 사용자 수), rij(get_rij()의 리턴값)
+# [인자] : theta(자신의 theta), w(weights. quantization한 값), T(threshold), rij(get_rij()의 리턴값)
 # [리턴] : y
 def f(theta, w, T, rij):
     y = w
@@ -42,16 +44,9 @@ def make_shares(w, theta_list, T, rij_list):
     shares = []
     for theta in theta_list:
         s = []
-        for k in w.keys():
-            s.append(f(theta, np.array(w[k]), T, rij_list))
+        for k in w:
+            s.append(f(theta, k, T, rij_list))
         shares.append(s)
-    return shares
-
-
-def make_shares2(w, theta_list, T, rij_list):
-    shares = []
-    for theta in theta_list:
-        shares.append(f(theta, w, T, rij_list))
     return shares
 
 
@@ -63,9 +58,13 @@ def generate_commitments(w, rij_list, g, q):
     commitments = []
     for i, rij in enumerate(rij_list):
         if i == 0:
-            commitments.append((g**w) % q) # index 0
+            c = []
+            for k in w:
+                c.append(g ** k)
+            commitments.append(c)
             continue
-        commitments.append((g**rij) % q)
+        
+        commitments.append(np.array(g ** rij, dtype = np.float64))
     return commitments
 
 
@@ -73,18 +72,28 @@ def generate_commitments(w, rij_list, g, q):
 # [호출] : 클라이언트
 # [인자] : g, share(i 에게서 받은 share), commitments(i 가 생성한 commitment list), theta(자신의 theta), q
 # [리턴] : boolean
-def verify(g, share, commitments, theta, q): 
-    x = g ** share % q # g ** s % q
+def verify(g, share, commitments, theta, q):
+    x = g ** np.array(share) # % q
+    
     y = 1
     for i, c in enumerate(commitments):
-        y = y * (c**(theta**i))
-        y = y % q
-    print("x = ", x)
-    print("y = ", y)
-    if x == y:
-        return True
-    else:
-        return False
+        if i==0:
+            y = y * (np.array(c)**(theta**i))
+        else:
+            y = y * (c**(theta**i))
+        # y = y % q
+    # y = y % q
+    # print("x = ", x)
+    # print("y = ", y)
+
+    for i in range(len(x)):
+        if np.allclose(x[i], y[i]) == True:
+            result = True
+        else:
+            result = False
+            break
+
+    return result
 
 
 # [호출] : 클라이언트
@@ -92,47 +101,49 @@ def verify(g, share, commitments, theta, q):
 # [리턴] : distance(계산한 거리)
 def calculate_distance(shares1, shares2):
     distance = abs(np.array(shares1) - np.array(shares2)) ** 2
-    # distance = 0
-    # for i in range(len(shares1)):
-    #     distance += abs(np.array(shares1[i]) - np.array(shares2[i])) ** 2
     return distance
 
 
 if __name__ == "__main__":
-    model = fl.setup()
-    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
-    # ww = np.array(model_weights_list[0])
-    # print(model_weights_list)
-    w1 = 100
-    w2 = 120
     q = 7
     g = 3
-    n = 10
-    T = 3
+    n = 4 # N = 40
+    T = 3 # T = 7
+
+    model = fl.setup()
+    my_model = fl.get_user_dataset(n)
+
+    local_model, local_weight, local_loss = fl.local_update(model, my_model[0], 0)
+    model_weights_list = fl.weights_to_dic_of_list(local_weight)
+    model_weights = copy.deepcopy(model_weights_list)
+
+    weights = []
+    for k in model_weights.keys():
+        weight_array = np.array(model_weights[k]).reshape(-1)
+        weights.append(weight_array)
+
+    bar_w = bs.stochasticQuantization(weights, g, q)
+    # print("bar_w", bar_w[0])
     
     theta_list = make_theta(n, q)
     rij_list1 = generate_rij(T, q)
-    shares1 = make_shares2(w1, theta_list, T, rij_list1)
-    commitments = generate_commitments(w1, rij_list1, g, q)
-    result = verify(g, shares1[0], commitments, theta_list[0], q)
 
     rij_list2 = generate_rij(T, q)
-    shares2 = make_shares(model_weights_list, theta_list, T, rij_list2)
-
+    shares2 = make_shares(bar_w, theta_list, T, rij_list2)
+    #commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
+    commitments2 = generate_commitments(bar_w, rij_list2, g, q)
+    print("share2[0]: ", shares2[0])
+    print("commitments2: ", commitments2)
     print(theta_list)
     print(rij_list1)
     print(rij_list2)
-    print(shares1)
-    # print("share2: ", shares2)
-    print("share2[0]: ", shares2[0])
-    print(commitments)
-    print(result)
+
+    result = verify(g, shares2[0], commitments2, theta_list[0], q)
+    
+    print("result: ", result)
 
     distance = calculate_distance(shares2[0], shares2[1])
     print("distance: ", distance)
-    print("len: ", len(distance))
-    print("len: ", len(shares2))
-    A = np.array([[0.1,2,0.3], [4,4.5,6]])
-    # print(A)
-    # print(A + 2)
 
+
+    

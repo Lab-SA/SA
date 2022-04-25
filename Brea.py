@@ -63,8 +63,8 @@ def generate_commitments(w, rij_list, g, q):
                 c.append(g ** k)
             commitments.append(c)
             continue
-        
         commitments.append(np.array(g ** rij, dtype = np.float64))
+    
     return commitments
 
 
@@ -77,14 +77,10 @@ def verify(g, share, commitments, theta, q):
     
     y = 1
     for i, c in enumerate(commitments):
-        if i==0:
+        if i == 0:
             y = y * (np.array(c)**(theta**i))
         else:
             y = y * (c**(theta**i))
-        # y = y % q
-    # y = y % q
-    # print("x = ", x)
-    # print("y = ", y)
 
     for i in range(len(x)):
         if np.allclose(x[i], y[i]) == True:
@@ -123,7 +119,6 @@ if __name__ == "__main__":
         weights.append(weight_array)
 
     bar_w = bs.stochasticQuantization(weights, g, q)
-    # print("bar_w", bar_w[0])
     
     theta_list = make_theta(n, q)
     rij_list1 = generate_rij(T, q)
@@ -132,18 +127,12 @@ if __name__ == "__main__":
     shares2 = make_shares(bar_w, theta_list, T, rij_list2)
     #commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
     commitments2 = generate_commitments(bar_w, rij_list2, g, q)
-    print("share2[0]: ", shares2[0])
-    print("commitments2: ", commitments2)
-    print(theta_list)
-    print(rij_list1)
-    print(rij_list2)
 
     result = verify(g, shares2[0], commitments2, theta_list[0], q)
-    
     print("result: ", result)
 
     distance = calculate_distance(shares2[0], shares2[1])
-    print("distance: ", distance)
+    # print("distance: ", distance)
 
 
     

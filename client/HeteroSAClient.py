@@ -8,6 +8,7 @@ from dto.HeteroSetupDto import HeteroSetupDto
 import BasicSA as sa
 from HeteroSAg import generateMaskedInputOfSegments
 import learning.federated_main as fl
+from ast import literal_eval
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -30,6 +31,7 @@ class HeteroSAClient:
     others_euv = {}
 
     weight = 0 # temp
+    model = {}
 
     def setUp(self):
         tag = BasicSARound.SetUp.name
@@ -37,7 +39,7 @@ class HeteroSAClient:
         # response: HeteroSetupDto
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, {})
         setupDto = json.loads(json.dumps(response), object_hook=lambda d: HeteroSetupDto(**d)) #
-        print(setupDto)
+        #print(setupDto)
         
         self.n = setupDto.n
         self.t = setupDto.t
@@ -48,6 +50,15 @@ class HeteroSAClient:
         self.index = setupDto.index
         self.B = setupDto.B
         self.G = self.perGroup = setupDto.G # (For now,) G == groups num == users num of one group
+
+        self.data = setupDto.data
+        global_weights = fl.dic_of_list_to_weights(literal_eval(setupDto.weights))
+
+        if self.model == {}:
+            self.model = fl.setup()
+        fl.update_model(self.model, global_weights)
+        local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
+        self.weight = local_weight
     
     def advertiseKeys(self):
         tag = BasicSARound.AdvertiseKeys.name
@@ -121,7 +132,7 @@ class HeteroSAClient:
                 self.p,
                 self.R
         )
-        print(f'segment_yu: {segment_yu}')
+        
         request = {"group": self.group, "index": self.index, "segment_yu": segment_yu}  # request example: {"group": 0, "index":0, "segment_yu": {0: y0}, {1: y1}}
 
         # receive sending_yu_list from server

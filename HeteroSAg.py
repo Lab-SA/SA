@@ -110,11 +110,11 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, eu
                     p_uv_list.append(p_uv)
 
         print(f'puv list[{l}]: {p_uv_list}')
+
         # generate yu (masked xu) of segment l
         mask = pu + sum(p_uv_list)
-        # yu = add_to_weights(xu, mask)
-        # segment_yu[l] = fl.weights_to_dic_of_list(yu)
-        segment_yu[l][q] = xu + mask
+        masked_yu = add_to_weights(xu, mask)
+        segment_yu[l][q] = fl.weights_to_dic_of_list(masked_yu)
     
     return segment_yu
 
@@ -171,7 +171,9 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
                         sum_pvu = sum_pvu + reconstructPvu(v, index, s_sk, users_keys[index]["s_pk"], R)
             print(f'sum pu / (recontructed) sum_pvu : {sum_pu} / {sum_pvu}')
             mask = sum_pvu - sum_pu
-            # segment_xu[l][q] = generatingOutput(segment_yu[l][q], mask)
-            segment_xu[l][q] = sum(segment_yu[l][q]) + mask
+
+            if len(segment_yu[l][q]) != 0:
+                segment_xu[l][q] = generatingOutput(segment_yu[l][q], mask)
+            #segment_xu[l][q] = sum(segment_yu[l][q]) + mask
     
     return segment_xu

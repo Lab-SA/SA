@@ -10,8 +10,8 @@ class HeteroSetupDto(NamedTuple):
     index: int
     B: list
     G: int
-    # data: dict
-    # weights: dict
+    data: dict
+    weights: dict
 
 class HeteroKeysRequestDto(NamedTuple):
     group: int

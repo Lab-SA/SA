@@ -73,7 +73,7 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
 
 # users_previous [list]: users who were alive in the previous round
 # users_last [list]: users who were alive in the recent round
-def unmasking(u, c_sk, euv_dic, c_pk_dic, users_previous, users_last, R):
+def unmasking(u, c_sk, euv_dic, c_pk_dic, users_previous, users_last):
     global p
 
     s_sk_shares_dic = {}

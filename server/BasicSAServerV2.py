@@ -73,7 +73,8 @@ class BasicSAServerV2:
 
                         print(f'[{round}] Client: {clientTag}/{addr}')
 
-                        self.userNum[i] = self.userNum[i] + 1
+                        if round == clientTag:
+                            self.userNum[i] = self.userNum[i] + 1
                     except socket.timeout:
                         pass
                     except:

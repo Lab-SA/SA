@@ -160,8 +160,7 @@ class HeteroSAClient:
             self.others_euv, 
             c_pk_dic, 
             U2, 
-            self.U3,
-            self.R)
+            self.U3)
         # requests example: {"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk, ...}, "bu_shares": {1: b10, 4: b40, ...}]}
         request = {"index": self.index, "ssk_shares": str(s_sk_shares_dic), "bu_shares": str(bu_shares_dic)}
         print(request)

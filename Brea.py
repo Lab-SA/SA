@@ -1,6 +1,5 @@
 import random, copy
 import numpy as np
-from sympy import true
 import learning.federated_main as fl
 import BasicSA as bs
 

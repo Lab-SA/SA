@@ -14,8 +14,3 @@ class TurboRound(Enum):
     TurboFinal = 7012
     Final = 7020
 
-class BreaRound(Enum):
-    SetUp = 7000
-    SecretSharing = 7010
-    SelectUsers = 7020
-    Unmasking = 7030

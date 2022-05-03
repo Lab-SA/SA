@@ -1,7 +1,11 @@
 import random, copy
 import numpy as np
+from torch import threshold
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 import BasicSA as bs
+
+np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
 # make N theta_i
 # [호출] : 서버
@@ -87,7 +91,7 @@ def verify(g, share, commitments, theta, q):
         else:
             result = False
             break
-
+    
     return result
 
 
@@ -109,15 +113,19 @@ if __name__ == "__main__":
     my_model = fl.get_user_dataset(n)
 
     local_model, local_weight, local_loss = fl.local_update(model, my_model[0], 0)
-    model_weights_list = fl.weights_to_dic_of_list(local_weight)
-    model_weights = copy.deepcopy(model_weights_list)
-
-    weights = []
+    model_weights_list = mhelper.weights_to_dic_of_list(local_weight)
+    #model_weights = copy.deepcopy(model_weights_list)
+    weights_info, flatten_weights = mhelper.flatten_list(model_weights_list)
+    # print(np.array(flatten_weights))
+    '''weights = []
     for k in model_weights.keys():
         weight_array = np.array(model_weights[k]).reshape(-1)
-        weights.append(weight_array)
+        weights.append(weight_array)'''
 
-    bar_w = bs.stochasticQuantization(weights, g, q)
+    # bar_w = bs.stochasticQuantization(weights, g, q)
+    bar_w = bs.stochasticQuantization(np.array(flatten_weights), g, q)
+    # print(np.array(bar_w).reshape(-1))
+    print(bar_w)
     
     theta_list = make_theta(n, q)
     rij_list1 = generate_rij(T, q)

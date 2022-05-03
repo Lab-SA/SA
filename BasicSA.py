@@ -138,11 +138,8 @@ def stochasticQuantization(x, q, p):
 
     # var_x = quantized x
     
-    var_x = []
     ret_x = stochasticRounding(x, q)
-    for each_x in ret_x:
-        var_x.append(mappingX(q * np.array(each_x).reshape(-1), p))
-    
+    var_x = mappingX(q * np.array(ret_x), p)
     return var_x
 
 def stochasticRounding(x, q):
@@ -154,18 +151,11 @@ def stochasticRounding(x, q):
     # ret_x = rounded x
 
     ret_x = []
+
     for each_x in x:
-        ret_list = []
-        prob_list = []
-        for w in each_x:
-            ret_list.append([math.floor(q * w) / q, (math.floor(q * w) + 1) / q])
-            prob_list.append([1 - (q * w - math.floor(q * w)), q * w - math.floor(q * w)])
-        
-        temp_list = []
-        for idx in range(len(each_x)):
-            r_choice = random.choices(ret_list[idx], prob_list[idx])
-            temp_list.append(r_choice)
-        ret_x.append(temp_list)
+        ret_list = [math.floor(q * each_x) / q, (math.floor(q * each_x) + 1) / q]
+        prob_list = [1 - (q * each_x - math.floor(q * each_x)), q * each_x - math.floor(q * each_x)]
+        ret_x.append(random.choices(ret_list, prob_list))
 
     return ret_x
 

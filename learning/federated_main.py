@@ -7,7 +7,7 @@ from .options import args_parser
 from .update import LocalUpdate, test_inference
 from .models import CNNMnist
 from .utils import get_mnist_train, get_mnist_test, get_users_data, average_weights, exp_details
-
+from iteration_utilities import deepflatten
 
 # 전역변수 선언
 train_loss, train_accuracy, train_dataset = [], [], []
@@ -116,6 +116,40 @@ def dic_of_list_to_weights(dic_weights):
             params[param_tensor] = torch.Tensor(value).cpu()
     #model.load_state_dict(params)
     return params
+
+def flatten_tensor_to_list(weights):
+    """ flatten tensor weights into a one-dimensional list
+    Args:
+        weights (dict): model weights (model.state_dict())
+    Returns:
+        dict: weights shape information (key: layer name, value: shape)
+        list: one-dimensional list
+    """
+    weights_info = {}
+    flatten_weights = []
+    for layer, item in weights.items():
+        weights_info[layer] = item.shape
+        flatten_weights = flatten_weights + list(deepflatten(item.tolist()))
+    return weights_info, flatten_weights
+
+def restore_weights_tensor(weights_info, flatten_weights):
+    """ restore tensor weights from a one-dimensional list
+    Args:
+        weights_info (dict): weights shape information
+        flatten_weights (list): one-dimensional list of original weights
+    Returns:
+        dict: model weights(tensor) (model.state_dict())
+    """
+    new_weights = {}
+    prev = 0
+    next = 0
+    for layer, shape in weights_info.items():
+        next = prev + shape.numel()
+        layer_tensor = torch.Tensor(flatten_weights[prev:next]).reshape(shape)
+        new_weights[layer] = layer_tensor
+        prev = next
+    return new_weights
+
 
 # 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 

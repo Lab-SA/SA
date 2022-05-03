@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 
 # make N theta_i
 # [호출] : 서버
@@ -100,7 +101,7 @@ def calculate_distance(shares1, shares2):
 
 if __name__ == "__main__":
     model = fl.setup()
-    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
+    model_weights_list = mhelper.weights_to_dic_of_list(model.state_dict())
     # ww = np.array(model_weights_list[0])
     # print(model_weights_list)
     w1 = 100

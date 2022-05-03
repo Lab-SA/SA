@@ -7,6 +7,7 @@ from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct,
 from CommonValue import BasicSARound
 from ast import literal_eval
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 import SecureProtocol as sp
 
 class BasicSAServerV2:
@@ -137,7 +138,7 @@ class BasicSAServerV2:
 
         if self.model == {}:
             self.model = fl.setup()
-        model_weights_list = fl.weights_to_dic_of_list(self.model.state_dict())
+        model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(self.n)
 
         for idx, (clientSocket, requestData) in enumerate(requests):
@@ -192,7 +193,7 @@ class BasicSAServerV2:
         for request in requests:
             requestData = request[1]  # (socket, data)
             response.append(int(requestData["idx"]))
-            yu_ = fl.dic_of_list_to_weights(requestData["yu"])
+            yu_ = mhelper.dic_of_list_to_weights(requestData["yu"])
             self.yu_list.append(yu_)
 
         self.broadcast(requests, {"users": response})

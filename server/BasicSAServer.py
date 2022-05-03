@@ -6,6 +6,7 @@ from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct,
 from CommonValue import BasicSARound
 from ast import literal_eval
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 import SecureProtocol as sp
 
 model = {}
@@ -38,7 +39,7 @@ def setUp():
 
     if model == {}:
         model = fl.setup()
-    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
+    model_weights_list = mhelper.weights_to_dic_of_list(model.state_dict())
     user_groups = fl.get_user_dataset(usersNow)
 
     response = []
@@ -122,7 +123,7 @@ def maskedInputCollection():
     for request in requests:
         requestData = request[1]  # (socket, data)
         response.append(int(requestData["idx"]))
-        yu_ = fl.dic_of_list_to_weights(requestData["yu"])
+        yu_ = mhelper.dic_of_list_to_weights(requestData["yu"])
         yu_list.append(yu_)
 
     server.broadcast({"users": response})

@@ -117,7 +117,7 @@ def dic_of_list_to_weights(dic_weights):
     #model.load_state_dict(params)
     return params
 
-def flatten_tensor_to_list(weights):
+def flatten_tensor(weights):
     """ flatten tensor weights into a one-dimensional list
     Args:
         weights (dict): model weights (model.state_dict())
@@ -147,6 +147,39 @@ def restore_weights_tensor(weights_info, flatten_weights):
         next = prev + shape.numel()
         layer_tensor = torch.Tensor(flatten_weights[prev:next]).reshape(shape)
         new_weights[layer] = layer_tensor
+        prev = next
+    return new_weights
+
+def flatten_list(weights):
+    """ flatten list of weights into a one-dimensional list
+    Args:
+        weights (dict): model weights (key: layer name, value: list (:NOT TENSOR))
+    Returns:
+        dict: weights shape information (key: layer name, value: shape)
+        list: one-dimensional list
+    """
+    weights_info = {}
+    flatten_weights = []
+    for layer, item in weights.items():
+        weights_info[layer] = torch.Tensor(item).shape
+        flatten_weights = flatten_weights + list(deepflatten(item))
+    return weights_info, flatten_weights
+
+def restore_weights_list(weights_info, flatten_weights):
+    """ restore list of weights from a one-dimensional list
+    Args:
+        weights_info (dict): weights shape information
+        flatten_weights (list): one-dimensional list of original weights
+    Returns:
+        dict: model weights(tensor) (model.state_dict())
+    """
+    new_weights = {}
+    prev = 0
+    next = 0
+    for layer, shape in weights_info.items():
+        next = prev + shape.numel()
+        layer_list = torch.Tensor(flatten_weights[prev:next]).reshape(shape).tolist()
+        new_weights[layer] = layer_list
         prev = next
     return new_weights
 

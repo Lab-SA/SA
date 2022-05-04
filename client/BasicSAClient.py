@@ -3,6 +3,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import BasicSA as sa
 from CommonValue import BasicSARound
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -67,7 +68,7 @@ class BasicSAClient:
         self.commonValues = response
         self.u = response["index"]
         self.data = response["data"] # user_groups[idx]
-        global_weights = fl.dic_of_list_to_weights(response["weights"])
+        global_weights = mhelper.dic_of_list_to_weights(response["weights"])
 
         if self.model == {}:
             self.model = fl.setup()
@@ -140,7 +141,7 @@ class BasicSAClient:
             s_pk_dic, 
             self.commonValues["R"])
         
-        request = {"idx": self.u, "yu": fl.weights_to_dic_of_list(yu)}  # request example: {"idx":0, "yu":y0}
+        request = {"idx": self.u, "yu": mhelper.weights_to_dic_of_list(yu)}  # request example: {"idx":0, "yu":y0}
 
         # receive sending_yu_list from server
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)

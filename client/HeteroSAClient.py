@@ -8,6 +8,7 @@ from dto.HeteroSetupDto import HeteroSetupDto
 import BasicSA as sa
 from HeteroSAg import generateMaskedInputOfSegments
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 from ast import literal_eval
 
 SIZE = 2048
@@ -52,7 +53,7 @@ class HeteroSAClient:
         self.G = self.perGroup = setupDto.G # (For now,) G == groups num == users num of one group
 
         self.data = setupDto.data
-        global_weights = fl.dic_of_list_to_weights(literal_eval(setupDto.weights))
+        global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
 
         if self.model == {}:
             self.model = fl.setup()

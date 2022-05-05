@@ -9,6 +9,7 @@ import HeteroSAg as hetero
 from dto.HeteroSetupDto import HeteroSetupDto, HeteroKeysRequestDto
 from CommonValue import BasicSARound
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 import SecureProtocol as sp
 
 class HeteroSAServer(BasicSAServerV2):
@@ -42,7 +43,7 @@ class HeteroSAServer(BasicSAServerV2):
         # model
         if self.model == {}:
             self.model = fl.setup()
-        model_weights_list = fl.weights_to_dic_of_list(self.model.state_dict())
+        model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(self.usersNow)
 
         for i in range(self.G):
@@ -112,7 +113,7 @@ class HeteroSAServer(BasicSAServerV2):
             self.surviving_users.append(index)
             for i, segment in requestData["segment_yu"].items():
                 for q, yu in segment.items():
-                    yu_ = fl.dic_of_list_to_weights(yu)
+                    yu_ = mhelper.dic_of_list_to_weights(yu)
                     self.segment_yu[int(i)][int(q)].append(yu_)
 
         self.broadcast(requests, {"users": self.surviving_users})

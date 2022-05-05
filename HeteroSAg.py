@@ -4,6 +4,7 @@ import SecureProtocol as sp
 from BasicSA import reconstruct, reconstructPu, reconstructPvu, generatingOutput
 from learning.utils import add_to_weights
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 
 def quantization(x, Kg, r1, r2):
     # x = local model value of user i
@@ -114,7 +115,7 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, eu
         # generate yu (masked xu) of segment l
         mask = pu + sum(p_uv_list)
         masked_yu = add_to_weights(xu, mask)
-        segment_yu[l][q] = fl.weights_to_dic_of_list(masked_yu)
+        segment_yu[l][q] = mhelper.weights_to_dic_of_list(masked_yu)
     
     return segment_yu
 

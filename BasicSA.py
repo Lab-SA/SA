@@ -1,11 +1,12 @@
 # Lab-SA Basic SA for Federated Learning
 import random, math
+import numpy as np
 import SecureProtocol as sp
 from ast import literal_eval
 from learning.utils import sum_weights, add_to_weights
 
 g = 3 #temp
-p = 7 #temp
+p = 7 #temp #BREA -> p = 2 ** 32 - 5
 
 # Get common values for server set-up: n, t, ...
 def getCommonValues():
@@ -130,7 +131,9 @@ def stochasticQuantization(x, q, p):
     # p = modulo p
 
     # var_x = quantized x
-    var_x = mappingX(q * stochasticRounding(x, q), p)
+    
+    ret_x = stochasticRounding(x, q)
+    var_x = mappingX(q * np.array(ret_x), p)
     return var_x
 
 def stochasticRounding(x, q):
@@ -141,19 +144,23 @@ def stochasticRounding(x, q):
     # prob_list = probability list (weight for random.choices)
     # ret_x = rounded x
 
-    ret_list = [math.floor(q * x) / q, (math.floor(q * x) + 1) / q]
-    prob_list = [1 - (q * x - math.floor(q * x)), q * x - math.floor(q * x)]
-    ret_x = random.choices(ret_list, prob_list)
+    ret_x = []
+
+    for each_x in x:
+        ret_list = [math.floor(q * each_x) / q, (math.floor(q * each_x) + 1) / q]
+        prob_list = [1 - (q * each_x - math.floor(q * each_x)), q * each_x - math.floor(q * each_x)]
+        ret_x.append(random.choices(ret_list, prob_list))
+
     return ret_x
 
 def mappingX(x, p):
     """mappingX(x, p) is to represent a negative integer in the finite field
     by using two’s complement representation"""
     # % mod 연산으로 대체가 가능한 부분인가...?
-    if x < 0:
-        return p + x
-    else:
-        return x
+    
+    y = np.where(x < 0, x + p, x)
+    
+    return y
 
 # generate G quantizers randomly
 def generateQuantizers_heteroQ(G):

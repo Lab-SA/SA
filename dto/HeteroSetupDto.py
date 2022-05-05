@@ -12,6 +12,7 @@ class HeteroSetupDto(NamedTuple):
     G: int
     data: dict
     weights: dict
+    weights_interval: list
 
 class HeteroKeysRequestDto(NamedTuple):
     group: int

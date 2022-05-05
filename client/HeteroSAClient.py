@@ -54,6 +54,7 @@ class HeteroSAClient:
 
         self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
+        self.weights_interval = setupDto.weights_interval
 
         if self.model == {}:
             self.model = fl.setup()
@@ -128,6 +129,7 @@ class HeteroSAClient:
                 self.G,
                 self.group,
                 self.perGroup,
+                self.weights_interval,
                 self.euv_list, 
                 s_pk_dic,
                 self.p,

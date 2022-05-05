@@ -58,7 +58,7 @@ def getSegmentInfoFromB(B, G, perGroup):
     print(f'segment: {segment_info}')
     return segment_info
 
-def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, euv_list, s_pk_dic, p, R):
+def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, weights_interval, euv_list, s_pk_dic, p, R):
     """ generate masked input of segments
     Args:
         index (int): user's index
@@ -69,6 +69,7 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, eu
         G (int): # of group
         group (int): user's group
         perGroup (int): users num of one group
+        weights_interval (list): interval index of weights (for each segment)
         euv_list (list): user's evu_list
         s_pk_dic (dict): other's public key s dictionary (key: index, value: s_pk)
         p (int): prime
@@ -89,10 +90,12 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, eu
     print(f'pu: {pu}')
 
     # compute p_uv
+    weights_info, flatten_xu = mhelper.flatten_tensor(xu)
+    segment_xu = list(map(lambda i: flatten_xu[weights_interval[i]:weights_interval[i+1]], range(0, G)))
     segment_yu = {i: {} for i in range(G)}
     for l, segment in enumerate(B): # for each segment
 
-        # find group of same segment
+        # find group of same level
         q = segment[group]
         p_uv_list = []
         for i, value in enumerate(segment):
@@ -114,8 +117,7 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, eu
 
         # generate yu (masked xu) of segment l
         mask = pu + sum(p_uv_list)
-        masked_yu = add_to_weights(xu, mask)
-        segment_yu[l][q] = mhelper.weights_to_dic_of_list(masked_yu)
+        segment_yu[l][q] = list(map(lambda x : x + mask, segment_xu[l]))
     
     return segment_yu
 
@@ -147,7 +149,7 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
     Args:
         segment_info (dict): segment info (key: segment index, value: dict (key: quantization level, value: index list))
         G (int): # of group
-        segment_yu (dict): yu of segments (key: segment level, value: dict(key: quantization level, value: list of yu))
+        segment_yu (dict): yu of segments (key: segment level, value: dict(key: quantization level, value: segment list of yu))
         surviving_users (list): surviving users index list
         users_keys (dict): public keys of users
         s_sk_dic (dict): s_sk of drop-out users (key: segment index, value: dict (key: quantization level, value: reconstructed_s_sk))
@@ -174,7 +176,8 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
             mask = sum_pvu - sum_pu
 
             if len(segment_yu[l][q]) != 0:
-                segment_xu[l][q] = generatingOutput(segment_yu[l][q], mask)
-            #segment_xu[l][q] = sum(segment_yu[l][q]) + mask
+                #segment_xu[l][q] = sum(segment_yu[l][q]) + mask
+                sum_segment_yu = list(sum(x) for x in zip(*segment_yu[l][q])) # sum
+                segment_xu[l][q] = list(map(lambda x : x + mask, sum_segment_yu))  # remove mask
     
     return segment_xu

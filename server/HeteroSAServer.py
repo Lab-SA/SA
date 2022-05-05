@@ -18,7 +18,7 @@ class HeteroSAServer(BasicSAServerV2):
     t = 1
     R = 0
     B = [] # The SS Matrix B
-    G = 2 # group num
+    G = 2 # group num == segment num (for now)
     perGroup = 2
     usersNow = 0
     segment_yu = {}
@@ -46,6 +46,13 @@ class HeteroSAServer(BasicSAServerV2):
         model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(self.usersNow)
 
+        # model weights will be split by the number of segments
+        # in setup, server calculates the interval of weights for each segment
+        weights_size = mhelper.get_weights_size(self.model.state_dict())
+        segment_size = int(weights_size / self.G)
+        weights_interval = [x*segment_size for x in range(0, self.G)]
+        weights_interval.append(weights_size)
+
         for i in range(self.G):
             for j in range(self.perGroup):
                 idx = i*self.perGroup + j
@@ -60,7 +67,8 @@ class HeteroSAServer(BasicSAServerV2):
                     B = self.B, 
                     G = self.G,
                     data = [int(k) for k in user_groups[idx]],
-                    weights= str(model_weights_list)
+                    weights= str(model_weights_list),
+                    weights_interval = weights_interval
                 )._asdict()
                 response_json = json.dumps(response_ij)
                 clientSocket = requests[idx][0]
@@ -112,9 +120,8 @@ class HeteroSAServer(BasicSAServerV2):
             index = int(requestData["index"])
             self.surviving_users.append(index)
             for i, segment in requestData["segment_yu"].items():
-                for q, yu in segment.items():
-                    yu_ = mhelper.dic_of_list_to_weights(yu)
-                    self.segment_yu[int(i)][int(q)].append(yu_)
+                for q, yu in segment.items(): # yu is one segment of weights
+                    self.segment_yu[int(i)][int(q)].append(yu)
 
         self.broadcast(requests, {"users": self.surviving_users})
         print(f'surviving_users: {self.surviving_users}')
@@ -164,6 +171,10 @@ class HeteroSAServer(BasicSAServerV2):
         #print(f'segment_xu: {segment_xu}')
 
         # TODO dequantization encoded xu
+
+        # coordinate median
+
+        # concatenate
 
         # update global model
 

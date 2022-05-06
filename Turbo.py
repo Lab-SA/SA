@@ -34,7 +34,7 @@ def computeMaskedModel(x, u_i, next_users, q):
         temp = u_i + r_ij_dic[j]
         masked_x = add_to_weights(x, temp)
         tildeX_dic[j] = masked_x
-
+        print(f"u_i: {u_i},temp: {temp}")
     return tildeX_dic
 
 
@@ -289,9 +289,15 @@ def computeFinalOutput(final_tildeS, mask_u_dic):
 
     surviving_mask_u = 0
     temp_surviving_mask_u = []
-    for pair in zip(*mask_u_dic.values()):
-        temp_surviving_mask_u.append(sum(pair))
+    for u_i in mask_u_dic.values():
+        temp_surviving_mask_u.append(u_i.values())
+
+    for i, pair in enumerate(zip(*temp_surviving_mask_u)):
+        print(list(pair))
+        temp_surviving_mask_u[i] = sum(pair)
+    print(temp_surviving_mask_u)
     surviving_mask_u = sum(temp_surviving_mask_u)
+    print(f"surviving_mask_u={surviving_mask_u}")
 
     n = len(final_tildeS)
 
@@ -308,7 +314,7 @@ def computeFinalOutput(final_tildeS, mask_u_dic):
                 if user_idx == idx[-1]:
                     tempdic[layer] = (tempdic[layer] / n) - surviving_mask_u
                     tempdic[layer] = tempdic[layer].tolist()
-            #print(f"tempdic={tempdic}")
+            print(f"tempdic={tempdic}")
         layer_dic[user_idx] = tempdic
 
     sum_x = layer_dic

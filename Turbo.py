@@ -5,6 +5,8 @@ from learning.utils import sum_weights, add_to_weights
 from learning.federated_main import weights_to_dic_of_list, dic_of_list_to_weights
 from iteration_utilities import deepflatten
 
+layer_name = ['conv1.weight', 'conv1.bias', 'conv2.weight', 'conv2.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
+
 def grouping(users, n):
     # users = [list] ordered user index list
     # n = the number of users per one group
@@ -63,11 +65,6 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
     # tildeS = a variable that each user holds corresponding to the aggregated masked models from the previous group
     n = len(pre_tildeS_dic)
 
-    """
-        initialize tildeS(0) = 0
-        매개변수 때문에, group index 가 0일 때(즉 첫 번째 group 일 경우)는 사용자 측에서
-        매개변수로 p_sum = 0, pre_tildeS = 0을 넣어 주어야 할 듯.
-    """
     if l == 0:
         print("Initialize tildeS(0) = 0")
         tildeS = 0
@@ -79,13 +76,12 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
             tildeS = dic_of_list_to_weights(temp_tildeS)
             return tildeS
         weights_sum = sum_weights(list(pre_tildeX_dic.values()))
-        layer = list(weights_sum.keys())
         wArr = np.array(list(weights_sum.values()))
         pArr = np.array(list(p_sum_dic.values()))
         temp_tildeS = (wArr + pArr).tolist()
-        tildeS = {lname:value for lname, value in zip(layer, temp_tildeS)}
+        tildeS = {lname:value for lname, value in zip(layer_name, temp_tildeS)}
         tildeS = dic_of_list_to_weights(tildeS)
-        print(f"tildeS: {tildeS}")
+        #print(f"tildeS: {tildeS}")
     else:
         print("wrong group index")
 
@@ -95,7 +91,7 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
 # compute partial summation = p_sum_dic (= s(l)) => dic of list type
 def computePartialSum(l, pre_tildeS_dic):
     #pre_tildeS_dic = {user_idx:si_}
-    print(f"l={l}, pre_tildeS_dic={pre_tildeS_dic}")
+    #print(f"l={l}, pre_tildeS_dic={pre_tildeS_dic}")
     # si_ = dic of list type
     n = len(pre_tildeS_dic)
 
@@ -116,24 +112,15 @@ def computePartialSum(l, pre_tildeS_dic):
         ret_list = (tempArray/n).tolist()
         # print(layer, ret_list)
         p_sum_dic = {lname: arr for lname, arr in zip(layer, ret_list)}
-        print(f"p_sum_dic= {p_sum_dic}")
+        #print(f"p_sum_dic= {p_sum_dic}")
         return p_sum_dic
     else:
         print("wrong group index")
         return 0
 
-
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
-    """
-        x = 다음 그룹의 유저들 각각에 랜덤 할당된 수 (= alpha)
-        y = tildeX_dic.values()
-        이 (x,y)로 만들어진 보간다항식 = f_i
 
-        alpha와 중복되지 않는 랜덤 값 = beta
-        beta를 f_i에 넣어서 나오는 값들이 바로 barX (= encoded model)
-        이 barX들의 모음 = barX_dic
-    """
     barX_dic = {}
     # tildeX_dic = maskedxij_
     # flatten_maskedxij = weights_to_1dList(tildeX_dic)
@@ -146,17 +133,7 @@ def generateEncodedModel(alpha_list, beta_list, tildeX_dic):
 
     y = []
 
-    layer_name = list(tildeX_dic[0].keys())
-    print(layer_name)
     layer_dic = {}
-
-    """for j, weights in tildeX_dic.items():
-        j_weights = weights_to_dic_of_list(weights)
-        tildeX_changed[j] = j_weights
-    print(f"tildeX_changed: {tildeX_changed}")
-    print(f"tildeX_changed[0] = {tildeX_changed[0]}")
-    print(f"tildeX_changed[0].get(layer_name[0]) = {tildeX_changed[0].get(layer_name[0])}")
-    """
 
     for layer in layer_name:
         a = list(deepflatten(tildeX_dic[0].get(layer)))
@@ -248,7 +225,7 @@ def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
     temp_barS = (wArr + pArr).tolist()
     barS = {lname: value for lname, value in zip(layer, temp_barS)}
     barS = dic_of_list_to_weights(barS)
-    print(f"barS: {barS}")
+    #print(f"barS: {barS}")
 
     return barS
 
@@ -256,11 +233,12 @@ def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
 # reconstruct missing values of dropped users.
 # and then update pre_tildeX
 def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
-    # pre_tildeS_dic = [dic] { surviving users'(group l-1) index: surviving users' tildeS }
-    # pre_barS_dic = [dic] { surviving users'(group l-1) index: surviving users' barS }
+    # pre_tildeS_dic = [tensor] { surviving users'(group l-1) index: surviving users' tildeS }
+    # pre_barS_dic = [tensor] { surviving users'(group l-1) index: surviving users' barS }
     # g_i = lagrange polynomial of group l-1 for reconstruct
-    # print(f"pre_tildeS_dic= {pre_tildeS_dic}")
-    # print(f"pre_barS_dic= {pre_barS_dic}")
+    #print(f"pre_tildeS_dic= {pre_tildeS_dic}")
+    #print(f"pre_barS_dic= {pre_barS_dic}")
+    # print(pre_tildeS_dic.values()) # [dic]
 
     x_list = []
     for i in pre_tildeS_dic.keys():
@@ -268,16 +246,39 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     for i in pre_barS_dic.keys():
         x_list.append(beta_list[int(i)])
 
-    y_list = list(pre_tildeS_dic.values()) + list(pre_barS_dic.values())
-    g_i = generateLagrangePolynomial(x_list, y_list)
-
     drop_out = []
     for index, alpha in enumerate(alpha_list):
         if alpha not in x_list:
-            recon_tildeS = np.polyval(g_i, alpha)
-            pre_tildeS_dic[index] = recon_tildeS
             # print(f'alpha: {alpha_list[index]}, recon_tildeS: {recon_tildeS}')
             drop_out.append(index)
+
+    if len(drop_out) == 0:
+        return pre_tildeS_dic, drop_out
+
+    layer_dic = {k:[] for k in layer_name}
+
+    for i in list(pre_tildeS_dic.keys()):
+        for layer in layer_name:
+            temp = list(deepflatten(pre_tildeS_dic[i].get(layer)))
+            layer_dic[layer].append(temp)
+
+    for i in list(pre_barS_dic.keys()):
+        for layer in layer_name:
+            layer_dic[layer].append(list(deepflatten(pre_barS_dic[i].get(layer))))
+
+    recon_tildeS_dic = {k:[] for k in drop_out}
+    for i in drop_out:
+        temp_layer_dic = {}
+        for layer, v in layer_dic.items():
+            temp_tuple = list(zip(*v))
+            temp = [] # 각 레이어별 value
+            for y_list in temp_tuple:
+                g_i = generateLagrangePolynomial(x_list, y_list)
+                temp.append(np.polyval(g_i, alpha_list[i]))
+            temp_layer_dic[layer] = temp
+        recon_tildeS_dic[i] = temp_layer_dic
+    for drop_idx, recon in recon_tildeS_dic.items():
+        pre_tildeS_dic[drop_idx] = recon
     
     return pre_tildeS_dic, drop_out
 
@@ -287,9 +288,30 @@ def computeFinalOutput(final_tildeS, mask_u_dic):
     # mask_u_dic = all surviving u_l_i (random mask from server)
 
     surviving_mask_u = 0
-    for group, item in mask_u_dic.items():
-        surviving_mask_u = surviving_mask_u + sum(item.values())
-    
-    sum_x = sum(final_tildeS.values()) / len(final_tildeS) - surviving_mask_u
+    temp_surviving_mask_u = []
+    for pair in zip(*mask_u_dic.values()):
+        temp_surviving_mask_u.append(sum(pair))
+    surviving_mask_u = sum(temp_surviving_mask_u)
+
+    n = len(final_tildeS)
+
+    layer_dic = {}
+    tempdic = {}
+    for user_idx in final_tildeS.keys():
+        for layer in layer_name:
+            temp = np.array(list(deepflatten(final_tildeS[user_idx].get(layer))))
+            if user_idx == 0:
+                tempdic[layer] = temp
+            else:
+                tempdic[layer] = tempdic[layer] + np.array(temp)
+                idx = list(final_tildeS.keys())
+                if user_idx == idx[-1]:
+                    tempdic[layer] = (tempdic[layer] / n) - surviving_mask_u
+                    tempdic[layer] = tempdic[layer].tolist()
+            #print(f"tempdic={tempdic}")
+        layer_dic[user_idx] = tempdic
+
+    sum_x = layer_dic
+
     return sum_x
 

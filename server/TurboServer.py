@@ -68,13 +68,15 @@ def turbo():
     tag_value = TurboRound.TurboValue.name
     tag_final = TurboRound.TurboFinal.name
     port = TurboRound.Turbo.value
-    
+
+    print(groupNum, usersNum, perGroup, drop_out)
     server = TurboBaseServer(tag, tag_value, tag_final, port, groupNum, usersNum, perGroup)
     server.start()
     drop_out = server.drop_out
 
+
 def final():
-    global mask_u_dic, drop_out, groupNum, alpha, beta, perGroup
+    global mask_u_dic, drop_out, groupNum, alpha, beta, perGroup, model
 
     tag = TurboRound.Final.name
     port = TurboRound.Final.value
@@ -87,8 +89,8 @@ def final():
     for request in server.requests:
         requestData = request[1]  # (socket, data)
         index = int(requestData["index"])
-        final_tildeS[index] = int(requestData["final_tildeS"])
-        final_barS[index] = int(requestData["final_barS"])
+        final_tildeS[index] = requestData["final_tildeS"]
+        final_barS[index] = requestData["final_barS"]
         drop_out[groupNum-1] = requestData["drop_out"] # last group
     
     # reconstruct
@@ -103,7 +105,14 @@ def final():
             del mask_u_dic[group][i]
     
     # final value (sum_xu)
-    return computeFinalOutput(final_tildeS, mask_u_dic)
+    sum_xu = computeFinalOutput(final_tildeS, mask_u_dic)
+
+    # update global model
+    model = fl.update_globalmodel(model, sum_xu)
+
+    # End
+    server.broadcast("[Server] End protocol")
+    fl.test_model(model)
 
 if __name__ == "__main__":
     setUp()

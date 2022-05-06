@@ -58,6 +58,7 @@ class TurboClient:
         fl.update_model(self.model, global_weights)
         local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0)
         self.weight = local_weight
+        print(f"local model = {self.weight}")
 
         return self.group
 
@@ -97,7 +98,9 @@ class TurboClient:
         self.codedsi = 0
 
         if self.group > 0:
+            print("reconstruct 시작")
             self.reconstruct(self.group)
+            print("reconstruct 종료")
             self.si = Turbo.updateSumofMaskedModel(self.group, self.pre_maskedxij, self.pre_si)
             si_ = fl.weights_to_dic_of_list(self.si)
             self.codedsi = Turbo.updateSumofEncodedModel(self.group, self.pre_encodedxij, self.pre_si)
@@ -135,28 +138,17 @@ class TurboClient:
         self.reconstruct(1)  # any l > 0
         final_tildeS = Turbo.updateSumofMaskedModel(1, self.pre_maskedxij, self.pre_si)  # any l > 0
         final_barS = Turbo.updateSumofEncodedModel(1, self.pre_encodedxij, self.pre_si)  # any l > 0
+        si_ = fl.weights_to_dic_of_list(final_tildeS)
+        codedsi_ = fl.weights_to_dic_of_list(final_barS)
+        #print(f"final codedsi_= {codedsi_}")
+        #print(f"final si_= {si_}")
 
-        request = {"index": self.index, "final_tildeS": final_tildeS, "final_barS": final_barS,
+        request = {"index": self.index, "final_tildeS": si_, "final_barS": codedsi_,
                    "drop_out": self.drop_out}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 
     # reconstruct l-1 group's si and codedsi
     def reconstruct(self, group):
-        """
-        # 형변환
-        pre_si_ = {}
-        for j, weights in self.pre_si_.items():
-            j_weights = fl.weights_to_dic_of_list(weights)
-            pre_si_[j] = j_weights
-
-        pre_codedsi_ = {}
-        for j, weights in self.pre_codedsi_.items():
-            j_weights = fl.weights_to_dic_of_list(weights)
-            pre_codedsi_[j] = j_weights
-
-        pre_si_, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, pre_si_, pre_codedsi_)
-        self.pre_codedsi = Turbo.updateSumofEncodedModel(group, self.pre_encodedxij, self.pre_si)
-        """
         self.pre_si, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, self.pre_si, self.pre_codedsi)
         self.pre_codedsi = Turbo.updateSumofEncodedModel(group, self.pre_encodedxij, self.pre_si)
 

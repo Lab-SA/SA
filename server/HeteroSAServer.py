@@ -9,6 +9,7 @@ import HeteroSAg as hetero
 from dto.HeteroSetupDto import HeteroSetupDto, HeteroKeysRequestDto
 from CommonValue import BasicSARound
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 import SecureProtocol as sp
 
 class HeteroSAServer(BasicSAServerV2):
@@ -17,7 +18,7 @@ class HeteroSAServer(BasicSAServerV2):
     t = 1
     R = 0
     B = [] # The SS Matrix B
-    G = 2 # group num
+    G = 2 # group num == segment num (for now)
     perGroup = 2
     usersNow = 0
     segment_yu = {}
@@ -28,8 +29,8 @@ class HeteroSAServer(BasicSAServerV2):
 
     # broadcast common value
     def setUp(self, requests):
-        usersNow = len(requests)
-        self.t = int(usersNow / 2) # threshold
+        self.usersNow = len(requests)
+        self.t = int(self.usersNow / 2) # threshold
 
         commonValues = getCommonValues()
         self.R = commonValues["R"]
@@ -39,14 +40,38 @@ class HeteroSAServer(BasicSAServerV2):
         # Segment Grouping Strategy: G x G Segment selection matrix B
         self.B = hetero.SS_Matrix(self.G)
         
-        response = []
+        # model
+        if self.model == {}:
+            self.model = fl.setup()
+        model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
+        user_groups = fl.get_user_dataset(self.usersNow)
+
+        # model weights will be split by the number of segments
+        # in setup, server calculates the interval of weights for each segment
+        weights_size = mhelper.get_weights_size(self.model.state_dict())
+        segment_size = int(weights_size / self.G)
+        weights_interval = [x*segment_size for x in range(0, self.G)]
+        weights_interval.append(weights_size)
+
         for i in range(self.G):
             for j in range(self.perGroup):
+                idx = i*self.perGroup + j
                 response_ij = HeteroSetupDto(
-                    usersNow, self.t, self.g, self.p, self.R, i, i*self.perGroup + j, self.B, self.G
+                    n = self.usersNow, 
+                    t = self.t,
+                    g = self.g, 
+                    p = self.p, 
+                    R = self.R, 
+                    group = i, 
+                    index = idx, 
+                    B = self.B, 
+                    G = self.G,
+                    data = [int(k) for k in user_groups[idx]],
+                    weights= str(model_weights_list),
+                    weights_interval = weights_interval
                 )._asdict()
                 response_json = json.dumps(response_ij)
-                clientSocket = requests[ i*self.perGroup + j][0]
+                clientSocket = requests[idx][0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
     def advertiseKeys(self, requests):
@@ -95,13 +120,12 @@ class HeteroSAServer(BasicSAServerV2):
             index = int(requestData["index"])
             self.surviving_users.append(index)
             for i, segment in requestData["segment_yu"].items():
-                for q, yu in segment.items():
-                    # yu_ = fl.dic_of_list_to_weights(yu)
+                for q, yu in segment.items(): # yu is one segment of weights
                     self.segment_yu[int(i)][int(q)].append(yu)
 
         self.broadcast(requests, {"users": self.surviving_users})
         print(f'surviving_users: {self.surviving_users}')
-        print(f'segment_yu: {self.segment_yu}')
+        #print(f'segment_yu: {self.segment_yu}')
 
     def unmasking(self, requests):
         # (one) request: {"index": u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
@@ -144,9 +168,13 @@ class HeteroSAServer(BasicSAServerV2):
             bu_shares_dic, 
             self.R
         )
-        print(f'segment_xu: {segment_xu}')
+        #print(f'segment_xu: {segment_xu}')
 
         # TODO dequantization encoded xu
+
+        # coordinate median
+
+        # concatenate
 
         # update global model
 

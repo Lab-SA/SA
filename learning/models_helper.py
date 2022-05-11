@@ -1,5 +1,6 @@
 import torch
 from iteration_utilities import deepflatten
+from .federated_main import args
 
 def get_model_weights(model):
     return model.state_dict()
@@ -13,7 +14,6 @@ def weights_to_dic_of_list(weights):
 # list to tensor, dic
 # returns new weights of model
 def dic_of_list_to_weights(dic_weights):
-    global args
     params = {}
     for param_tensor, value in dic_weights.items():
         if args.gpu: # cuda
@@ -88,3 +88,15 @@ def restore_weights_list(weights_info, flatten_weights):
         new_weights[layer] = layer_list
         prev = next
     return new_weights
+
+def get_weights_size(weights):
+    """ get size of tensor weights
+    Args:
+        weights (dict): model weights (model.state_dict())
+    Returns:
+        int: size of weights
+    """
+    weights_size = 0
+    for layer, item in weights.items():
+        weights_size = weights_size + item.shape.numel()
+    return weights_size

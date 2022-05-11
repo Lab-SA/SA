@@ -35,7 +35,7 @@ def sendRequestAndReceive(host, port, tag, request):
     response = ''
     try:
         response = json.loads(receivedStr)
-        print(f"[{tag}] Receive request")
+        print(f"[{tag}] Receive response")
         # print(f"[{tag}] receive response {response}")
         return response
     except json.decoder.JSONDecodeError:
@@ -169,8 +169,7 @@ class BasicSAClient:
             self.others_euv, 
             c_pk_dic, 
             U2, 
-            self.U3,
-            self.commonValues["R"])
+            self.U3)
         # requests example: {"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk, ...}, "bu_shares": {1: b10, 4: b40, ...}]}
         request = {"idx": self.u, "ssk_shares": str(s_sk_shares_dic), "bu_shares": str(bu_shares_dic)}
 

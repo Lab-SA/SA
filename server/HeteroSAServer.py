@@ -30,6 +30,11 @@ class HeteroSAServer(BasicSAServerV2):
 
     # broadcast common value
     def setUp(self, requests):
+        # init
+        self.users_keys = {}
+        self.segment_yu = {}
+        self.surviving_users = []
+
         self.usersNow = len(requests)
         self.t = int(self.usersNow / 2) # threshold
 
@@ -189,4 +194,5 @@ class HeteroSAServer(BasicSAServerV2):
 
 if __name__ == "__main__":
     server = HeteroSAServer(n=4, k=1)
-    server.start()
+    for i in range(5): # round
+        server.start()

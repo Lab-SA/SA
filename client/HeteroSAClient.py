@@ -174,8 +174,9 @@ class HeteroSAClient:
 
 if __name__ == "__main__":
     client = HeteroSAClient()
-    client.setUp()
-    client.advertiseKeys()
-    client.shareKeys()
-    client.maskedInputCollection()
-    client.unmasking()
+    for i in range(5): # round
+        client.setUp()
+        client.advertiseKeys()
+        client.shareKeys()
+        client.maskedInputCollection()
+        client.unmasking()

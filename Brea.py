@@ -94,6 +94,8 @@ def verify(g, share, commitments, theta, q):
     
     return result
 
+def mode(x, q):
+    x = q
 
 # [호출] : 클라이언트
 # [인자] : share1, share2(사용자 1과 사용자 2의 거리를 계산하기 위해 1에게 받은 share와 2에게 받은 share를 인자로)

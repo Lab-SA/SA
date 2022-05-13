@@ -103,7 +103,7 @@ class MainServer:
         self.serverSocket.close()
         print(f'[{self.tag}] Server finished')
     
-     # send response for each client (different response) with index
+    # send response for each client (different response) with index
     def foreachIndex(self, response):
         # requestData and response's order MUST be same
         for idx, (clientSocket, requestData) in enumerate(self.requests):

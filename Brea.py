@@ -3,9 +3,9 @@ import numpy as np
 from torch import threshold
 import learning.federated_main as fl
 import learning.models_helper as mhelper
-import BasicSA as bs
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
+
 
 # make N theta_i
 # [호출] : 서버
@@ -106,6 +106,7 @@ def calculate_distance(shares1, shares2):
 
 
 if __name__ == "__main__":
+
     q = 7
     g = 3
     n = 4 # N = 40

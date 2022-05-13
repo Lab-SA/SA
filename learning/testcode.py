@@ -1,7 +1,8 @@
 import copy
 from tqdm import tqdm
 
-from federated_main import add_accuracy, setup, get_user_dataset, get_model_weights, local_update, test_accuracy, update_globalmodel, test_model
+from federated_main import add_accuracy, setup, get_user_dataset, local_update, test_accuracy, update_globalmodel, test_model
+from models_helper import get_model_weights
 from utils import sum_weights
 
 if __name__ == "__main__":

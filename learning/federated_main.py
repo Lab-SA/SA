@@ -8,7 +8,6 @@ from .update import LocalUpdate, test_inference
 from .models import CNNMnist
 from .utils import get_mnist_train, get_mnist_test, get_users_data, average_weights, exp_details
 
-
 # 전역변수 선언
 train_loss, train_accuracy, train_dataset = [], [], []
 args = args_parser()
@@ -94,28 +93,6 @@ def update_globalmodel(global_model, local_weight_sum):
 
 def update_model(model, weights):
     model.load_state_dict(weights)
-
-def get_model_weights(model):
-    return model.state_dict()
-
-def weights_to_dic_of_list(weights):
-    dic_weights = {}
-    for param_tensor, value in weights.items():
-        dic_weights[param_tensor] = value.tolist()
-    return dic_weights
-
-# list to tensor, dic
-# returns new weights of model
-def dic_of_list_to_weights(dic_weights):
-    global args
-    params = {}
-    for param_tensor, value in dic_weights.items():
-        if args.gpu: # cuda
-            params[param_tensor] = torch.Tensor(value).cuda()
-        else: # cpu
-            params[param_tensor] = torch.Tensor(value).cpu()
-    #model.load_state_dict(params)
-    return params
 
 # 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 

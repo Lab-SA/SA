@@ -3,6 +3,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import BasicSA as sa
 from CommonValue import BasicSARound
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -34,7 +35,7 @@ def sendRequestAndReceive(host, port, tag, request):
     response = ''
     try:
         response = json.loads(receivedStr)
-        print(f"[{tag}] Receive request")
+        print(f"[{tag}] Receive response")
         # print(f"[{tag}] receive response {response}")
         return response
     except json.decoder.JSONDecodeError:
@@ -46,6 +47,7 @@ def sendRequestAndReceive(host, port, tag, request):
 
 class BasicSAClient:
     HOST = 'localhost'
+    PORT = 7000
     # xu = 0  # temp. local model of this client
 
     commonValues = {}  # {"n": n, "t": t, "g": g, "p": p, "R": R} from server in setup stage
@@ -60,13 +62,13 @@ class BasicSAClient:
 
     def setUp(self):
         tag = BasicSARound.SetUp.name
-        PORT = BasicSARound.SetUp.value
 
-        # response: {"n": n, "t": t, "g": g, "p": p, "R": R}
-        response = sendRequestAndReceive(self.HOST, PORT, tag, {})
+        # response: {"n": n, "t": t, "g": g, "p": p, "R": R, "index": index, "data", "weights"}
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {})
         self.commonValues = response
+        self.u = response["index"]
         self.data = response["data"] # user_groups[idx]
-        global_weights = fl.dic_of_list_to_weights(response["weights"])
+        global_weights = mhelper.dic_of_list_to_weights(response["weights"])
 
         if self.model == {}:
             self.model = fl.setup()
@@ -76,7 +78,6 @@ class BasicSAClient:
 
     def advertiseKeys(self):
         tag = BasicSARound.AdvertiseKeys.name
-        PORT = BasicSARound.AdvertiseKeys.value
 
         (c_pk, c_sk), (s_pk, s_sk) = sa.generateKeyPairs()
         self.my_keys["c_pk"] = c_pk
@@ -87,7 +88,7 @@ class BasicSAClient:
 
         # send {"c_pk": c_pk, "s_pk": s_pk} to server in json format
         # receive other users' public keys from server in json format
-        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
         # store response on client
         # example: {"0": {"c_pk": "2123", "s_pk": "3333", "index": 0}, "1": {"c_pk": "1111", "s_pk": "2222", "index": 1}}
@@ -96,14 +97,6 @@ class BasicSAClient:
 
     def shareKeys(self):
         tag = BasicSARound.ShareKeys.name
-        PORT = BasicSARound.ShareKeys.value
-
-        for i, user_dic in self.others_keys.items():
-            if self.my_keys["c_pk"] == user_dic["c_pk"] and self.my_keys["s_pk"] == user_dic["s_pk"]:
-                self.u = user_dic["index"]  # u = user index
-                break
-            else:
-                continue
 
         # t = threshold, u = user index
         # request = [[u, v1, euv], [u, v2, euv], ...]
@@ -119,7 +112,7 @@ class BasicSAClient:
         request = {self.u: euv_list}
 
         # receive euv_list from server in json format
-        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
         # store euv from server to client in dic
         """for v, euv in enumerate(response):  # example response = ["e01", "e11"]
@@ -132,7 +125,6 @@ class BasicSAClient:
 
     def maskedInputCollection(self):
         tag = BasicSARound.MaskedInputCollection.name
-        PORT = BasicSARound.MaskedInputCollection.value
         request = {}
         response = {}
 
@@ -149,10 +141,10 @@ class BasicSAClient:
             s_pk_dic, 
             self.commonValues["R"])
         
-        request = {"idx": self.u, "yu": fl.weights_to_dic_of_list(yu)}  # request example: {"idx":0, "yu":y0}
+        request = {"idx": self.u, "yu": mhelper.weights_to_dic_of_list(yu)}  # request example: {"idx":0, "yu":y0}
 
         # receive sending_yu_list from server
-        response = sendRequestAndReceive(self.HOST, PORT, tag, request)
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
         # U3 = survived users in round2(MaskedInputCollection) = users_last used in round4(unmasking)
         self.U3 = response['users']
@@ -160,7 +152,6 @@ class BasicSAClient:
 
     def unmasking(self):
         tag = BasicSARound.Unmasking.name
-        PORT = BasicSARound.Unmasking.value
         s_sk_shares_dic = {}
         bu_shares_dic = {}
 
@@ -178,13 +169,12 @@ class BasicSAClient:
             self.others_euv, 
             c_pk_dic, 
             U2, 
-            self.U3,
-            self.commonValues["R"])
+            self.U3)
         # requests example: {"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk, ...}, "bu_shares": {1: b10, 4: b40, ...}]}
         request = {"idx": self.u, "ssk_shares": str(s_sk_shares_dic), "bu_shares": str(bu_shares_dic)}
 
         # send u and dropped users' s_sk, survived users' bu in json format
-        sendRequestAndReceive(self.HOST, PORT, tag, request)
+        sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
 if __name__ == "__main__":
     client = BasicSAClient() # test

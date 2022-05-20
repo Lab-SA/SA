@@ -6,6 +6,8 @@ import Turbo
 from CommonValue import TurboRound
 from BasicSAClient import sendRequestAndReceive
 import learning.federated_main as fl
+import learning.models_helper as mhelper
+
 
 
 class TurboClient:
@@ -31,6 +33,7 @@ class TurboClient:
     # need?
     my_keys = {}  # c_pk, c_sk, s_pk, s_sk of this client
     others_keys = {}  # other users' public key dic
+    weights_info = {}
 
     def setUp(self):
         tag = TurboRound.SetUp.name
@@ -51,7 +54,7 @@ class TurboClient:
         self.beta = response["beta"]
 
         self.data = response["data"]  # user_groups[idx]
-        global_weights = fl.dic_of_list_to_weights(response["weights"])
+        global_weights = mhelper.dic_of_list_to_weights(response["weights"])
 
         if self.model == {}:
             self.model = fl.setup()
@@ -82,18 +85,13 @@ class TurboClient:
         # this client
         # maskedxij = tildeX / encodedxij = barX / si = tildeS / codedsi = barS
 
-        self.maskedxij = Turbo.computeMaskedModel(self.weight, self.mask_u, self.perGroup, self.p)
-        # print("self.maskedxij")
-        # print(self.maskedxij)  # 0번 users와의 weight
-        # print(len(self.maskedxij))  # 각 weight당 8개의 레이어
-        
-        # 형변환
-        maskedxij_ = {}
-        for j, weights in self.maskedxij.items():
-            j_weights = fl.weights_to_dic_of_list(weights)
-            maskedxij_[j] = j_weights
+        self.weights_info, flatten_weights = mhelper.flatten_tensor(self.weight)
+        # print(self.weights_info, flatten_weights)
 
-        self.encodedxij = Turbo.generateEncodedModel(self.alpha, self.beta, maskedxij_)
+        self.maskedxij = Turbo.computeMaskedModel(flatten_weights, self.mask_u, self.perGroup, self.p)
+        # print(f"self.maskedxij={self.maskedxij}")
+        self.encodedxij = Turbo.generateEncodedModel(self.alpha, self.beta, self.maskedxij)
+        # print(f"self.encodedxij={self.encodedxij}")
         self.si = 0
         self.codedsi = 0
 
@@ -102,14 +100,10 @@ class TurboClient:
             self.reconstruct(self.group)
             print("reconstruct 종료")
             self.si = Turbo.updateSumofMaskedModel(self.group, self.pre_maskedxij, self.pre_si)
-            si_ = fl.weights_to_dic_of_list(self.si)
             self.codedsi = Turbo.updateSumofEncodedModel(self.group, self.pre_encodedxij, self.pre_si)
-            codedsi_ = fl.weights_to_dic_of_list(self.codedsi)
 
-            request = {"group": self.group, "index": self.index, "maskedxij": maskedxij_, "encodedxij": self.encodedxij,
-                       "si": si_, "codedsi": codedsi_, "drop_out": self.drop_out}
-        else:
-            request = {"group": self.group, "index": self.index, "maskedxij": maskedxij_, "encodedxij": self.encodedxij,
+        request = {"group": self.group, "index": self.index, "maskedxij": self.maskedxij,
+                   "encodedxij": self.encodedxij,
                    "si": self.si, "codedsi": self.codedsi, "drop_out": self.drop_out}
 
         sendRequestAndReceive(self.HOST, PORT, tag, request)
@@ -127,23 +121,17 @@ class TurboClient:
             self.pre_maskedxij = response["maskedxij"]
             self.pre_encodedxij = response["encodedxij"]
             self.pre_si = {int(k): v for k, v in response["si"].items()}
-            #print(f"self.pre_si:{self.pre_si}")
             self.pre_codedsi = response["codedsi"]
-            #print(f"self.pre_codedsi:{self.pre_codedsi}")
             self.final()
 
     def final(self):
         tag = TurboRound.Final.name
         PORT = TurboRound.Final.value
-        self.reconstruct(1)  # any l > 0
+        self.reconstruct(2)  # any l > 0
         final_tildeS = Turbo.updateSumofMaskedModel(1, self.pre_maskedxij, self.pre_si)  # any l > 0
         final_barS = Turbo.updateSumofEncodedModel(1, self.pre_encodedxij, self.pre_si)  # any l > 0
-        si_ = fl.weights_to_dic_of_list(final_tildeS)
-        codedsi_ = fl.weights_to_dic_of_list(final_barS)
-        #print(f"final codedsi_= {codedsi_}")
-        #print(f"final si_= {si_}")
 
-        request = {"index": self.index, "final_tildeS": si_, "final_barS": codedsi_,
+        request = {"index": self.index, "final_tildeS": final_tildeS, "final_barS": final_barS,
                    "drop_out": self.drop_out}
         sendRequestAndReceive(self.HOST, PORT, tag, request)
 

@@ -31,12 +31,17 @@ class BasicSAServerV2:
     def __init__(self, n, k):
         self.n = n
         self.k = k # Repeat the entire process k times
+        self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.serverSocket.bind((self.host, self.port))
+        self.serverSocket.settimeout(self.timeout)
+        self.serverSocket.listen()
 
     def start(self):
-        serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        serverSocket.bind((self.host, self.port))
-        serverSocket.settimeout(self.timeout)
-        serverSocket.listen()
+        # init
+        self.users_keys = {}
+        self.yu_list = []
+
+        # start!
         print(f'[{self.__class__.__name__}] Server started')
             
         for j in range(self.k): # for k times
@@ -51,7 +56,7 @@ class BasicSAServerV2:
                 while (self.endTime - self.startTime) < self.interval:
                     currentClient = socket
                     try:
-                        clientSocket, addr = serverSocket.accept()
+                        clientSocket, addr = self.serverSocket.accept()
                         currentClient = clientSocket
 
                         # receive client data
@@ -95,7 +100,7 @@ class BasicSAServerV2:
                 self.saRound(round, self.requests[round])
         
         # End
-        serverSocket.close()
+        # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
 
     # broadcast to all client (same response)
@@ -254,6 +259,9 @@ class BasicSAServerV2:
         # End
         self.broadcast(requests, "[Server] End protocol")
         fl.test_model(self.model)
+    
+    def close(self):
+        self.serverSocket.close()
 
 if __name__ == "__main__":
     server = BasicSAServerV2(n=3, k=5)

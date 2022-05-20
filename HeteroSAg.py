@@ -55,7 +55,6 @@ def getSegmentInfoFromB(B, G, perGroup):
         for i, value in enumerate(segment): # for each group            
             for idx in range(perGroup): # for each user
                 segment_info[l][value].append(i * perGroup + idx)
-    print(f'segment: {segment_info}')
     return segment_info
 
 def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, weights_interval, euv_list, s_pk_dic, p, R):
@@ -159,9 +158,12 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
         dict: xu of segments (key: segment index, value: dict (key: quantization level, value: encoded xu))
     """
 
-    segment_xu = {i: {j: [] for j in range(G)} for i in range(G)} # i: segment level, j: quantization level
+    # segment_xu = {i: {j: [] for j in range(G)} for i in range(G)} # i: segment level, j: quantization level
+    segment_xu = {i: [] for i in range(G)} # i: segment level
     for l, value in segment_info.items(): 
         for q, index_list in value.items(): # q: quantization level
+            if len(segment_yu[l][q]) == 0: continue
+            
             # reconstruct per segment with same quantizer
             sum_pu = 0
             sum_pvu = 0
@@ -175,9 +177,9 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
             print(f'sum pu / (recontructed) sum_pvu : {sum_pu} / {sum_pvu}')
             mask = sum_pvu - sum_pu
 
-            if len(segment_yu[l][q]) != 0:
-                #segment_xu[l][q] = sum(segment_yu[l][q]) + mask
-                sum_segment_yu = list(sum(x) for x in zip(*segment_yu[l][q])) # sum
-                segment_xu[l][q] = list(map(lambda x : x + mask, sum_segment_yu))  # remove mask
-    
+            #segment_xu[l][q] = sum(segment_yu[l][q]) + mask
+            sum_segment_yu = list(sum(x) for x in zip(*segment_yu[l][q])) # sum
+            # segment_xu[l][q] = list(map(lambda x : x + mask, sum_segment_yu))  # remove mask
+            segment_xu[l].append(list(map(lambda x : x + mask, sum_segment_yu))) # remove mask
+
     return segment_xu

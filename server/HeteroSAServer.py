@@ -1,4 +1,5 @@
 import os, sys, json
+import statistics
 from ast import literal_eval
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
@@ -29,6 +30,11 @@ class HeteroSAServer(BasicSAServerV2):
 
     # broadcast common value
     def setUp(self, requests):
+        # init
+        self.users_keys = {}
+        self.segment_yu = {}
+        self.surviving_users = []
+
         self.usersNow = len(requests)
         self.t = int(self.usersNow / 2) # threshold
 
@@ -172,16 +178,21 @@ class HeteroSAServer(BasicSAServerV2):
 
         # TODO dequantization encoded xu
 
-        # coordinate median
-
-        # concatenate
+        # coordinate-wise median and concatenate segment-level weights
+        concatenated = []
+        for l in range(len(segment_xu)):
+            median_xl = list(statistics.median(x) for x in zip(*segment_xu[l])) # sum
+            concatenated = concatenated + median_xl
+        new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, concatenated)
 
         # update global model
+        fl.update_model(self.model, new_weights)
 
         # End
         self.broadcast(requests, "[Server] End protocol")
+        fl.test_model(self.model)
 
 if __name__ == "__main__":
     server = HeteroSAServer(n=4, k=1)
-    server.start()
-    
+    for i in range(5): # round
+        server.start()

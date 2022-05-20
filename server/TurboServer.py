@@ -7,6 +7,7 @@ from BasicSA import getCommonValues
 from Turbo import generateRandomVectorSet, reconstruct, computeFinalOutput
 from CommonValue import TurboRound
 import learning.federated_main as fl
+import learning.models_helper as mhelper
 
 model = {}
 groupNum = 0
@@ -45,7 +46,7 @@ def setUp():
 
     if model == {}:
         model = fl.setup()
-    model_weights_list = fl.weights_to_dic_of_list(model.state_dict())
+    model_weights_list = mhelper.weights_to_dic_of_list(model.state_dict())
     user_groups = fl.get_user_dataset(usersNow)
 
     for i in range(groupNum):
@@ -106,9 +107,10 @@ def final():
     
     # final value (sum_xu)
     sum_xu = computeFinalOutput(final_tildeS, mask_u_dic)
-
+    restored_xu = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_xu)
+    print(f"restored_xu={restored_xu}")
     # update global model
-    model = fl.update_globalmodel(model, sum_xu)
+    model = fl.update_globalmodel(model, restored_xu)
 
     # End
     server.broadcast("[Server] End protocol")
@@ -118,4 +120,4 @@ if __name__ == "__main__":
     setUp()
     turbo()
     final_value = final()
-    print(f'final value: {final_value}')
+    #print(f'final value: {final_value}')

@@ -162,7 +162,7 @@ class HeteroSAServer(BasicSAServerV2):
         
         # reconstruct s_sk of drop-out users
         s_sk_dic = hetero.reconstructSSKofSegments(self.B, self.G, self.perGroup, s_sk_shares_dic)
-        
+
         # unmasking
         segment_xu = hetero.unmasking(
             hetero.getSegmentInfoFromB(self.B, self.G, self.perGroup), 
@@ -175,8 +175,6 @@ class HeteroSAServer(BasicSAServerV2):
             self.R
         )
         #print(f'segment_xu: {segment_xu}')
-
-        # TODO dequantization encoded xu
 
         # coordinate-wise median and concatenate segment-level weights
         concatenated = []

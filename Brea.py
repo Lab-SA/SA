@@ -7,7 +7,6 @@ import BasicSA as bs
 import learning.models_helper as mhelper
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
-# f = open('result.txt', 'w')
 
 # make N theta_i
 # [호출] : 서버
@@ -48,10 +47,6 @@ def f(theta, w, T, rij):
 def make_shares(w, theta_list, T, rij_list):
     shares = []
     for theta in theta_list:
-        # s = []
-        # for k in w:
-        #     s.append(f(theta, k, T, rij_list))
-        # shares.append(s)
         shares.append(f(theta, w, T, rij_list))
     return shares
 
@@ -68,12 +63,8 @@ def generate_commitments(w, rij_list, g, q):
             for k in w:
                 c.append(mode2(g, np.max(k), q))
             commitments.append(c)
-            # commitments.append(g ** w % q)
-            # for k in w:
-            #     c.append(mode2(g, k, q)) 
-            # commitments.append(c)
             continue
-        # commitments.append(np.array(g ** rij % q, dtype = np.float64))
+
         commitments.append(np.array(mode(g, rij, q), dtype = np.float64))
     
     return commitments
@@ -84,41 +75,33 @@ def generate_commitments(w, rij_list, g, q):
 # [인자] : g, share(i 에게서 받은 share), commitments(i 가 생성한 commitment list), theta(자신의 theta), q
 # [리턴] : boolean
 def verify(g, share, commitments, theta, q):
-    # x = g ** np.array(share) # % q
     tmp_x = []
     for s in share:
-        r = mode2(g, np.max(s), q)
-        tmp_x.append(r)
+        tmp_x.append(mode2(g, np.max(s), q))
     x = np.array(tmp_x)
     
     y = 1
     for i, c in enumerate(commitments):
         if i == 0:
-            # y = y * (np.array(c)**(theta**i))
-            # y = y * (np.array(c)**(mode(theta, i, q)))
             m = mode(theta, i, q)
             y = y * mode(np.array(c), m, q)
         else:
-            # y = y * (c**(theta**i))
-            # y = y * (c**mode(theta, i, q))
             m = mode(theta, i, q)
             y = y * mode(c,m,q)
 
     y = y % q
 
-    f = open('result.txt', 'w')
-    f.write(str(x))
-    f.close()
-    f = open('result2.txt', 'w')
-    f.write(str(y))
-    f.close()
+    # f = open('result.txt', 'w')
+    # f.write(str(x))
+    # f.close()
+    # f = open('result2.txt', 'w')
+    # f.write(str(y))
+    # f.close()
 
-    # for i in range(len(x)):
     if np.allclose(x, y) == True:
         result = True
     else:
         result = False
-        # break
     
     return result
 
@@ -165,14 +148,8 @@ if __name__ == "__main__":
     rij_list1 = generate_rij(T, q)
 
     rij_list2 = generate_rij(T, q)
-    print("rij_list2: ", rij_list2)
+    # print("rij_list2: ", rij_list2)
     shares2 = make_shares(bar_w, theta_list, T, rij_list2)
-    print("len(shares): ", len(shares2[0]))
-    # print("shares2[0]: ", shares2[0])
-    print("shares2[0]: ", np.max(shares2[0]))
-    d = np.max(shares2[0][0]).astype(np.int64)
-    print("d-type: ", type(d))
-    print("type: ", type(np.max(shares2[0][0])))
     #commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
     commitments2 = generate_commitments(bar_w, rij_list2, g, q)
 

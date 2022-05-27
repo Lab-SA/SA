@@ -61,7 +61,7 @@ class TurboClient:
         fl.update_model(self.model, global_weights)
         local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0)
         self.weight = local_weight
-        print(f"local model = {self.weight}")
+        # print(f"local model = {self.weight}")
 
         return self.group
 
@@ -87,6 +87,8 @@ class TurboClient:
 
         self.weights_info, flatten_weights = mhelper.flatten_tensor(self.weight)
         # print(self.weights_info, flatten_weights)
+
+        print(f"flatten_weights[0] = {flatten_weights[0]}")
 
         self.maskedxij = Turbo.computeMaskedModel(flatten_weights, self.mask_u, self.perGroup, self.p)
         # print(f"self.maskedxij={self.maskedxij}")
@@ -127,9 +129,9 @@ class TurboClient:
     def final(self):
         tag = TurboRound.Final.name
         PORT = TurboRound.Final.value
-        self.reconstruct(2)  # any l > 0
-        final_tildeS = Turbo.updateSumofMaskedModel(1, self.pre_maskedxij, self.pre_si)  # any l > 0
-        final_barS = Turbo.updateSumofEncodedModel(1, self.pre_encodedxij, self.pre_si)  # any l > 0
+        self.reconstruct(2)  # any l > 1
+        final_tildeS = Turbo.updateSumofMaskedModel(2, self.pre_maskedxij, self.pre_si)  # any l > 1
+        final_barS = Turbo.updateSumofEncodedModel(2, self.pre_encodedxij, self.pre_si)  # any l > 1
 
         request = {"index": self.index, "final_tildeS": final_tildeS, "final_barS": final_barS,
                    "drop_out": self.drop_out}

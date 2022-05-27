@@ -36,7 +36,7 @@ def generate_rij(T, q):
 def f(theta, w, T, rij):
     y = w
     for j in range(1, T+1):
-        y = y + (rij[j] * (mode(theta, j, q)))
+        y = y + (rij[j] * (mod(theta, j, q)))
     return y
 
 
@@ -61,11 +61,11 @@ def generate_commitments(w, rij_list, g, q):
         if i == 0:
             c = []
             for k in w:
-                c.append(mode2(g, np.max(k), q))
+                c.append(mod(g, int(np.max(k)), q))
             commitments.append(c)
             continue
 
-        commitments.append(np.array(mode(g, rij, q), dtype = np.float64))
+        commitments.append(np.array(mod(g, rij, q), dtype = np.float64))
     
     return commitments
 
@@ -77,26 +77,26 @@ def generate_commitments(w, rij_list, g, q):
 def verify(g, share, commitments, theta, q):
     tmp_x = []
     for s in share:
-        tmp_x.append(mode2(g, np.max(s), q))
+        tmp_x.append(mod(g, int(np.max(s)), q))
     x = np.array(tmp_x)
     
     y = 1
     for i, c in enumerate(commitments):
         if i == 0:
-            m = mode(theta, i, q)
-            y = y * mode(np.array(c), m, q)
+            m = mod(theta, i, q)
+            y = y * mod(np.array(c), m, q)
         else:
-            m = mode(theta, i, q)
-            y = y * mode(c,m,q)
+            m = mod(theta, i, q)
+            y = y * mod(c,m,q)
 
     y = y % q
 
-    # f = open('result.txt', 'w')
-    # f.write(str(x))
-    # f.close()
-    # f = open('result2.txt', 'w')
-    # f.write(str(y))
-    # f.close()
+    f = open('result.txt', 'w')
+    f.write(str(x))
+    f.close()
+    f = open('result2.txt', 'w')
+    f.write(str(y))
+    f.close()
 
     if np.allclose(x, y) == True:
         result = True
@@ -105,7 +105,7 @@ def verify(g, share, commitments, theta, q):
     
     return result
 
-def mode(theta, i, q):
+def mod(theta, i, q):
     ret = 1
     for idx in range(i):
         ret = ret * theta % q 
@@ -114,7 +114,7 @@ def mode(theta, i, q):
 
 def mode2(g, share, q):
     s = int(share)
-    ret = mode(g, s, q)
+    ret = mod(g, s, q)
     return ret
 
 

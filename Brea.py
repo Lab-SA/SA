@@ -91,12 +91,12 @@ def verify(g, share, commitments, theta, q):
 
     y = y % q
 
-    f = open('result.txt', 'w')
-    f.write(str(x))
-    f.close()
-    f = open('result2.txt', 'w')
-    f.write(str(y))
-    f.close()
+    # f = open('result.txt', 'w')
+    # f.write(str(x))
+    # f.close()
+    # f = open('result2.txt', 'w')
+    # f.write(str(y))
+    # f.close()
 
     if np.allclose(x, y) == True:
         result = True
@@ -109,12 +109,6 @@ def mod(theta, i, q):
     ret = 1
     for idx in range(i):
         ret = ret * theta % q 
-    return ret
-
-
-def mode2(g, share, q):
-    s = int(share)
-    ret = mod(g, s, q)
     return ret
 
 

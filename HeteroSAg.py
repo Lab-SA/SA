@@ -65,17 +65,16 @@ def dequantization_weights(weights, _Kg, r1, r2, u):
     # x = local weigths in 1-dim
     # Kg = number of quantization levels
     # [r1, r2] = quantization range
-    # u = number of surviving users of same segment
+    # u = number of surviving users of same segment (= |U|)
 
     # delK = quantization interval
     Kg = default_quantization_levels[_Kg]
     delK = (r2 - r1) / (Kg - 1)
 
-    # T = discrete value from quantization range point list
-    real_numbers = [(u * r1) + (l * delK) for l in range(0, Kg)]
-    # real_numbers = [u * (r1 + (l * delK)) for l in range(0, Kg)]
+    # mapping to the corresponding values in discrete set of real numbers: |U|r1 ~ |U|r2
+    real_numbers = [(u * r1) + (l * delK) for l in range(0, u * (Kg-1) + 1)]
     # print(f'real_numbers: {real_numbers}')
-    return list(map(lambda x: real_numbers[int(x/u)], weights))
+    return list(map(lambda x: real_numbers[x], weights))
 
 def SS_Matrix(G):
     # G = the number of groups

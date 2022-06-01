@@ -3,6 +3,8 @@ import numpy as np
 from torch import threshold
 import learning.federated_main as fl
 import learning.models_helper as mhelper
+from BasicSA import stochasticQuantization
+from Turbo import generateLagrangePolynomial
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
@@ -102,6 +104,29 @@ def calculate_distance(shares1, shares2):
     distance = abs(np.array(shares1) - np.array(shares2)) ** 2
     return distance
 
+#[호출] : 서버
+#[인자] : theta(theta_list), distances(djk_list)
+#[리턴] : _djk(hjk(0))
+def generate_h_polynomial(theta, distances):
+    f = generateLagrangePolynomial(theta, distances)
+    djk = np.polyval(f,0)
+    return djk
+
+#[호출] : 서버
+#[인자] : _djk(hjk(0)), q(처음에 지정해준 q)
+#[리턴] : 실수 djk
+def real_djk(_djk, q):
+    p = 1
+    if(_djk >= ((p-1)/2) and _djk < p):
+       _djk = _djk - p
+    djk = _djk / (q ** 2)
+    return djk
+
+def setS(djk):
+    skj = djk[0]
+    for i in range(djk):
+        if(skj > djk[i]):
+            skj = djk[i]
 
 if __name__ == "__main__":
 
@@ -117,7 +142,7 @@ if __name__ == "__main__":
     model_weights_list = mhelper.weights_to_dic_of_list(local_weight)
     weights_info, flatten_weights = mhelper.flatten_list(model_weights_list)
     
-    bar_w = bs.stochasticQuantization(np.array(flatten_weights), g, q)
+    bar_w = stochasticQuantization(np.array(flatten_weights), g, q)
     
     theta_list = make_theta(n, q)
     rij_list1 = generate_rij(T, q)
@@ -134,4 +159,3 @@ if __name__ == "__main__":
     # print("distance: ", distance)
 
 
-    

@@ -1,5 +1,6 @@
 import random, copy
 import numpy as np
+from torch import threshold
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 from BasicSA import stochasticQuantization
@@ -121,12 +122,13 @@ def real_djk(_djk, p, q):
     return djk
 
 #[호출] : 서버
-#[인자] : djk (실수 djk)
-#[리턴] : sjk
-def calcutate_skj(djk):
+#[인자] : djk (실수 djk), _range: (N−k+1)−A−2 (범위 값)
+#[리턴] : skj
+def calcutate_skj(djk, _range):
+    djk.sort()
     skj = 0
-    for i in range(djk):
-        skj += djk
+    for i in range(_range):
+        skj += djk[i]
     return skj
 
 #[호출] : 서버
@@ -171,5 +173,4 @@ if __name__ == "__main__":
     distance = calculate_distance(shares2[0], shares2[1])
     print("distance: ", distance)
 
-    # print(generate_h_polynomial([0,1,2],[1,2,3]))
-
+    print(generate_h_polynomial([0,1,2],[1,2,3]))

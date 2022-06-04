@@ -1,6 +1,5 @@
 import random, copy
 import numpy as np
-from torch import threshold
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 from BasicSA import stochasticQuantization
@@ -113,20 +112,34 @@ def generate_h_polynomial(theta, distances):
     return djk
 
 #[호출] : 서버
-#[인자] : _djk(hjk(0)), q(처음에 지정해준 q)
+#[인자] : _djk(hjk(0)), p, g(처음에 지정해준 p, g)
 #[리턴] : 실수 djk
-def real_djk(_djk, q):
-    p = 1
+def real_djk(_djk, p, q):
     if(_djk >= ((p-1)/2) and _djk < p):
        _djk = _djk - p
     djk = _djk / (q ** 2)
     return djk
 
-def setS(djk):
-    skj = djk[0]
+#[호출] : 서버
+#[인자] : djk (실수 djk)
+#[리턴] : sjk
+def calcutate_skj(djk):
+    skj = 0
     for i in range(djk):
-        if(skj > djk[i]):
-            skj = djk[i]
+        skj += djk
+    return skj
+
+#[호출] : 서버
+#[인자] : skj
+#[리턴] : 선택된 유저의 skj, 선택된 유저의 인덱스 값
+def select_user(skj):
+    tmp = skj[0]
+    user = 0
+    for i in range(skj):
+        if(tmp > skj[i]):
+            tmp = skj[i]
+            user = i
+    return skj[user], user
 
 if __name__ == "__main__":
 
@@ -156,6 +169,7 @@ if __name__ == "__main__":
     print("result: ", result)
 
     distance = calculate_distance(shares2[0], shares2[1])
-    # print("distance: ", distance)
+    print("distance: ", distance)
 
+    # print(generate_h_polynomial([0,1,2],[1,2,3]))
 

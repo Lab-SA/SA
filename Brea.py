@@ -107,15 +107,15 @@ def calculate_distance(shares1, shares2):
 #[호출] : 서버
 #[인자] : theta(theta_list), distances(djk_list)
 #[리턴] : _djk(hjk(0))
-def generate_h_polynomial(theta, distances):
-    f = generateLagrangePolynomial(theta, distances)
-    djk = np.polyval(f,0)
+def calculate_djk_from_h_polynomial(theta, distances):
+    h = generateLagrangePolynomial(theta, distances)
+    djk = np.polyval(h,0)
     return djk
 
 #[호출] : 서버
 #[인자] : _djk(hjk(0)), p, g(처음에 지정해준 p, g)
 #[리턴] : 실수 djk
-def real_djk(_djk, p, q):
+def real_domain_djk(_djk, p, q):
     if(_djk >= ((p-1)/2) and _djk < p):
        _djk = _djk - p
     djk = _djk / (q ** 2)
@@ -124,7 +124,7 @@ def real_djk(_djk, p, q):
 #[호출] : 서버
 #[인자] : djk (실수 djk), _range: (N−k+1)−A−2 (범위 값)
 #[리턴] : skj
-def calcutate_skj(djk, _range):
+def calcutate_skj_from_djk(djk, _range):
     djk.sort()
     skj = 0
     for i in range(_range):
@@ -134,7 +134,7 @@ def calcutate_skj(djk, _range):
 #[호출] : 서버
 #[인자] : skj
 #[리턴] : 선택된 유저의 skj, 선택된 유저의 인덱스 값
-def select_user(skj):
+def select_one_user_among_skj(skj):
     tmp = skj[0]
     user = 0
     for i in range(skj):
@@ -173,4 +173,4 @@ if __name__ == "__main__":
     distance = calculate_distance(shares2[0], shares2[1])
     print("distance: ", distance)
 
-    print(generate_h_polynomial([0,1,2],[1,2,3]))
+    print(calculate_djk_from_h_polynomial([0,1,2],[1,2,3]))

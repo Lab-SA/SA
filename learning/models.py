@@ -22,3 +22,4 @@ class CNNMnist(nn.Module):
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
+        # return F.normalize(x, p=2, dim=0, eps=1e-5)

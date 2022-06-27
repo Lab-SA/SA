@@ -112,9 +112,6 @@ class HeteroSAClient:
     def maskedInputCollection(self):
         tag = BasicSARound.MaskedInputCollection.name
         
-        # quantization first
-        # TODO quantization weights (xu)
-
         s_pk_dic = {}
         for i, user_dic in self.others_keys.items():
             v = int(i)
@@ -171,7 +168,6 @@ class HeteroSAClient:
         # send u and dropped users' s_sk, survived users' bu in json format
         sendRequestAndReceive(self.HOST, self.PORT, tag, request)
     
-
 if __name__ == "__main__":
     client = HeteroSAClient()
     for i in range(5): # round

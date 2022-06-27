@@ -8,6 +8,7 @@ from CommonValue import BasicSARound
 from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
+import learning.utils as utils
 import SecureProtocol as sp
 
 class BasicSAServerV2:
@@ -37,14 +38,14 @@ class BasicSAServerV2:
         self.serverSocket.listen()
 
     def start(self):
-        # init
-        self.users_keys = {}
-        self.yu_list = []
-
         # start!
         print(f'[{self.__class__.__name__}] Server started')
             
-        for j in range(self.k): # for k times
+        for j in range(self.k): # for k times        
+            # init
+            self.users_keys = {}
+            self.yu_list = []
+
             self.requests = {round.name: [] for round in BasicSARound}
             self.userNum = {i: 0 for i in range(len(BasicSARound))}
             self.userNum[-1] = self.n
@@ -254,7 +255,9 @@ class BasicSAServerV2:
         sum_xu = generatingOutput(self.yu_list, mask)
         
         # update global model
-        self.model = fl.update_globalmodel(self.model, sum_xu)
+        final_userNum = len(self.yu_list)
+        average_weight = utils.average_weight(sum_xu, final_userNum)
+        self.model.load_state_dict(average_weight)
         
         # End
         self.broadcast(requests, "[Server] End protocol")

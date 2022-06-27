@@ -2,8 +2,6 @@ import random
 from scipy.interpolate import lagrange
 import numpy as np
 
-layer_name = ['conv1.weight', 'conv1.bias', 'conv2.weight', 'conv2.bias', 'fc1.weight', 'fc1.bias', 'fc2.weight', 'fc2.bias']
-
 def grouping(users, n):
     # users = [list] ordered user index list
     # n = the number of users per one group
@@ -90,7 +88,9 @@ def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
 def computePartialSum(l, pre_tildeS_dic):
     # pre_tildeS_dic = [dic of list] ex) {0:[], 1: []}
     # print(f"pre_tildeS_dic = {pre_tildeS_dic}")
+    # l = index of group
     print(f"now l is {l}")
+
     if l <= 1:
         # print(f"here is <= 1")
         p_sum = 0
@@ -201,19 +201,28 @@ def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     for i in pre_barS_dic.keys():
         x_list.append(beta_list[int(i)])
 
+    print(f"x_list={x_list}")
+
     drop_out = []
     for index, alpha in enumerate(alpha_list):
         if alpha not in x_list:
             drop_out.append(index)
 
     if len(drop_out) == 0:
+        print("here is 0")
         return pre_tildeS_dic, drop_out
 
+    pairdic ={ i: [] for i in range(len(x_list)) }
+
+    for group in zip(list(pre_tildeS_dic.values()), list(pre_barS_dic.values())):
+        for n, pair in enumerate(zip(*list(group))):
+            pairdic[n] = pairdic[n] + list(pair)
+
     for i in drop_out:
+        print("here is drop!")
         recon_tildeS = []
-        for pair in zip(list(pre_tildeS_dic.values()), list(pre_barS_dic.values())):
-            g_i = generateLagrangePolynomial(x_list, list(pair))
-            recon_tildeS.append(np.polyval(g_i, alpha_list[i]))
+        g_i = generateLagrangePolynomial(x_list, list(pair))
+        recon_tildeS.append(np.polyval(g_i, alpha_list[i]))
         pre_tildeS_dic[i] = recon_tildeS
 
     return pre_tildeS_dic, drop_out
@@ -235,3 +244,11 @@ def computeFinalOutput(final_tildeS, mask_u_dic):
 
     return sum_x
 
+if __name__ == '__main__':
+    x_list = [[1,2,3],[4,5,6]]
+    re_list = []
+    #for i in range(len(x_list)):
+    y_list = [[1,2,3],[4,5,6]]
+    print(list(zip(x_list, y_list)))
+    #g_i = generateLagrangePolynomial(x_list, y_list)
+    #print(g_i)

@@ -184,6 +184,8 @@ def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
         barS = encoded_sum
 
     else:
+        print(f"p_sum = {p_sum}")
+        print(f"encoded_sum = {encoded_sum}")
         temp_sum = np.array(p_sum) + np.array(encoded_sum)
         barS = temp_sum.tolist()
 
@@ -194,36 +196,65 @@ def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
 
 # reconstruct missing values of dropped users.
 # and then update pre_tildeX
+import numpy as np
+from scipy.interpolate import lagrange
+
 def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
     x_list = []
+    print(f"pre_tildeS_dic.keys() = {pre_tildeS_dic.keys()}")
     for i in pre_tildeS_dic.keys():
         x_list.append(alpha_list[int(i)])
-    for i in pre_barS_dic.keys():
-        x_list.append(beta_list[int(i)])
-
-    print(f"x_list={x_list}")
 
     drop_out = []
+    pairidx = 0
     for index, alpha in enumerate(alpha_list):
         if alpha not in x_list:
             drop_out.append(index)
+        else:
+           pairidx = index
+    print(f"drop_out = {drop_out}")
 
     if len(drop_out) == 0:
         print("here is 0")
         return pre_tildeS_dic, drop_out
 
-    pairdic ={ i: [] for i in range(len(x_list)) }
+    for i in pre_barS_dic.keys():
+        x_list.append(beta_list[int(i)])
+    print(f"x_list = {x_list}")
 
-    for group in zip(list(pre_tildeS_dic.values()), list(pre_barS_dic.values())):
-        for n, pair in enumerate(zip(*list(group))):
-            pairdic[n] = pairdic[n] + list(pair)
+    t = pre_tildeS_dic.get(pairidx)
+    print(f"t = {t}")
+    if isinstance(t, int):
+        pair_dic = {0: []}
+    else:
+        pair_dic = {i: [] for i in range(len(t))}
+    print(f"before pair_dic = {pair_dic}")
+
+    zip1 = list(zip(list(pre_tildeS_dic.values()), list(pre_barS_dic.values())))
+    print(f"zip1 = {zip1}")
+    print(f"pre_tildeS_values = {pre_tildeS_dic.values()}")
+    zip3 = list(zip(*list(pre_tildeS_dic.values())))
+    print(f"zip3 = {zip3}")
+
+    tildeS_zip = list(zip(*list(pre_tildeS_dic.values())))
+    barS_zip = list(zip(*list(pre_barS_dic.values())))
+    for i, pair in pair_dic.items():
+        pair_dic[i] = list(tildeS_zip[i]) + list(barS_zip[i])
+    print(f"after pair_dic = {pair_dic}")
+
+    gi_dic = {}
+    for k, v in pair_dic.items():
+        g_i = generateLagrangePolynomial(x_list, v)
+        gi_dic[k] = g_i
+        print(gi_dic[k])
 
     for i in drop_out:
         print("here is drop!")
         recon_tildeS = []
-        g_i = generateLagrangePolynomial(x_list, list(pair))
-        recon_tildeS.append(np.polyval(g_i, alpha_list[i]))
+        for g_i in gi_dic.values():
+            recon_tildeS.append(np.polyval(g_i, alpha_list[i]))
         pre_tildeS_dic[i] = recon_tildeS
+    print(pre_tildeS_dic)
 
     return pre_tildeS_dic, drop_out
 
@@ -244,11 +275,11 @@ def computeFinalOutput(final_tildeS, mask_u_dic):
 
     return sum_x
 
-if __name__ == '__main__':
-    x_list = [[1,2,3],[4,5,6]]
-    re_list = []
+#if __name__ == '__main__':
+    #x_list = [[1,2,3],[4,5,6]]
+    #re_list = []
     #for i in range(len(x_list)):
-    y_list = [[1,2,3],[4,5,6]]
-    print(list(zip(x_list, y_list)))
+    #y_list = [[1,2,3],[4,5,6]]
+    #print(list(zip(x_list, y_list)))
     #g_i = generateLagrangePolynomial(x_list, y_list)
     #print(g_i)

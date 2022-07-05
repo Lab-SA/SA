@@ -6,8 +6,8 @@ class TurboBaseServer:
     SIZE = 2048
     ENCODING = 'utf-8'
     t = 1 # threshold
-    interval = 5 # server waits in one round # second
-    timeout = 3 #temp
+    interval = 100 # server waits in one round # second 5
+    timeout = 100 #temp 3
 
     userNum = userNow = 0
     requests = {}
@@ -46,7 +46,17 @@ class TurboBaseServer:
                         clientSocket, addr = s.accept()
                         currentClient = clientSocket
 
-                        request = str(clientSocket.recv(self.SIZE), self.ENCODING)  # receive client data
+                        # receive client data
+                        # client request must ends with "\r\n"
+                        request = ''
+                        while True:
+                            received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                            if received.endswith("\r\n"):
+                                received = received.replace("\r\n", "")
+                                request = request + received
+                                break
+                            request = request + received
+                        
                         requestData = json.loads(request)
                         if requestData['request'] == self.tag:
                             # {request: TAG, group: GROUP_INDEX, index: INDEX}
@@ -86,6 +96,8 @@ class TurboBaseServer:
                         pass
                     
                     self.endTime = time.time()
+                    if self.userNow >= self.perGroup and self.requestsNum[i+1] >= self.perGroup:
+                        break
 
                 # check threshold
                 nextGroupRequests = self.requestsNum[i+1]

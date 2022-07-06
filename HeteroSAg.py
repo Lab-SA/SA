@@ -214,7 +214,8 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
     segment_xu = {i: [] for i in range(G)} # i: segment level
     for l, value in segment_info.items(): 
         for q, index_list in value.items(): # q: quantization level
-            if len(segment_yu[l][q]) == 0: continue
+            n = len(segment_yu[l][q])
+            if n == 0: continue
             
             surviving_num = 0 # number of surviving users of this segment
 
@@ -241,6 +242,7 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
             # print(f'q level: {q} / surviving_num: {surviving_num} / min: {min(raw_segment_xu)} / max: {max(raw_segment_xu)}')
 
             # dequantization: to real numbers
-            segment_xu[l].append(dequantization_weights(raw_segment_xu, q, default_r1, default_r2, surviving_num))
+            dequantized = dequantization_weights(raw_segment_xu, q, default_r1, default_r2, surviving_num)
+            segment_xu[l].append(list(x/n for x in dequantized)) # y
 
     return segment_xu

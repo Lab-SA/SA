@@ -177,7 +177,7 @@ class HeteroSAServer(BasicSAServerV2):
         # coordinate-wise median and concatenate segment-level weights
         concatenated = []
         for l in range(len(segment_xu)):
-            median_xl = list(statistics.median(x) for x in zip(*segment_xu[l])) # sum
+            median_xl = list(statistics.median(x) for x in zip(*segment_xu[l])) # median
             concatenated = concatenated + median_xl
         new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, concatenated)
 

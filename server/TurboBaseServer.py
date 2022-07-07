@@ -79,7 +79,7 @@ class TurboBaseServer:
                         
                         requestData.pop('request')
                         print(f'[{self.tag}] Client: {addr}')
-                        print(f'[{self.tag}] Client request: {request}')
+                        #print(f'[{self.tag}] Client request: {request}')
 
                     except socket.timeout:
                         pass

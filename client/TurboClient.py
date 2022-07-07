@@ -8,8 +8,6 @@ from BasicSAClient import sendRequestAndReceive
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 
-
-
 class TurboClient:
     HOST = 'localhost'
     xu = 0  # temp. local model of this client
@@ -86,14 +84,9 @@ class TurboClient:
         # maskedxij = tildeX / encodedxij = barX / si = tildeS / codedsi = barS
 
         self.weights_info, flatten_weights = mhelper.flatten_tensor(self.weight)
-        # print(self.weights_info, flatten_weights)
-
-        print(f"flatten_weights[0] = {flatten_weights[0]}")
 
         self.maskedxij = Turbo.computeMaskedModel(flatten_weights, self.mask_u, self.perGroup, self.p)
-        # print(f"self.maskedxij={self.maskedxij}")
         self.encodedxij = Turbo.generateEncodedModel(self.alpha, self.beta, self.maskedxij)
-        # print(f"self.encodedxij={self.encodedxij}")
         self.si = 0
         self.codedsi = 0
 
@@ -115,7 +108,6 @@ class TurboClient:
         tag = TurboRound.TurboFinal.name
         PORT = TurboRound.Turbo.value
         response = sendRequestAndReceive(self.HOST, PORT, tag, {})
-        # print(response)
         print(f"response[chosen]= {response['chosen']}")
 
         if response["chosen"] == True:
@@ -144,16 +136,9 @@ class TurboClient:
 
 
 if __name__ == "__main__":
-    client = TurboClient()  # test
+    client = TurboClient()
     group = client.setUp()
-    print("finished setup")
     if group != 0:
-        print("start turbo")
         client.turbo()
-        print("finished turbo")
-    print("start turbo-value")
     client.turbo_value()
-    print("finished turbo_value")
-    print("start turbo-final")
     client.turbo_final()
-    print("finished turbo_final")

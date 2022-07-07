@@ -108,7 +108,6 @@ def final():
     # final value (sum_xu)
     sum_xu = computeFinalOutput(final_tildeS, mask_u_dic)
     restored_xu = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_xu)
-    print(f"restored_xu={restored_xu}")
     # update global model
     model = fl.update_globalmodel(model, restored_xu)
 
@@ -120,4 +119,3 @@ if __name__ == "__main__":
     setUp()
     turbo()
     final_value = final()
-    #print(f'final value: {final_value}')

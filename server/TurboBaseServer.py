@@ -46,6 +46,11 @@ class TurboServer:
         self.serverSocket.listen()
         print(f'[Turbo] Server started')
 
+        # self.requests = {round.name: [] for round in TurboRound}
+        self.requests = {TurboRound.SetUp.name: [], TurboRound.Final.name: []}
+        self.userNum = {i: 0 for i in range(len(self.requests))} # only need 2 (setup, final)
+        self.userNum[-1] = self.n
+
         for j in range(self.k): # for k times        
             # init
             self.users_keys = {}
@@ -56,9 +61,8 @@ class TurboServer:
             self.requests_value = []
             self.requests_final = []
 
-            self.requests = {round.name: [] for round in TurboRound}
-            self.userNum = {i: 0 for i in range(2)} # only need 2 (setup, final)
-            self.userNum[-1] = self.n
+            self.requests[TurboRound.Final.name] = []
+            self.userNum[1] = 0
 
             # execute Turbo round
             for i, r in enumerate(TurboRound):
@@ -69,6 +73,8 @@ class TurboServer:
                 elif round == TurboRound.TurboValue.name or round == TurboRound.TurboFinal.name:
                     continue
                 elif round == TurboRound.Final.name: # range of i: [0, 1]
+                    self.requests[TurboRound.SetUp.name] = []
+                    self.userNum[0] = 0
                     i = 1
                 
                 self.startTime = self.endTime = time.time()
@@ -97,8 +103,11 @@ class TurboServer:
 
                         print(f'[{round}] Client: {clientTag}/{addr}')
 
-                        if round == clientTag:
-                            self.userNum[i] = self.userNum[i] + 1
+                        if TurboRound.SetUp.name == clientTag:
+                            self.userNum[0] = self.userNum[0] + 1
+                        elif TurboRound.Final.name == clientTag:
+                            self.userNum[1] = self.userNum[1] + 1
+                        
                     except socket.timeout:
                         pass
                     except:

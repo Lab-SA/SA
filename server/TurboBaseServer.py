@@ -40,103 +40,42 @@ class TurboServer:
         self.k = k # Repeat the entire process k times
 
     def start(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            self.serverSocket = s
-            s.bind((self.host, self.port))
-            s.settimeout(self.timeout)
-            s.listen()
-            print(f'[Turbo] Server started')
+        self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.serverSocket.bind((self.host, self.port))
+        self.serverSocket.settimeout(self.timeout)
+        self.serverSocket.listen()
+        print(f'[Turbo] Server started')
 
-            for j in range(self.k): # for k times        
-                # init
-                self.users_keys = {}
-                self.mask_u_dic = {}
-                self.drop_out = {}
-                self.alpha = self.beta = []
+        for j in range(self.k): # for k times        
+            # init
+            self.users_keys = {}
+            self.mask_u_dic = {}
+            self.drop_out = {}
+            self.alpha = self.beta = []
+            
+            self.requests_value = []
+            self.requests_final = []
+
+            self.requests = {round.name: [] for round in TurboRound}
+            self.userNum = {i: 0 for i in range(2)} # only need 2 (setup, final)
+            self.userNum[-1] = self.n
+
+            # execute Turbo round
+            for i, r in enumerate(TurboRound):
+                round = r.name
+                if round == TurboRound.Turbo.name:
+                    self.turbo()
+                    continue
+                elif round == TurboRound.TurboValue.name or round == TurboRound.TurboFinal.name:
+                    continue
+                elif round == TurboRound.Final.name: # range of i: [0, 1]
+                    i = 1
                 
-                self.requests_value = []
-                self.requests_final = []
-
-                self.requests = {round.name: [] for round in TurboRound}
-                self.userNum = {i: 0 for i in range(2)} # only need 2 (setup, final)
-                self.userNum[-1] = self.n
-
-                # execute Turbo round
-                for i, r in enumerate(TurboRound):
-                    round = r.name
-                    if round == TurboRound.Turbo.name:
-                        self.turbo()
-                        continue
-                    elif round == TurboRound.TurboValue.name or round == TurboRound.TurboFinal.name:
-                        continue
-                    elif round == TurboRound.Final.name: # range of i: [0, 1]
-                        i = 1
-                    
-                    self.startTime = self.endTime = time.time()
-                    while (self.endTime - self.startTime) < self.interval:
-                        currentClient = socket
-                        try:
-                            clientSocket, addr = s.accept()
-                            currentClient = clientSocket
-
-                            # receive client data
-                            # client request must ends with "\r\n"
-                            request = ''
-                            while True:
-                                received = str(clientSocket.recv(self.SIZE), self.ENCODING)
-                                if received.endswith("\r\n"):
-                                    received = received.replace("\r\n", "")
-                                    request = request + received
-                                    break
-                                request = request + received
-
-                            requestData = json.loads(request)
-                            # request must contain {request: tag}
-                            clientTag = requestData['request']
-                            requestData.pop('request')
-                            self.requests[clientTag].append((clientSocket, requestData))
-
-                            print(f'[{round}] Client: {clientTag}/{addr}')
-
-                            if round == clientTag:
-                                self.userNum[i] = self.userNum[i] + 1
-                        except socket.timeout:
-                            pass
-                        except:
-                            print(f'[{self.__class__.__name__}] Exception: invalid request or unknown server error')
-                            currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
-                            pass
-                        
-                        self.endTime = time.time()
-                        if self.userNum[i] >= self.userNum[i-1]:
-                            break
-
-                    # check threshold
-                    if self.t > self.userNum[i]:
-                        print(f'[{self.__class__.__name__}] Exception: insufficient {self.userNum[i]} users with {self.t} threshold')
-                        raise Exception(f"Need at least {self.t} users, but only {self.userNum[i]} user(s) responsed")
-                
-                    # do
-                    self.saRound(round, self.requests[round])
-                
-                # End
-                print(f'[{self.__class__.__name__}] Server finished 1 round')
-
-    def turbo(self):
-        tag = TurboRound.Turbo.name
-        tag_value = TurboRound.TurboValue.name
-        tag_final = TurboRound.TurboFinal.name
-        with self.serverSocket as s:
-            for i in range(self.groupNum):
-                # for each one group
                 self.startTime = self.endTime = time.time()
-                self.requests_value = []
-                self.userNow = 0
-
                 while (self.endTime - self.startTime) < self.interval:
                     currentClient = socket
                     try:
-                        clientSocket, addr = s.accept()
+                        clientSocket, addr = self.serverSocket.accept()
                         currentClient = clientSocket
 
                         # receive client data
@@ -149,62 +88,127 @@ class TurboServer:
                                 request = request + received
                                 break
                             request = request + received
-                        
-                        requestData = json.loads(request)
-                        user_tag = requestData['request']
-                        print(f'[{user_tag}] Client: {addr}')
-                        if user_tag == tag:
-                            # {request: TAG, group: GROUP_INDEX, index: INDEX}
-                            requestGroup = int(requestData['group'])
-                            if requestGroup < i:
-                                raise ValueError
-                            self.requests_next[requestGroup].append((clientSocket, requestData))
-                            self.requestsNum[requestGroup] = self.requestsNum[requestGroup] + 1
-                        elif user_tag == tag_value and requestData['group'] == i: # check request and group
-                            # {request: TAG_VALUE, group: GROUP_INDEX, index: INDEX, maskedxij: {idx: , ...}, encodedxij: {idx: , ...}, si: VALUE, codedsi: VALUE}
-                            self.userNow = self.userNow + 1
-                            self.requests_value.append(requestData)
-                            self.drop_out[i-1] = requestData['drop_out']
-                            currentClient.sendall(bytes(f'[{tag}] OK \r\n', self.ENCODING))
-                        elif user_tag == tag_final:
-                            self.requestsNum[len(self.requestsNum)-1] = self.requestsNum[len(self.requestsNum)-1] + 1
-                            self.requests_final.append(clientSocket)
-                        else:
-                            raise AttributeError
-                        
-                        requestData.pop('request')
-                        #print(f'[{tag}] Client request: {request}')
 
+                        requestData = json.loads(request)
+                        # request must contain {request: tag}
+                        clientTag = requestData['request']
+                        requestData.pop('request')
+                        self.requests[clientTag].append((clientSocket, requestData))
+
+                        print(f'[{round}] Client: {clientTag}/{addr}')
+
+                        if round == clientTag:
+                            self.userNum[i] = self.userNum[i] + 1
                     except socket.timeout:
                         pass
-                    except AttributeError:
-                        print(f'[{tag}] Exception: invalid request at {tag}')
-                        currentClient.sendall(bytes(f'Exception: invalid request at {tag} \r\n', self.ENCODING))
-                        pass
-                    except ValueError:
-                        print(f'[{tag}] Exception: invalid request at group {i}')
-                        currentClient.sendall(bytes(f'Exception: requested group is over \r\n', self.ENCODING))
                     except:
-                        print(f'[{tag}] Exception: invalid request or unknown server error')
-                        currentClient.sendall(bytes('Exception: invalid request or unknown server error \r\n', self.ENCODING))
+                        print(f'[{self.__class__.__name__}] Exception: invalid request or unknown server error')
+                        currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
                         pass
                     
                     self.endTime = time.time()
-                    if self.userNow >= self.perGroup and self.requestsNum[i+1] >= self.perGroup:
+                    if self.userNum[i] >= self.userNum[i-1]:
+                        break
+                    elif round == TurboRound.Final.name and self.userNum[i] >= self.perGroup:
                         break
 
                 # check threshold
-                nextGroupRequests = self.requestsNum[i+1]
-                if self.t > self.userNow and self.t > nextGroupRequests:
-                    print(f'[{tag}] Exception: insufficient {self.userNow} or {nextGroupRequests} users with {self.t} threshold')
-                    raise Exception(f"Need at least {self.t} users, but only {self.userNow} in L and {nextGroupRequests} in L+1.")
-                
-                # send data of group L-1 to group L
-                self.sendTurboValue(self.requests_next[i+1], self.requests_value)
+                if self.t > self.userNum[i]:
+                    print(f'[{self.__class__.__name__}] Exception: insufficient {self.userNum[i]} users with {self.t} threshold')
+                    raise Exception(f"Need at least {self.t} users, but only {self.userNum[i]} user(s) responsed")
             
-            # End of for loop
-            # final stage
-            self.sendFinalValue(self.requests_final, self.requests_value)
+                # do
+                self.saRound(round, self.requests[round])
+            
+            # End
+            print(f'[{self.__class__.__name__}] Server finished 1 round')
+
+    def turbo(self):
+        tag = TurboRound.Turbo.name
+        tag_value = TurboRound.TurboValue.name
+        tag_final = TurboRound.TurboFinal.name
+        for i in range(self.groupNum):
+            # for each one group
+            self.startTime = self.endTime = time.time()
+            self.requests_value = []
+            self.userNow = 0
+
+            while (self.endTime - self.startTime) < self.interval:
+                currentClient = socket
+                try:
+                    clientSocket, addr = self.serverSocket.accept()
+                    currentClient = clientSocket
+
+                    # receive client data
+                    # client request must ends with "\r\n"
+                    request = ''
+                    while True:
+                        received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                        if received.endswith("\r\n"):
+                            received = received.replace("\r\n", "")
+                            request = request + received
+                            break
+                        request = request + received
+                    
+                    requestData = json.loads(request)
+                    clientTag = requestData['request']
+                    
+                    print(f'[{tag}] Client: {clientTag}/{addr}')
+
+                    if clientTag == tag:
+                        # {request: TAG, group: GROUP_INDEX, index: INDEX}
+                        requestGroup = int(requestData['group'])
+                        if requestGroup < i:
+                            raise ValueError
+                        self.requests_next[requestGroup].append((clientSocket, requestData))
+                        self.requestsNum[requestGroup] = self.requestsNum[requestGroup] + 1
+                    elif clientTag == tag_value and requestData['group'] == i: # check request and group
+                        # {request: TAG_VALUE, group: GROUP_INDEX, index: INDEX, maskedxij: {idx: , ...}, encodedxij: {idx: , ...}, si: VALUE, codedsi: VALUE}
+                        self.userNow = self.userNow + 1
+                        self.requests_value.append(requestData)
+                        self.drop_out[i-1] = requestData['drop_out']
+                        currentClient.sendall(bytes(f'[{tag}] OK \r\n', self.ENCODING))
+                    elif clientTag == tag_final:
+                        self.requestsNum[len(self.requestsNum)-1] = self.requestsNum[len(self.requestsNum)-1] + 1
+                        self.requests_final.append(clientSocket)
+                    else:
+                        raise AttributeError
+                    
+                    requestData.pop('request')
+                    #print(f'[{tag}] Client request: {request}')
+
+                except socket.timeout:
+                    pass
+                except AttributeError:
+                    print(f'[{tag}] Exception: invalid request at {tag}')
+                    currentClient.sendall(bytes(f'Exception: invalid request at {tag} \r\n', self.ENCODING))
+                    pass
+                except ValueError:
+                    print(f'[{tag}] Exception: invalid request at group {i}')
+                    currentClient.sendall(bytes(f'Exception: requested group is over \r\n', self.ENCODING))
+                except:
+                    print(f'[{tag}] Exception: invalid request or unknown server error')
+                    currentClient.sendall(bytes('Exception: invalid request or unknown server error \r\n', self.ENCODING))
+                    pass
+                
+                self.endTime = time.time()
+                if self.userNow >= self.perGroup and self.requestsNum[i+1] >= self.perGroup:
+                    if i == self.groupNum-1 and self.requestsNum[i+1] < self.n: # temp
+                        continue
+                    break
+
+            # check threshold
+            nextGroupRequests = self.requestsNum[i+1]
+            if self.t > self.userNow and self.t > nextGroupRequests:
+                print(f'[{tag}] Exception: insufficient {self.userNow} or {nextGroupRequests} users with {self.t} threshold')
+                raise Exception(f"Need at least {self.t} users, but only {self.userNow} in L and {nextGroupRequests} in L+1.")
+            
+            # send data of group L-1 to group L
+            self.sendTurboValue(self.requests_next[i+1], self.requests_value)
+        
+        # End of for loop
+        # final stage
+        self.sendFinalValue(self.requests_final, self.requests_value)
 
     def saRound(self, tag, requests):
         if tag == TurboRound.SetUp.name:
@@ -216,7 +220,7 @@ class TurboServer:
         commonValues = getCommonValues()
         self.R = commonValues["R"]
         commonValues["n"] = self.n
-        commonValues["t"] = self.t = 2
+        commonValues["t"] = self.t = 1
 
         commonValues["perGroup"] = self.perGroup = 2
 
@@ -317,7 +321,6 @@ class TurboServer:
             response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
             requests.remove(clientSocket)
-
         # to other users
         for clientSocket in requests:
             clientSocket.sendall(bytes(json.dumps({"chosen": False}) + "\r\n", self.ENCODING))
@@ -334,5 +337,5 @@ class TurboServer:
         print(f'[Turbo] Server finished')
 
 if __name__ == "__main__":
-    server = TurboServer(n=4, k=1)
+    server = TurboServer(n=4, k=3)
     server.start()

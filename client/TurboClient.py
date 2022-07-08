@@ -53,6 +53,7 @@ class TurboClient:
 
         self.data = response["data"]  # user_groups[idx]
         global_weights = mhelper.dic_of_list_to_weights(response["weights"])
+        print(f'group: {self.group}, index: {self.index}')
 
         if self.model == {}:
             self.model = fl.setup()
@@ -135,8 +136,9 @@ class TurboClient:
 
 if __name__ == "__main__":
     client = TurboClient()
-    group = client.setUp()
-    if group != 0:
-        client.turbo()
-    client.turbo_value()
-    client.turbo_final()
+    for i in range(3):
+        group = client.setUp()
+        if group != 0:
+            client.turbo()
+        client.turbo_value()
+        client.turbo_final()

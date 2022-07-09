@@ -52,53 +52,29 @@ def additiveMasking(next_users, q):
     return r_ij_dic
 
 
-# update aggregate value tildeS => 0 or 1d list
-def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
-    # l = group index of this user.  ex) 0,1,2,...,L
-    # n = the number of users per one group
-    # pre_tildeS_dic = [dic of list] tildeS of users in l-1 group
-    # pre_tildeX_dic = [dic of list] masked model(=tildeX) between user i(this) and users in l-1
-    # ex) pre_tildeX_dic={0:{0:[], 1:[]},1:{0:[], 1:[]}}
-    # tildeS = a variable that each user holds corresponding to the aggregated masked models from the previous group
+def partialSumofModel(x_dic, s_dic):
+    # partial_sum = sum(s)/n + sum(x)
 
-    # print(f"pre_tildeX_dic={pre_tildeX_dic}")
+    x_sum = []
+    for pair in zip(*x_dic.values()):
+        x_sum.append(sum(pair))
+    s_sum = computePartialSum(s_dic)
 
-    if l == 0:
-        tildeS = 0
-        # int
-        return tildeS
-
+    if s_sum == 0:
+        return x_sum
     else:
-        tildeS = []
-        p_sum = computePartialSum(l, pre_tildeS_dic)
-        masked_sum = []
-        for pair in zip(*pre_tildeX_dic.values()):
-            masked_sum.append(sum(pair))
-
-        if p_sum == 0:
-            tildeS = masked_sum
-        else:
-            temp_sum = np.array(p_sum) + np.array(masked_sum)
-            tildeS = temp_sum.tolist()
-        return tildeS
+        return (np.array(s_sum) + np.array(x_sum)).tolist()
 
 
-# 0 or tensor
-def computePartialSum(l, pre_tildeS_dic):
-    # pre_tildeS_dic = [dic of list] ex) {0:[], 1: []}
-    # print(f"pre_tildeS_dic = {pre_tildeS_dic}")
-    # l = index of group
+def computePartialSum(weights_dic):
+    p_sum = []
+    n = len(weights_dic)
+    if n == 0 or weights_dic.get(0) == 0:
+        return 0
+    for pair in zip(*weights_dic.values()):
+        p_sum.append(sum(pair) / n)
+    return p_sum
 
-    if l <= 1:
-        p_sum = 0
-        # int
-        return p_sum
-
-    else:
-        p_sum = []
-        for pair in zip(*pre_tildeS_dic.values()):
-            p_sum.append(sum(pair) / len(pair))
-        return p_sum
 
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX):
@@ -156,30 +132,6 @@ def generateLagrangePolynomial(x_list, y_list):
     # co = f_i.coef[::-1]
 
     return f_i
-
-
-# update the encoded aggregate value barS => 1d list
-def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
-    # pre_barX_dic = encoded model dic of group l-1
-    # barS = encoded_sum = p_sum + sum(pre_barX_dic.values())
-    # print(f"pre_barX_dic={pre_barX_dic}")
-
-    barS = []
-
-    p_sum = computePartialSum(l, pre_tildeS_dic)
-    encoded_sum = []
-
-    for pair in zip(*pre_barX_dic.values()):
-        encoded_sum.append(sum(pair))
-
-    if p_sum == 0:
-        barS = encoded_sum
-
-    else:
-        temp_sum = np.array(p_sum) + np.array(encoded_sum)
-        barS = temp_sum.tolist()
-
-    return barS
 
 
 # reconstruct missing values of dropped users.
@@ -240,7 +192,7 @@ def computeFinalOutput(final_tildeS, mask_u_dic):
         # print(f"group={group}, sum={sum(item.values())}")
         surviving_mask_u = surviving_mask_u + sum(item.values())
 
-    p_sum = computePartialSum(2, final_tildeS)
+    p_sum = computePartialSum(final_tildeS)
     sum_x = np.array(p_sum) - surviving_mask_u
     sum_x = sum_x.tolist()
 

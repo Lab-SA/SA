@@ -116,9 +116,10 @@ class TurboServer:
                         pass
                     
                     self.endTime = time.time()
-                    if self.userNum[i] >= self.userNum[i-1]:
-                        break
-                    elif round == TurboRound.Final.name and self.userNum[i] >= self.perGroup:
+                    if round == TurboRound.Final.name:
+                        if self.userNum[i] >= self.perGroup:
+                            break
+                    elif self.userNum[i] >= self.userNum[i-1]:
                         break
 
                 # check threshold
@@ -130,7 +131,7 @@ class TurboServer:
                 self.saRound(round, self.requests[round])
             
             # End
-            print(f'[{self.__class__.__name__}] Server finished {j} round')
+            print(f'[{self.__class__.__name__}] Server finished {j+1} round')
 
     def turbo(self):
         tag = TurboRound.Turbo.name

@@ -89,7 +89,7 @@ class TurboClient:
         self.codedsi = 0
 
         if self.group > 0:
-            self.reconstruct()
+            self.pre_si, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, self.pre_si, self.pre_codedsi)
             self.si = Turbo.partialSumofModel(self.pre_maskedxij, self.pre_si)
             self.codedsi = Turbo.partialSumofModel(self.pre_encodedxij, self.pre_si)
 
@@ -117,18 +117,13 @@ class TurboClient:
     def final(self):
         tag = TurboRound.Final.name
         
-        self.reconstruct()
+        self.pre_si, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, self.pre_si, self.pre_codedsi)
         final_tildeS = Turbo.partialSumofModel(self.pre_maskedxij, self.pre_si)
         final_barS = Turbo.partialSumofModel(self.pre_encodedxij, self.pre_si)
 
         request = {"index": self.index, "final_tildeS": final_tildeS, "final_barS": final_barS,
                    "drop_out": self.drop_out}
         sendRequestAndReceive(self.HOST, self.PORT, tag, request)
-
-    # reconstruct l-1 group's si and codedsi
-    def reconstruct(self):
-        self.pre_si, self.drop_out = Turbo.reconstruct(self.alpha, self.beta, self.pre_si, self.pre_codedsi)
-        self.pre_codedsi = Turbo.partialSumofModel(self.pre_encodedxij, self.pre_si)
 
 
 if __name__ == "__main__":

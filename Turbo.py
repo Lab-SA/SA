@@ -1,6 +1,7 @@
 import random
 from scipy.interpolate import lagrange
 import numpy as np
+import learning.models_helper as mhelper
 
 def grouping(users, n):
     # users = [list] ordered user index list
@@ -135,47 +136,33 @@ def generateLagrangePolynomial(x_list, y_list):
 import numpy as np
 from scipy.interpolate import lagrange
 
-def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
+def reconstruct(alpha_list, beta_list, tilde_dic, bar_dic):
     x_list = []
-    for i in pre_tildeS_dic.keys():
+    for i in tilde_dic.keys():
         x_list.append(alpha_list[int(i)])
 
     drop_out = []
-    pairidx = 0
     for index, alpha in enumerate(alpha_list):
         if alpha not in x_list:
             drop_out.append(index)
-        else:
-           pairidx = index
 
     if len(drop_out) == 0:
-        return pre_tildeS_dic, drop_out
-
-    for i in pre_barS_dic.keys():
+        return tilde_dic, drop_out
+    
+    for i in bar_dic.keys():
         x_list.append(beta_list[int(i)])
 
-    t = pre_tildeS_dic.get(pairidx)
-    if isinstance(t, int):
-        pair_dic = {0: []}
-    else:
-        pair_dic = {i: [] for i in range(len(t))}
-
-    tildeS_zip = list(zip(*list(pre_tildeS_dic.values())))
-    barS_zip = list(zip(*list(pre_barS_dic.values())))
-    for i, pair in pair_dic.items():
-        pair_dic[i] = list(tildeS_zip[i]) + list(barS_zip[i])
-
-    gi_dic = {}
-    for k, v in pair_dic.items():
-        gi_dic[k] = generateLagrangePolynomial(x_list, v)
+    # generate function g
+    tilde_zip = list(zip(*list(tilde_dic.values())))
+    bar_zip = list(zip(*list(bar_dic.values())))
+    g_list = []
+    for i in range(mhelper.default_weights_size):
+        g_list.append(generateLagrangePolynomial(x_list, list(tilde_zip[i]) + list(bar_zip[i])))
 
     for i in drop_out:
-        recon_tildeS = []
-        for g_i in gi_dic.values():
-            recon_tildeS.append(np.polyval(g_i, alpha_list[i]))
-        pre_tildeS_dic[i] = recon_tildeS
+        tilde_dic[i] = [np.polyval(g, alpha_list[i]) for g in g_list] # reconstructed
 
-    return pre_tildeS_dic, drop_out
+    return tilde_dic, drop_out
 
 
 def computeFinalOutput(final_tildeS, mask_u_dic):

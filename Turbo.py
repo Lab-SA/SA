@@ -87,14 +87,10 @@ def generateEncodedModel(alpha_list, beta_list, tildeX):
     print(f"alpha_list: {alpha_list}")
     print(f"beta_list: {beta_list}")
 
-    cnt = 0
     for pair in zip(*tildeX.values()):
         f_i = generateLagrangePolynomial(alpha_list, list(pair))
         for idx, beta in enumerate(beta_list):
-            temp = barX[idx]
-            temp.append(np.polyval(f_i, beta))
-            barX[idx] = temp
-        cnt += 1
+            barX[idx].append(np.polyval(f_i, beta))
 
     return barX
 

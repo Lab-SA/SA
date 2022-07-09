@@ -130,7 +130,7 @@ class TurboServer:
                 self.saRound(round, self.requests[round])
             
             # End
-            print(f'[{self.__class__.__name__}] Server finished 1 round')
+            print(f'[{self.__class__.__name__}] Server finished {j} round')
 
     def turbo(self):
         tag = TurboRound.Turbo.name
@@ -287,7 +287,8 @@ class TurboServer:
         
         # final value
         sum_weights = computeFinalOutput(final_tildeS, self.mask_u_dic)
-        new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
+        avg_weights = list(x/self.n for x in sum_weights)
+        new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, avg_weights)
 
         # update global model
         self.model.load_state_dict(new_weights)
@@ -330,6 +331,7 @@ class TurboServer:
             response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
             requests.remove(clientSocket)
+
         # to other users
         for clientSocket in requests:
             clientSocket.sendall(bytes(json.dumps({"chosen": False}) + "\r\n", self.ENCODING))

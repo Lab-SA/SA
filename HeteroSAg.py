@@ -7,8 +7,8 @@ import learning.federated_main as fl
 import learning.models_helper as mhelper
 
 default_r1 = -1
-default_r2 = 0
-default_quantization_levels = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
+default_r2 = 1
+default_quantization_levels = [20, 30, 60, 80, 100]
 
 def quantization(x, _Kg, r1, r2):
     # x = local model value of user i
@@ -58,7 +58,7 @@ def quantization_weights(weights, _Kg, r1, r2):
         if T[Kg-1] == x:
             quantized_x = Kg-1 # r2 choose Kg-1 with 100% probability
         quantized_weights.append(quantized_x)
-    
+
     return quantized_weights
 
 def dequantization_weights(weights, _Kg, r1, r2, u):
@@ -214,7 +214,8 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
     segment_xu = {i: [] for i in range(G)} # i: segment level
     for l, value in segment_info.items(): 
         for q, index_list in value.items(): # q: quantization level
-            if len(segment_yu[l][q]) == 0: continue
+            n = len(segment_yu[l][q])
+            if n == 0: continue
             
             surviving_num = 0 # number of surviving users of this segment
 
@@ -238,9 +239,10 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
 
             # segment_xu[l][q] = list(map(lambda x : x + mask, sum_segment_yu))  # remove mask
             raw_segment_xu = list(map(lambda x : x + mask, sum_segment_yu)) # remove mask
-            print(f'q level: {q} / surviving_num: {surviving_num} / min: {min(raw_segment_xu)} / max: {max(raw_segment_xu)}')
+            # print(f'q level: {q} / surviving_num: {surviving_num} / min: {min(raw_segment_xu)} / max: {max(raw_segment_xu)}')
 
             # dequantization: to real numbers
-            segment_xu[l].append(dequantization_weights(raw_segment_xu, q, default_r1, default_r2, surviving_num))
+            dequantized = dequantization_weights(raw_segment_xu, q, default_r1, default_r2, surviving_num)
+            segment_xu[l].append(list(x/n for x in dequantized)) # y
 
     return segment_xu

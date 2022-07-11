@@ -1,6 +1,6 @@
 import random, copy
 import numpy as np
-from torch import threshold
+from torch import R, threshold
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 from BasicSA import stochasticQuantization
@@ -121,6 +121,60 @@ def real_domain_djk(_djk, p, q):
     djk = _djk / (q ** 2)
     return djk
 
+def multi_krum(n, m, djk):
+    """
+    n = All user
+    m = selected user
+    djk = distances between users
+    a = Reed Solomon max number of error
+    Sk = selected index set S(k)
+    _set = range of adding dju
+    skj = list of added dju for each users 
+    dis = temporary copy array for one row in skj
+    user = selected user's index
+    """
+    k = 1
+    a = 0   # ?
+    Sk = [] 
+    while(True):
+        _set = (n - k + 1) - a - 2
+        skj = [0] * n
+
+        for i in range(len(djk)):
+            dis = []
+            for z in djk[i]:  
+                if(z != 0 and z != -1):
+                    dis.append(z)
+            dis.sort()
+
+            if(dis != []):
+                for j in range(_set):
+                    if(dis[j] != -1):
+                        skj[i] += dis[j]
+                    else: 
+                        j -= 1
+                        continue
+        
+        tmp = skj[0]
+        user = 0
+        for t in range(len(skj)):
+            if(tmp <= 0):
+                user += 1 
+                tmp = skj[user]
+                continue
+            if(tmp > skj[t] and skj[t] > 0):
+                tmp = skj[t]
+                user = t
+        Sk.append(user)
+        k += 1
+        if(k == m): break
+        
+        for e in range(len(djk)):
+            djk[user][e] = -1 
+            djk[e][user] = -1
+        print(djk)
+    return Sk
+
 #[호출] : 서버
 #[인자] : djk (실수 djk), _range: (N−k+1)−A−2 (범위 값)
 #[리턴] : skj
@@ -149,6 +203,8 @@ if __name__ == "__main__":
     g = 3
     n = 4 # N = 40
     T = 3 # T = 7
+
+    print(multi_krum(5, 3, [[0,3,9,2,1],[3,0,5,2,1],[9,5,0,6,1],[2,2,6,0,3],[1,1,1,3,0]]))
 
     model = fl.setup()
     my_model = fl.get_user_dataset(n)

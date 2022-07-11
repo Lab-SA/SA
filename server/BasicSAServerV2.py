@@ -8,6 +8,7 @@ from CommonValue import BasicSARound
 from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
+import learning.utils as utils
 import SecureProtocol as sp
 
 class BasicSAServerV2:
@@ -31,15 +32,20 @@ class BasicSAServerV2:
     def __init__(self, n, k):
         self.n = n
         self.k = k # Repeat the entire process k times
+        self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.serverSocket.bind((self.host, self.port))
+        self.serverSocket.settimeout(self.timeout)
+        self.serverSocket.listen()
 
     def start(self):
-        serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        serverSocket.bind((self.host, self.port))
-        serverSocket.settimeout(self.timeout)
-        serverSocket.listen()
+        # start!
         print(f'[{self.__class__.__name__}] Server started')
             
-        for j in range(self.k): # for k times
+        for j in range(self.k): # for k times        
+            # init
+            self.users_keys = {}
+            self.yu_list = []
+
             self.requests = {round.name: [] for round in BasicSARound}
             self.userNum = {i: 0 for i in range(len(BasicSARound))}
             self.userNum[-1] = self.n
@@ -51,7 +57,7 @@ class BasicSAServerV2:
                 while (self.endTime - self.startTime) < self.interval:
                     currentClient = socket
                     try:
-                        clientSocket, addr = serverSocket.accept()
+                        clientSocket, addr = self.serverSocket.accept()
                         currentClient = clientSocket
 
                         # receive client data
@@ -95,7 +101,7 @@ class BasicSAServerV2:
                 self.saRound(round, self.requests[round])
         
         # End
-        serverSocket.close()
+        # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
 
     # broadcast to all client (same response)
@@ -249,11 +255,16 @@ class BasicSAServerV2:
         sum_xu = generatingOutput(self.yu_list, mask)
         
         # update global model
-        self.model = fl.update_globalmodel(self.model, sum_xu)
+        final_userNum = len(self.yu_list)
+        average_weight = utils.average_weight(sum_xu, final_userNum)
+        self.model.load_state_dict(average_weight)
         
         # End
         self.broadcast(requests, "[Server] End protocol")
         fl.test_model(self.model)
+    
+    def close(self):
+        self.serverSocket.close()
 
 if __name__ == "__main__":
     server = BasicSAServerV2(n=3, k=5)

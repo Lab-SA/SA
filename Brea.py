@@ -1,13 +1,14 @@
 import random, copy
+from re import S
 import numpy as np
 from torch import R, threshold
 import learning.federated_main as fl
+import BasicSA as bs
 import learning.models_helper as mhelper
 from BasicSA import stochasticQuantization
 from Turbo import generateLagrangePolynomial
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
-
 
 # make N theta_i
 # [호출] : 서버
@@ -37,7 +38,7 @@ def generate_rij(T, q):
 def f(theta, w, T, rij):
     y = w
     for j in range(1, T+1):
-        y = y + (rij[j] * (theta ** j))
+        y = y + (rij[j] * (mod(theta, j, q)))
     return y
 
 
@@ -48,10 +49,7 @@ def f(theta, w, T, rij):
 def make_shares(w, theta_list, T, rij_list):
     shares = []
     for theta in theta_list:
-        s = []
-        for k in w:
-            s.append(f(theta, k, T, rij_list))
-        shares.append(s)
+        shares.append(f(theta, w, T, rij_list))
     return shares
 
 
@@ -65,10 +63,11 @@ def generate_commitments(w, rij_list, g, q):
         if i == 0:
             c = []
             for k in w:
-                c.append(g ** k)
+                c.append(mod(g, int(np.max(k)), q))
             commitments.append(c)
             continue
-        commitments.append(np.array(g ** rij, dtype = np.float64))
+
+        commitments.append(np.array(mod(g, rij, q), dtype = np.float64))
     
     return commitments
 
@@ -78,23 +77,41 @@ def generate_commitments(w, rij_list, g, q):
 # [인자] : g, share(i 에게서 받은 share), commitments(i 가 생성한 commitment list), theta(자신의 theta), q
 # [리턴] : boolean
 def verify(g, share, commitments, theta, q):
-    x = g ** np.array(share) # % q
+    tmp_x = []
+    for s in share:
+        tmp_x.append(mod(g, int(np.max(s)), q))
+    x = np.array(tmp_x)
     
     y = 1
     for i, c in enumerate(commitments):
         if i == 0:
-            y = y * (np.array(c)**(theta**i))
+            m = mod(theta, i, q)
+            y = y * mod(np.array(c), m, q)
         else:
-            y = y * (c**(theta**i))
+            m = mod(theta, i, q)
+            y = y * mod(c,m,q)
 
-    for i in range(len(x)):
-        if np.allclose(x[i], y[i]) == True:
-            result = True
-        else:
-            result = False
-            break
+    y = y % q
+
+    # f = open('result.txt', 'w')
+    # f.write(str(x))
+    # f.close()
+    # f = open('result2.txt', 'w')
+    # f.write(str(y))
+    # f.close()
+
+    if np.allclose(x, y) == True:
+        result = True
+    else:
+        result = False
     
     return result
+
+def mod(theta, i, q):
+    ret = 1
+    for idx in range(i):
+        ret = ret * theta % q 
+    return ret
 
 
 # [호출] : 클라이언트
@@ -219,6 +236,7 @@ if __name__ == "__main__":
     rij_list1 = generate_rij(T, q)
 
     rij_list2 = generate_rij(T, q)
+    # print("rij_list2: ", rij_list2)
     shares2 = make_shares(bar_w, theta_list, T, rij_list2)
     #commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
     commitments2 = generate_commitments(bar_w, rij_list2, g, q)
@@ -227,6 +245,7 @@ if __name__ == "__main__":
     print("result: ", result)
 
     distance = calculate_distance(shares2[0], shares2[1])
+
     print("distance: ", distance)
 
     print(calculate_djk_from_h_polynomial([0,1,2],[1,2,3]))

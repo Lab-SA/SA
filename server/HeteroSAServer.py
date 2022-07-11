@@ -1,4 +1,5 @@
 import os, sys, json
+import statistics
 from ast import literal_eval
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
@@ -7,10 +8,8 @@ from BasicSAServerV2 import BasicSAServerV2
 from BasicSA import getCommonValues
 import HeteroSAg as hetero
 from dto.HeteroSetupDto import HeteroSetupDto, HeteroKeysRequestDto
-from CommonValue import BasicSARound
 import learning.federated_main as fl
 import learning.models_helper as mhelper
-import SecureProtocol as sp
 
 class HeteroSAServer(BasicSAServerV2):
     users_keys = {}
@@ -29,6 +28,11 @@ class HeteroSAServer(BasicSAServerV2):
 
     # broadcast common value
     def setUp(self, requests):
+        # init
+        self.users_keys = {}
+        self.segment_yu = {}
+        self.surviving_users = []
+
         self.usersNow = len(requests)
         self.t = int(self.usersNow / 2) # threshold
 
@@ -156,7 +160,7 @@ class HeteroSAServer(BasicSAServerV2):
         
         # reconstruct s_sk of drop-out users
         s_sk_dic = hetero.reconstructSSKofSegments(self.B, self.G, self.perGroup, s_sk_shares_dic)
-        
+
         # unmasking
         segment_xu = hetero.unmasking(
             hetero.getSegmentInfoFromB(self.B, self.G, self.perGroup), 
@@ -170,18 +174,20 @@ class HeteroSAServer(BasicSAServerV2):
         )
         #print(f'segment_xu: {segment_xu}')
 
-        # TODO dequantization encoded xu
-
-        # coordinate median
-
-        # concatenate
+        # coordinate-wise median and concatenate segment-level weights
+        concatenated = []
+        for l in range(len(segment_xu)):
+            median_xl = list(statistics.median(x) for x in zip(*segment_xu[l])) # median
+            concatenated = concatenated + median_xl
+        new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, concatenated)
 
         # update global model
+        self.model.load_state_dict(new_weights)
 
         # End
         self.broadcast(requests, "[Server] End protocol")
+        fl.test_model(self.model)
 
 if __name__ == "__main__":
-    server = HeteroSAServer(n=4, k=1)
+    server = HeteroSAServer(n=4, k=5)
     server.start()
-    

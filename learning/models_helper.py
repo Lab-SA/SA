@@ -2,6 +2,17 @@ import torch
 from iteration_utilities import deepflatten
 from .federated_main import args
 
+default_weights_info = {
+    'conv1.weight': torch.Size([10, 1, 5, 5]),
+    'conv1.bias': torch.Size([10]),
+    'conv2.weight': torch.Size([20, 10, 5, 5]),
+    'conv2.bias': torch.Size([20]),
+    'fc1.weight': torch.Size([50, 320]),
+    'fc1.bias': torch.Size([50]),
+    'fc2.weight': torch.Size([10, 50]),
+    'fc2.bias': torch.Size([10])
+}
+
 def get_model_weights(model):
     return model.state_dict()
 

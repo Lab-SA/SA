@@ -6,12 +6,17 @@ from learning.utils import add_to_weights
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 
-def quantization(x, Kg, r1, r2):
+default_r1 = -1
+default_r2 = 1
+default_quantization_levels = [20, 30, 60, 80, 100]
+
+def quantization(x, _Kg, r1, r2):
     # x = local model value of user i
     # Kg = number of quantization levels
     # [r1, r2] = quantization range
 
     # delK = quantization interval
+    Kg = default_quantization_levels[_Kg]
     delK = (r2 - r1) / (Kg - 1)
 
     # T = discrete value from quantization range point list
@@ -26,6 +31,50 @@ def quantization(x, Kg, r1, r2):
         return Kg-1 # r2 choose Kg-1 with 100% probability
     
     return -1 # fail (only when x < r1 or x > r2)
+
+def quantization_weights(weights, _Kg, r1, r2):
+    # x = local weigths in 1-dim
+    # Kg = number of quantization levels
+    # [r1, r2] = quantization range
+
+    # delK = quantization interval
+    Kg = default_quantization_levels[_Kg]
+    delK = (r2 - r1) / (Kg - 1)
+
+    # T = discrete value from quantization range point list
+    T = [r1 + l * delK for l in range(0, Kg)]
+
+    quantized_weights = []
+    for x in weights:
+        if x < r1: x = r1
+        elif x > r2: x = r2
+        quantized_x = 0
+
+        for l in range(0, len(T)-1):
+            if T[l] <= x < T[l + 1]:
+                p = (x - T[l]) / (T[l + 1] - T[l])
+                prob_list = [p, 1-p]
+                quantized_x = random.choices([l+1, l], prob_list, k=1)[0]
+        if T[Kg-1] == x:
+            quantized_x = Kg-1 # r2 choose Kg-1 with 100% probability
+        quantized_weights.append(quantized_x)
+
+    return quantized_weights
+
+def dequantization_weights(weights, _Kg, r1, r2, u):
+    # x = local weigths in 1-dim
+    # Kg = number of quantization levels
+    # [r1, r2] = quantization range
+    # u = number of surviving users of same segment (= |U|)
+
+    # delK = quantization interval
+    Kg = default_quantization_levels[_Kg]
+    delK = (r2 - r1) / (Kg - 1)
+
+    # mapping to the corresponding values in discrete set of real numbers: |U|r1 ~ |U|r2
+    real_numbers = [(u * r1) + (l * delK) for l in range(0, u * (Kg-1) + 1)]
+    # print(f'real_numbers: {real_numbers}')
+    return list(map(lambda x: real_numbers[x], weights))
 
 def SS_Matrix(G):
     # G = the number of groups
@@ -55,11 +104,10 @@ def getSegmentInfoFromB(B, G, perGroup):
         for i, value in enumerate(segment): # for each group            
             for idx in range(perGroup): # for each user
                 segment_info[l][value].append(i * perGroup + idx)
-    print(f'segment: {segment_info}')
     return segment_info
 
 def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, weights_interval, euv_list, s_pk_dic, p, R):
-    """ generate masked input of segments
+    """ generate masked input of segments and do quantization
     Args:
         index (int): user's index
         bu (int): user's private mask
@@ -115,9 +163,12 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, we
 
         print(f'puv list[{l}]: {p_uv_list}')
 
+        # quantization weights
+        quantized_xu = quantization_weights(segment_xu[l], q, default_r1, default_r2)
+
         # generate yu (masked xu) of segment l
         mask = pu + sum(p_uv_list)
-        segment_yu[l][q] = list(map(lambda x : x + mask, segment_xu[l]))
+        segment_yu[l][q] = list(map(lambda x : x + mask, quantized_xu))
     
     return segment_yu
 
@@ -145,7 +196,7 @@ def reconstructSSKofSegments(B, G, perGroup, s_sk_shares_dic):
     return s_sk_dic
 
 def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic, bu_shares_dic, R):
-    """ generate masked input of segments
+    """ generate masked input of segments and do dequantization
     Args:
         segment_info (dict): segment info (key: segment index, value: dict (key: quantization level, value: index list))
         G (int): # of group
@@ -156,12 +207,18 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
         bu_shares_dic (dict): shares for bu (key: index, value: list of shares)
         R (int): field
     Returns:
-        dict: xu of segments (key: segment index, value: dict (key: quantization level, value: encoded xu))
+        dict: xu(real-value) of segments (key: segment index, value: dict (key: quantization level, value: encoded xu))
     """
 
-    segment_xu = {i: {j: [] for j in range(G)} for i in range(G)} # i: segment level, j: quantization level
+    # segment_xu = {i: {j: [] for j in range(G)} for i in range(G)} # i: segment level, j: quantization level
+    segment_xu = {i: [] for i in range(G)} # i: segment level
     for l, value in segment_info.items(): 
         for q, index_list in value.items(): # q: quantization level
+            n = len(segment_yu[l][q])
+            if n == 0: continue
+            
+            surviving_num = 0 # number of surviving users of this segment
+
             # reconstruct per segment with same quantizer
             sum_pu = 0
             sum_pvu = 0
@@ -172,12 +229,20 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
                     # recompute p_vu
                     for v, s_sk in s_sk_dic[l][q].items():
                         sum_pvu = sum_pvu + reconstructPvu(v, index, s_sk, users_keys[index]["s_pk"], R)
+                    
+                    surviving_num = surviving_num + 1
             print(f'sum pu / (recontructed) sum_pvu : {sum_pu} / {sum_pvu}')
             mask = sum_pvu - sum_pu
 
-            if len(segment_yu[l][q]) != 0:
-                #segment_xu[l][q] = sum(segment_yu[l][q]) + mask
-                sum_segment_yu = list(sum(x) for x in zip(*segment_yu[l][q])) # sum
-                segment_xu[l][q] = list(map(lambda x : x + mask, sum_segment_yu))  # remove mask
-    
+            #segment_xu[l][q] = sum(segment_yu[l][q]) + mask
+            sum_segment_yu = list(sum(x) for x in zip(*segment_yu[l][q])) # sum
+
+            # segment_xu[l][q] = list(map(lambda x : x + mask, sum_segment_yu))  # remove mask
+            raw_segment_xu = list(map(lambda x : x + mask, sum_segment_yu)) # remove mask
+            # print(f'q level: {q} / surviving_num: {surviving_num} / min: {min(raw_segment_xu)} / max: {max(raw_segment_xu)}')
+
+            # dequantization: to real numbers
+            dequantized = dequantization_weights(raw_segment_xu, q, default_r1, default_r2, surviving_num)
+            segment_xu[l].append(list(x/n for x in dequantized)) # y
+
     return segment_xu

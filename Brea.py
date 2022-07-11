@@ -167,7 +167,7 @@ def multi_krum(n, m, djk):
                 user = t
         Sk.append(user)
         k += 1
-        if(k == m): break
+        if(k == (m+1)): break
         
         for e in range(len(djk)):
             djk[user][e] = -1 

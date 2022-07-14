@@ -101,6 +101,21 @@ def generateSecureWeight(weight, Ri, masks):
     return [w + sum_mask for w in weight]
 
 
+def computeReconstructionValue(drop_out, my_masks, masks):
+    """ compute reconstruction value Rj
+    Args:
+        drop_out (list): index list of drop-out users
+        my_masks (dict): random masks by this user (mjk)
+        mask (dict): random masks (mkj)
+    Returns:
+        int: reconstruction value Rj
+    """
+    Rj = 0
+    for k in drop_out:
+        Rj = Rj + masks[k] - my_masks[k]
+    return Rj
+
+
 def computeIntermediateSum(S_dic, n, R_dic = {}):
     """ compute intermediate sum ISi
     Args:
@@ -141,17 +156,32 @@ if __name__ == "__main__":
     
     e1 = {0: b0[1], 2: b2[1]}
     p1 = {0: c0, 1: c1, 2: c2}
-    print(verifyMasks(1, Ri, n, e1, p1, {}, g, p))
+    #print(verifyMasks(1, Ri, n, e1, p1, {}, g, p))
 
 
     # IntermediateSum example
+    w0 = [1,2,3] # weights
+    w1 = [2,3,4]
+    w2 = [3,4,5]
+    m0 = {1: a1[0], 2: a2[0]} # masks for user 0
+    m1 = {0: a0[1], 2: a2[1]}
+    m2 = {0: a0[2], 1: a1[2]} # drop-out
+
+    s0 = generateSecureWeight(w0, Ri, m0)
+    s1 = generateSecureWeight(w1, Ri, m1)
+    s2 = generateSecureWeight(w2, Ri, m2) # drop-out
 
     # case 1: no drop-out
-    print(computeIntermediateSum({0: [1,2,3], 1: [2,3,4], 2: [3,4,5]}, 3))
+    print(computeIntermediateSum({0: s0, 1: s1, 2: s2}, n))
 
     # case 2: 1 drop-out user
-    isDropout, result = computeIntermediateSum({0: [1,2,3], 1: [2,3,4]}, 3)
+    isDropout, result = computeIntermediateSum({0: s0, 1: s1}, n)
     if isDropout:
+        # request Reconstruction Value Rj - R0, R1
+        R_dic = {}
+        R_dic[0] = computeReconstructionValue(result, a0, m0)
+        R_dic[1] = computeReconstructionValue(result, a1, m1)
+
         # after request Rj
-        print(computeIntermediateSum({0: [1,2,3], 1: [2,3,4]}, 3, {0: 1, 1: 2}))
+        print(computeIntermediateSum({0: s0, 1: s1}, n, R_dic))
         

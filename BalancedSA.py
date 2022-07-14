@@ -88,6 +88,43 @@ def verifyMasks(idx, Ri, n, encrypted_mask, public_mask, pub_keys, g, p):
     return mask
 
 
+def generateSecureWeight(weight, Ri, masks):
+    """ generate secure weight Sj
+    Args:
+        weight (list): 1-d weight list
+        Ri (int): (g ^ random nonce ri) mod p
+        mask (dict): random masks (mkj)
+    Returns:
+        dict: secure weight Sj
+    """
+    sum_mask = Ri - sum(masks.values())
+    return [w + sum_mask for w in weight]
+
+
+def computeIntermediateSum(S_dic, n, R_dic = {}):
+    """ compute intermediate sum ISi
+    Args:
+        S_dic (dict): dict of Sj
+        n (int): number of nodes in a cluster
+        R_dic (dict): for drop-out users
+    Returns:
+        dict: random masks (mkj)
+    """
+    # check drop-out users
+    drop_out = []
+    for j in range(n):
+        if j not in S_dic:
+            drop_out.append(j)
+    
+    if drop_out == []:  # no drop-out user
+        return False, list(sum(x) for x in zip(*list(S_dic.values())))
+    elif R_dic != {}:  # remove masks of drop-out users
+        removed_masks = sum(R_dic.values())
+        return False, list(sum(x)+removed_masks for x in zip(*list(S_dic.values())))
+    else:               # need Rj
+        return True, drop_out
+
+
 if __name__ == "__main__":
     # example
     p = 7
@@ -105,3 +142,16 @@ if __name__ == "__main__":
     e1 = {0: b0[1], 2: b2[1]}
     p1 = {0: c0, 1: c1, 2: c2}
     print(verifyMasks(1, Ri, n, e1, p1, {}, g, p))
+
+
+    # IntermediateSum example
+
+    # case 1: no drop-out
+    print(computeIntermediateSum({0: [1,2,3], 1: [2,3,4], 2: [3,4,5]}, 3))
+
+    # case 2: 1 drop-out user
+    isDropout, result = computeIntermediateSum({0: [1,2,3], 1: [2,3,4]}, 3)
+    if isDropout:
+        # after request Rj
+        print(computeIntermediateSum({0: [1,2,3], 1: [2,3,4]}, 3, {0: 1, 1: 2}))
+        

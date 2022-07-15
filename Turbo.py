@@ -1,6 +1,7 @@
 import random
 from scipy.interpolate import lagrange
 import numpy as np
+import learning.models_helper as mhelper
 
 def grouping(users, n):
     # users = [list] ordered user index list
@@ -52,57 +53,29 @@ def additiveMasking(next_users, q):
     return r_ij_dic
 
 
-# update aggregate value tildeS => 0 or 1d list
-def updateSumofMaskedModel(l, pre_tildeX_dic, pre_tildeS_dic):
-    # l = group index of this user.  ex) 0,1,2,...,L
-    # n = the number of users per one group
-    # pre_tildeS_dic = [dic of list] tildeS of users in l-1 group
-    # pre_tildeX_dic = [dic of list] masked model(=tildeX) between user i(this) and users in l-1
-    # ex) pre_tildeX_dic={0:{0:[], 1:[]},1:{0:[], 1:[]}}
-    # tildeS = a variable that each user holds corresponding to the aggregated masked models from the previous group
+def partialSumofModel(x_dic, s_dic):
+    # partial_sum = sum(s)/n + sum(x)
 
-    # print(f"pre_tildeX_dic={pre_tildeX_dic}")
+    x_sum = []
+    for pair in zip(*x_dic.values()):
+        x_sum.append(sum(pair))
+    s_sum = computePartialSum(s_dic)
 
-    if l == 0:
-        tildeS = 0
-        # int
-        return tildeS
-
+    if s_sum == 0:
+        return x_sum
     else:
-        tildeS = []
-        p_sum = computePartialSum(l, pre_tildeS_dic)
-        masked_sum = []
-        for pair in zip(*pre_tildeX_dic.values()):
-            masked_sum.append(sum(pair))
-
-        if p_sum == 0:
-            tildeS = masked_sum
-        else:
-            temp_sum = np.array(p_sum) + np.array(masked_sum)
-            tildeS = temp_sum.tolist()
-        # print(f"tildeS={tildeS}")
-        return tildeS
+        return (np.array(s_sum) + np.array(x_sum)).tolist()
 
 
-# 0 or tensor
-def computePartialSum(l, pre_tildeS_dic):
-    # pre_tildeS_dic = [dic of list] ex) {0:[], 1: []}
-    # print(f"pre_tildeS_dic = {pre_tildeS_dic}")
-    # l = index of group
-    print(f"now l is {l}")
+def computePartialSum(weights_dic):
+    p_sum = []
+    n = len(weights_dic)
+    if n == 0 or weights_dic.get(0) == 0:
+        return 0
+    for pair in zip(*weights_dic.values()):
+        p_sum.append(sum(pair) / n)
+    return p_sum
 
-    if l <= 1:
-        # print(f"here is <= 1")
-        p_sum = 0
-        # int
-        return p_sum
-
-    else:
-        #print(f"here is > 1")
-        p_sum = []
-        for pair in zip(*pre_tildeS_dic.values()):
-            p_sum.append(sum(pair) / len(pair))
-        return p_sum
 
 # generate the encoded model barX
 def generateEncodedModel(alpha_list, beta_list, tildeX):
@@ -115,18 +88,11 @@ def generateEncodedModel(alpha_list, beta_list, tildeX):
     print(f"alpha_list: {alpha_list}")
     print(f"beta_list: {beta_list}")
 
-    cnt = 0
     for pair in zip(*tildeX.values()):
         f_i = generateLagrangePolynomial(alpha_list, list(pair))
         for idx, beta in enumerate(beta_list):
-            temp = barX[idx]
-            temp.append(np.polyval(f_i, beta))
-            barX[idx] = temp
-            if cnt < 1:
-                print(f"barX[{idx}]={barX[idx]}")
-        cnt += 1
+            barX[idx].append(np.polyval(f_i, beta))
 
-    # print(f"barX={barX}")
     return barX
 
 
@@ -161,37 +127,8 @@ def generateLagrangePolynomial(x_list, y_list):
     y = np.array(y_list)
     f_i = lagrange(x, y)
     # co = f_i.coef[::-1]
-    # print(f"라그랑제 보간다항식 f_i = {f_i}")
 
     return f_i
-
-
-# update the encoded aggregate value barS => 1d list
-def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
-    # pre_barX_dic = encoded model dic of group l-1
-    # barS = encoded_sum = p_sum + sum(pre_barX_dic.values())
-    # print(f"pre_barX_dic={pre_barX_dic}")
-
-    barS = []
-
-    p_sum = computePartialSum(l, pre_tildeS_dic)
-    encoded_sum = []
-
-    for pair in zip(*pre_barX_dic.values()):
-        encoded_sum.append(sum(pair))
-
-    if p_sum == 0:
-        barS = encoded_sum
-
-    else:
-        print(f"p_sum = {p_sum}")
-        print(f"encoded_sum = {encoded_sum}")
-        temp_sum = np.array(p_sum) + np.array(encoded_sum)
-        barS = temp_sum.tolist()
-
-    # print(f"barS={barS}")
-
-    return barS
 
 
 # reconstruct missing values of dropped users.
@@ -199,64 +136,33 @@ def updateSumofEncodedModel(l, pre_barX_dic, pre_tildeS_dic):
 import numpy as np
 from scipy.interpolate import lagrange
 
-def reconstruct(alpha_list, beta_list, pre_tildeS_dic, pre_barS_dic):
+def reconstruct(alpha_list, beta_list, tilde_dic, bar_dic):
     x_list = []
-    print(f"pre_tildeS_dic.keys() = {pre_tildeS_dic.keys()}")
-    for i in pre_tildeS_dic.keys():
+    for i in tilde_dic.keys():
         x_list.append(alpha_list[int(i)])
 
     drop_out = []
-    pairidx = 0
     for index, alpha in enumerate(alpha_list):
         if alpha not in x_list:
             drop_out.append(index)
-        else:
-           pairidx = index
-    print(f"drop_out = {drop_out}")
 
     if len(drop_out) == 0:
-        print("here is 0")
-        return pre_tildeS_dic, drop_out
-
-    for i in pre_barS_dic.keys():
+        return tilde_dic, drop_out
+    
+    for i in bar_dic.keys():
         x_list.append(beta_list[int(i)])
-    print(f"x_list = {x_list}")
 
-    t = pre_tildeS_dic.get(pairidx)
-    print(f"t = {t}")
-    if isinstance(t, int):
-        pair_dic = {0: []}
-    else:
-        pair_dic = {i: [] for i in range(len(t))}
-    print(f"before pair_dic = {pair_dic}")
-
-    zip1 = list(zip(list(pre_tildeS_dic.values()), list(pre_barS_dic.values())))
-    print(f"zip1 = {zip1}")
-    print(f"pre_tildeS_values = {pre_tildeS_dic.values()}")
-    zip3 = list(zip(*list(pre_tildeS_dic.values())))
-    print(f"zip3 = {zip3}")
-
-    tildeS_zip = list(zip(*list(pre_tildeS_dic.values())))
-    barS_zip = list(zip(*list(pre_barS_dic.values())))
-    for i, pair in pair_dic.items():
-        pair_dic[i] = list(tildeS_zip[i]) + list(barS_zip[i])
-    print(f"after pair_dic = {pair_dic}")
-
-    gi_dic = {}
-    for k, v in pair_dic.items():
-        g_i = generateLagrangePolynomial(x_list, v)
-        gi_dic[k] = g_i
-        print(gi_dic[k])
+    # generate function g
+    tilde_zip = list(zip(*list(tilde_dic.values())))
+    bar_zip = list(zip(*list(bar_dic.values())))
+    g_list = []
+    for i in range(mhelper.default_weights_size):
+        g_list.append(generateLagrangePolynomial(x_list, list(tilde_zip[i]) + list(bar_zip[i])))
 
     for i in drop_out:
-        print("here is drop!")
-        recon_tildeS = []
-        for g_i in gi_dic.values():
-            recon_tildeS.append(np.polyval(g_i, alpha_list[i]))
-        pre_tildeS_dic[i] = recon_tildeS
-    print(pre_tildeS_dic)
+        tilde_dic[i] = [np.polyval(g, alpha_list[i]) for g in g_list] # reconstructed
 
-    return pre_tildeS_dic, drop_out
+    return tilde_dic, drop_out
 
 
 def computeFinalOutput(final_tildeS, mask_u_dic):
@@ -269,17 +175,8 @@ def computeFinalOutput(final_tildeS, mask_u_dic):
         # print(f"group={group}, sum={sum(item.values())}")
         surviving_mask_u = surviving_mask_u + sum(item.values())
 
-    p_sum = computePartialSum(2, final_tildeS)
+    p_sum = computePartialSum(final_tildeS)
     sum_x = np.array(p_sum) - surviving_mask_u
     sum_x = sum_x.tolist()
 
     return sum_x
-
-#if __name__ == '__main__':
-    #x_list = [[1,2,3],[4,5,6]]
-    #re_list = []
-    #for i in range(len(x_list)):
-    #y_list = [[1,2,3],[4,5,6]]
-    #print(list(zip(x_list, y_list)))
-    #g_i = generateLagrangePolynomial(x_list, y_list)
-    #print(g_i)

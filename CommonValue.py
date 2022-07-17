@@ -13,4 +13,3 @@ class TurboRound(Enum):
     TurboValue = 7011
     TurboFinal = 7012
     Final = 7020
-

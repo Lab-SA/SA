@@ -13,3 +13,10 @@ class TurboRound(Enum):
     TurboValue = 7011
     TurboFinal = 7012
     Final = 7020
+
+class BreaRound(Enum):
+    setUp = 1
+    ShareKeys = 2
+    ShareCommitmentsandVerifyShares = 3
+    ComputeDistance = 4
+    Unmasking = 5

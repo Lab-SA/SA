@@ -1,4 +1,3 @@
-from http import client
 import socket, json, time, copy, sys, os
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
@@ -9,7 +8,6 @@ from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
-import SecureProtocol as sp
 
 class BasicSAServerV2:
     host = 'localhost'

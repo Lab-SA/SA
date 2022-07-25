@@ -1,4 +1,20 @@
 import random
+from ecies.utils import generate_key
+from ecies import encrypt, decrypt
+
+def generateECCKey():
+    """ generate ECC key pair (secp256k1)
+    Args:
+    Returns:
+        bytes: secret key
+        bytes: public key
+    """
+    secp_k = generate_key()
+    sk_bytes = secp_k.secret
+    pk_bytes = secp_k.public_key.format(True)
+    # encrypt(pk_hex, plain)
+    # decrypt(sk_hex, cipher)
+    return sk_bytes, pk_bytes
 
 def generateRandomNonce(c, g, p, R):
     """ generate random nonce for clusters
@@ -44,14 +60,13 @@ def generateMasks(idx, n, ri, pub_keys, g, p, R):
             m = mask[k] = random.randrange(1, R) % p
             sum_mask = sum_mask + m
         
-        # encrypted_mask[k] = encrypt(pub_keys[k], m)
-        encrypted_mask[k] = m
+        encrypted_mask[k] = encrypt(pub_keys[k], bytes(str(m), 'ascii'))
         public_mask[k] = (g ** m) % p
     
     return mask, encrypted_mask, public_mask
 
 
-def verifyMasks(idx, ri, n, encrypted_mask, public_mask, pub_keys, g, p):
+def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
     """ verify masks
     Args:
         idx (int): user's index (idx < n)
@@ -59,7 +74,7 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, pub_keys, g, p):
         n (int): number of nodes in a cluster
         encrypted_mask (dict): encrypted masks (of mkj)
         public_mask (2-dict): public masks in a cluster (Mnn)
-        pub_keys (dict): public keys
+        sk (bytes): secret key
         g (int): secure parameter
         p (int): big prime number
     Returns:
@@ -72,9 +87,8 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, pub_keys, g, p):
     # verify Mkj = g^mkj mod p
     mask = {}
     for k, mkj in encrypted_mask.items():
-        # m = decrypt(pub_keys[k], mkj)
-        m = mask[k] = mkj
-        if public_mask[k][idx] != (g ** mkj) % p:
+        mask[k] = m = int(bytes.decode(decrypt(sk, mkj), 'ascii'))
+        if public_mask[k][idx] != (g ** m) % p:
             print('Mask is Invalid. 1')
             #raise Exception('Mask is Invalid. 1')
     
@@ -154,13 +168,18 @@ if __name__ == "__main__":
     a = generateRandomNonce(c, g, p, R)
     ri = a[0][0]
     
-    a0, b0, c0 = generateMasks(0, n, ri, {}, g, p, R)
-    a1, b1, c1 = generateMasks(1, n, ri, {}, g, p, R)
-    a2, b2, c2 = generateMasks(2, n, ri, {}, g, p, R)
+    sk0, pk0 = generateECCKey()
+    sk1, pk1 = generateECCKey()
+    sk2, pk2 = generateECCKey()
+    pub_keys = {0: pk0, 1: pk1, 2: pk2}
+
+    a0, b0, c0 = generateMasks(0, n, ri, pub_keys, g, p, R)
+    a1, b1, c1 = generateMasks(1, n, ri, pub_keys, g, p, R)
+    a2, b2, c2 = generateMasks(2, n, ri, pub_keys, g, p, R)
     
     e1 = {0: b0[1], 2: b2[1]}
     p1 = {0: c0, 1: c1, 2: c2}
-    verifyMasks(1, ri, n, e1, p1, {}, g, p)
+    print(verifyMasks(1, ri, n, e1, p1, sk1, g, p))
 
 
     # IntermediateSum example
@@ -188,4 +207,3 @@ if __name__ == "__main__":
 
         # after request RSj
         print(computeIntermediateSum({0: s0, 1: s1}, n, RS_dic))
-        

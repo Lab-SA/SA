@@ -81,24 +81,6 @@ class BalancedSAServer:
 
                         print(f'[{round}] Client: {clientTag}/{addr}/{cluster}')
 
-                        if round == BalancedSARound.SetUp.name:
-                            if len(requests[round][0]) >= self.n:
-                                self.setUp(requests[round][0])
-                                for round_t in BalancedSARound:
-                                    for c in range(self.clusterNum):
-                                        requests[round_t.name][c] = []
-                                        requests_clusters[round_t.name][c] = 1
-                                break
-                        else: # check all nodes in cluster sent request
-                            for c in range(self.clusterNum):
-                                if requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
-                                    self.saRound(round, requests[round][c], c)
-                                    requests_clusters[round][c] = 0
-                            if sum(requests_clusters[round].values()) == 0:
-                                break # end of this round
-
-                        # self.endTime = time.time()
-
                     except socket.timeout:
                         # TODO check time
                         pass
@@ -107,6 +89,22 @@ class BalancedSAServer:
                         currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
                         pass
         
+                    if round == BalancedSARound.SetUp.name:
+                        if len(requests[round][0]) >= self.n:
+                            self.setUp(requests[round][0])
+                            for round_t in BalancedSARound:
+                                for c in range(self.clusterNum):
+                                    requests[round_t.name][c] = []
+                                    requests_clusters[round_t.name][c] = 1
+                            break
+                    else: # check all nodes in cluster sent request
+                        for c in range(self.clusterNum):
+                            if requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
+                                self.saRound(round, requests[round][c], c)
+                                requests_clusters[round][c] = 0
+                        if sum(requests_clusters[round].values()) == 0:
+                            break # end of this round
+
         # End
         # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
@@ -170,7 +168,20 @@ class BalancedSAServer:
                 c += 1
     
     def shareMasks(self, requests, cluster):
-        response = {}
+        emask = {i: {} for i in range(self.perGroup[cluster])}
+        pmask = {}
+        for (clientSocket, requestData) in requests:
+            index = requestData['index']
+            pmask[index] = requestData['pmask']
+            for k, mjk in requestData['emask'].items():
+                emask[int(k)][index] = mjk
+
+        # send response
+        for (clientSocket, requestData) in requests:
+            index = requestData['index']
+            response = {"emask": emask[index], "pmask": pmask}
+            response_json = json.dumps(response)
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
 
     def aggregationInCluster(self, requests, cluster):

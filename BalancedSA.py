@@ -60,7 +60,7 @@ def generateMasks(idx, n, ri, pub_keys, g, p, R):
             m = mask[k] = random.randrange(1, R) % p
             sum_mask = sum_mask + m
         
-        encrypted_mask[k] = encrypt(pub_keys[k], bytes(str(m), 'ascii'))
+        encrypted_mask[k] = encrypt(pub_keys[k], bytes(str(m), 'ascii')).hex()
         public_mask[k] = (g ** m) % p
     
     return mask, encrypted_mask, public_mask
@@ -87,9 +87,10 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
     # verify Mkj = g^mkj mod p
     mask = {}
     for k, mkj in encrypted_mask.items():
-        mask[k] = m = int(bytes.decode(decrypt(sk, mkj), 'ascii'))
-        if public_mask[k][idx] != (g ** m) % p:
+        mask[k] = m = int(bytes.decode(decrypt(sk, bytes.fromhex(mkj)), 'ascii'))
+        if public_mask[k][str(idx)] != (g ** m) % p:
             print('Mask is Invalid. 1')
+            return {}
             #raise Exception('Mask is Invalid. 1')
     
     Ri = (g ** ri) % p
@@ -101,6 +102,7 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
             mul_Mkn = (mul_Mkn * Mkn) % p
         if Ri != mul_Mkn:
             print('Mask is Invalid. 2')
+            return {}
             #raise Exception('Mask is Invalid. 2')
     
     return mask

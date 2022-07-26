@@ -1,11 +1,11 @@
 import socket, json, time, sys, os
 
-from dto.BalancedSetupDto import BalancedSetupDto
-
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
+import BalancedSA
 from BasicSA import getCommonValues
 from CommonValue import BalancedSARound
+from dto.BalancedSetupDto import BalancedSetupDto
 from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
@@ -16,7 +16,7 @@ class BalancedSAServer:
     port = 7000
     SIZE = 2048
     ENCODING = 'utf-8'
-    interval = 60 * 10 # server waits in one round # second
+    interval = 10 # server waits in one round # second
     timeout = 3
     totalRound = 4 # BalancedSA has 4 rounds
 
@@ -90,10 +90,10 @@ class BalancedSAServer:
                     if self.userNum[i] >= self.userNum[i-1]:
                         break
 
-                # check threshold
-                if self.t > self.userNum[i]:
-                    print(f'[{self.__class__.__name__}] Exception: insufficient {self.userNum[i]} users with {self.t} threshold')
-                    raise Exception(f"Need at least {self.t} users, but only {self.userNum[i]} user(s) responsed")
+                # check time
+                #if self.t > self.userNum[i]:
+                #    print(f'[{self.__class__.__name__}] Exception: insufficient {self.userNum[i]} users with {self.t} threshold')
+                #    raise Exception(f"Need at least {self.t} users, but only {self.userNum[i]} user(s) responsed")
             
                 # do
                 self.saRound(round, self.requests[round])
@@ -132,28 +132,44 @@ class BalancedSAServer:
         if self.model == {}:
             self.model = fl.setup()
         model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
-        user_groups = fl.get_user_dataset(self.n)
+        user_groups = fl.get_user_dataset(usersNow)
 
-        self.perGroup = 2 # temp
-        self.clusterNum = int(usersNow / self.perGroup) # temp
+        self.clusterNum = 1                                         # temp
+        self.perGroup = {i: 4 for i in range(self.clusterNum)}      # at least 4 nodes # TODO balanced clustering
+        self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
+        hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
+
+        list_ri, list_Ri = BalancedSA.generateRandomNonce(self.clusterNum, self.g, self.p, self.R)
+        c = 0
+        for i in range(self.clusterNum): # get all users' public key
+            ri = list_ri[i]
+            for j in range(self.perGroup[i]):
+                hex_keys[i][j] = requests[c][1]['pk']
+                self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
+                c += 1
+        
+        c = 0
         for i in range(self.clusterNum):
-            for j in range(self.perGroup):
-                idx = i*self.perGroup + j
+            ri = list_ri[i]
+            for j in range(self.perGroup[i]):
                 response_ij = BalancedSetupDto(
                     n = usersNow, 
                     g = self.g, 
                     p = self.p, 
                     R = self.R, 
-                    encrypted_ri = 1, # TODO
+                    encrypted_ri = BalancedSA.encrypt(self.users_keys[i][j], bytes(str(ri), 'ascii')).hex(),
+                    Ri = list_Ri[i],
                     cluster = i,
-                    clusterN = self.perGroup,
-                    index = idx,
-                    data = [int(k) for k in user_groups[idx]],
+                    clusterN = self.perGroup[i],
+                    cluster_keys = str(hex_keys[i]), # node's id and public key
+                    index = j,
+                    data = [int(k) for k in user_groups[c]],
                     weights= str(model_weights_list),
                 )._asdict()
                 response_json = json.dumps(response_ij)
-                clientSocket = requests[idx][0]
+                clientSocket = requests[c][0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+                c += 1
     
 
     def shareMasks(self, requests):
@@ -173,5 +189,5 @@ class BalancedSAServer:
 
 
 if __name__ == "__main__":
-    server = BalancedSAServer(n=3, k=5)
+    server = BalancedSAServer(n=4, k=1)
     server.start()

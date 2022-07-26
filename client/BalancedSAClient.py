@@ -34,17 +34,26 @@ class BalancedSAClient:
 
         # request with my public key (pk)
         # response: BalancedSetupDto
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk})
-        setupDto = json.loads(json.dumps(response), object_hook=lambda d: BalancedSetupDto(**d)) #
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk.hex()})
+        setupDto = json.loads(json.dumps(response), object_hook=lambda d: BalancedSetupDto(**d))
         
         self.n = setupDto.n
         self.g = setupDto.g
         self.p = setupDto.p
         self.R = setupDto.R
-        # TODO self.ri = 
         self.cluster = setupDto.cluster
         self.clusterN = setupDto.clusterN
         self.index = setupDto.index
+        self.others_keys = setupDto.cluster_keys
+
+        # decrypt ri and verity Ri = (g ** ri) mod p
+        self.ri = int(bytes.decode(BalancedSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
+        self.Ri = int(setupDto.Ri)
+        if self.Ri != (self.g ** self.ri) % self.p:
+            print("Invalid Ri and ri.")
+
+        # print(self.cluster, self.clusterN, self.index, self.ri, self.Ri)
+        # print(self.others_keys)
 
         self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))

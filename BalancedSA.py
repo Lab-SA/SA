@@ -12,8 +12,8 @@ def generateECCKey():
     secp_k = generate_key()
     sk_bytes = secp_k.secret
     pk_bytes = secp_k.public_key.format(True)
-    # encrypt(pk_hex, plain)
-    # decrypt(sk_hex, cipher)
+    # encrypt(pk_bytes, plain)
+    # decrypt(sk_bytes, cipher)
     return sk_bytes, pk_bytes
 
 def generateRandomNonce(c, g, p, R):

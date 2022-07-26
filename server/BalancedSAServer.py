@@ -21,7 +21,7 @@ class BalancedSAServer:
     totalRound = 4 # BalancedSA has 4 rounds
 
     userNum = {}
-    requests = []
+    requests = {}
 
     model = {}
     users_keys = {}
@@ -42,17 +42,17 @@ class BalancedSAServer:
         for j in range(self.k): # for k times        
             # init
             self.users_keys = {}
-            self.yu_list = []
 
-            self.requests = {round.name: [] for round in BalancedSARound}
-            self.userNum = {i: 0 for i in range(len(BalancedSARound))}
-            self.userNum[-1] = self.n
+            requests = {round.name: {} for round in BalancedSARound}
+            requests_clusters = {round.name: {} for round in BalancedSARound} # check completion of clusters
+            requests[BalancedSARound.SetUp.name][0] = []
 
             # execute BasicSA round (total 5)
             for i, r in enumerate(BalancedSARound):
                 round = r.name
-                self.startTime = self.endTime = time.time()
-                while (self.endTime - self.startTime) < self.interval:
+                # self.startTime = self.endTime = time.time()
+                # (self.endTime - self.startTime) < self.interval
+                while True:
                     currentClient = socket
                     try:
                         clientSocket, addr = self.serverSocket.accept()
@@ -73,54 +73,52 @@ class BalancedSAServer:
                         # request must contain {request: tag}
                         clientTag = requestData['request']
                         requestData.pop('request')
-                        self.requests[clientTag].append((clientSocket, requestData))
+                        if clientTag == BalancedSARound.SetUp.name:
+                            cluster = 0
+                        else:
+                            cluster = int(requestData['cluster'])
+                        requests[clientTag][cluster].append((clientSocket, requestData))
 
-                        print(f'[{round}] Client: {clientTag}/{addr}')
+                        print(f'[{round}] Client: {clientTag}/{addr}/{cluster}')
 
-                        if round == clientTag:
-                            self.userNum[i] = self.userNum[i] + 1
+                        if round == BalancedSARound.SetUp.name:
+                            if len(requests[round][0]) >= self.n:
+                                self.setUp(requests[round][0])
+                                for round_t in BalancedSARound:
+                                    for c in range(self.clusterNum):
+                                        requests[round_t.name][c] = []
+                                        requests_clusters[round_t.name][c] = 1
+                                break
+                        else: # check all nodes in cluster sent request
+                            for c in range(self.clusterNum):
+                                if requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
+                                    self.saRound(round, requests[round][c], c)
+                                    requests_clusters[round][c] = 0
+                            if sum(requests_clusters[round].values()) == 0:
+                                break # end of this round
+
+                        # self.endTime = time.time()
+
                     except socket.timeout:
+                        # TODO check time
                         pass
                     except:
                         print(f'[{self.__class__.__name__}] Exception: invalid request or unknown server error')
                         currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
                         pass
-                    
-                    self.endTime = time.time()
-                    if self.userNum[i] >= self.userNum[i-1]:
-                        break
-
-                # check time
-                #if self.t > self.userNum[i]:
-                #    print(f'[{self.__class__.__name__}] Exception: insufficient {self.userNum[i]} users with {self.t} threshold')
-                #    raise Exception(f"Need at least {self.t} users, but only {self.userNum[i]} user(s) responsed")
-            
-                # do
-                self.saRound(round, self.requests[round])
         
         # End
         # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
 
-    # broadcast to all client (same response)
-    def broadcast(self, requests, response): # send response (broadcast)
-        response_json = json.dumps(response)
-        for client in requests:
-            clientSocket = client[0]
-            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
-
-    def saRound(self, tag, requests):
-        if tag == BalancedSARound.SetUp.name:
-            self.setUp(requests)
-        elif tag == BalancedSARound.ShareMasks.name:
-            self.shareMasks(requests)
+    def saRound(self, tag, requests, cluster):
+        if tag == BalancedSARound.ShareMasks.name:
+            self.shareMasks(requests, cluster)
         elif tag == BalancedSARound.Aggregation.name:
-            self.aggregationInCluster(requests)
+            self.aggregationInCluster(requests, cluster)
         elif tag == BalancedSARound.RemoveMasks.name:
-            self.finalAggregation(requests)
+            self.finalAggregation(requests, cluster)
 
-
-    # broadcast common value
     def setUp(self, requests):
         usersNow = len(requests)
         
@@ -171,16 +169,15 @@ class BalancedSAServer:
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
                 c += 1
     
-
-    def shareMasks(self, requests):
+    def shareMasks(self, requests, cluster):
         response = {}
 
 
-    def aggregationInCluster(self, requests):
+    def aggregationInCluster(self, requests, cluster):
         response = {}
-    
 
-    def finalAggregation(self, requests):
+
+    def finalAggregation(self, requests, cluster):
         response = {}
     
 

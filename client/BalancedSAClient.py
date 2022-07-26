@@ -44,7 +44,8 @@ class BalancedSAClient:
         self.cluster = setupDto.cluster
         self.clusterN = setupDto.clusterN
         self.index = setupDto.index
-        self.others_keys = setupDto.cluster_keys
+        self.others_keys = {int(key): value for key, value in literal_eval(setupDto.cluster_keys).items()}
+        self.others_keys.pop(self.index)
 
         # decrypt ri and verity Ri = (g ** ri) mod p
         self.ri = int(bytes.decode(BalancedSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
@@ -58,7 +59,7 @@ class BalancedSAClient:
         self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
 
-        self.weight = 1 # temp
+        self.weight = [1] # temp
 
         #if self.model == {}:
         #    self.model = fl.setup()
@@ -69,17 +70,26 @@ class BalancedSAClient:
     def shareRandomMasks(self): # send random masks
         tag = BalancedSARound.ShareMasks.name
 
+        self.my_mask, encrypted_mask, public_mask = BalancedSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p, self.R)
+        request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+
+        return True # TODO
 
     def sendSecureWeight(self): # send secure weight S
         tag = BalancedSARound.Aggregation.name
 
+        request = {'cluster': self.cluster, 'index': self.index}
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
     def sendMasksOfDropout(self): # send the masks of drop-out users
         tag = BalancedSARound.RemoveMasks.name
-    
+
+        request = {'cluster': self.cluster, 'index': self.index}
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
 if __name__ == "__main__":
-    client = BalancedSAClient()  # test
+    client = BalancedSAClient()
     client.setUp()
     while not client.shareRandomMasks(): # repeat step 2 until all member share valid mask
         continue

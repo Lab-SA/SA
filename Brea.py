@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import learning.federated_main as fl
+import BasicSA as bs
 import learning.models_helper as mhelper
 from BasicSA import stochasticQuantization
 from Turbo import generateLagrangePolynomial
@@ -44,7 +45,7 @@ def generate_rij(T):
 def f(theta, w, T, rij):
     y = w
     for j in range(1, T+1):
-        y = y + (rij[j] * (theta ** j))
+        y = y + (rij[j] * (mod(theta, j, q)))
     return y
 
 
@@ -96,11 +97,11 @@ def verify(share, commitments, theta):
     res = False
 
     x = q ** np.array(share) # % q
-    
     y = 1
     for i, c in enumerate(commitments):
         if i == 0:
-            y = y * (np.array(c)**(theta**i))
+            m = mod(theta, i, q)
+            y = y * mod(np.array(c), m, q)
         else:
             y = y * (c**(theta**i))
 
@@ -113,6 +114,12 @@ def verify(share, commitments, theta):
 
     return res
 
+def mod(theta, i, q):
+    ret = 1
+    for idx in range(i):
+        ret = ret * theta % q 
+    return ret
+
 
 # [호출] : 클라이언트
 # [인자] : shares(sji), n
@@ -123,7 +130,7 @@ def calculate_distance(shares, n, u):
         for k in range(n):
             if j != k != u:
                 dis = abs(np.array(shares[j]) - np.array(shares[k])) ** 2
-                distances[{j, k}] = dis
+                distances[(j, k)] = dis
     return distances
 
 #[호출] : 서버
@@ -237,7 +244,8 @@ if __name__ == "__main__":
     print(commitments2)
     print(result)
     print(aggregate_share(shares2, [2,3], 1))
-    distance = calculate_distance(shares2, 4)
+    distance = calculate_distance(shares2, 4, 1)
     print("distance: ", distance)
 
     # print(calculate_djk_from_h_polynomial([0, 1, 2], [1, 2, 3]))
+

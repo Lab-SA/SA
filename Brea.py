@@ -1,6 +1,5 @@
 import random
 import numpy as np
-from torch import R, threshold
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 from BasicSA import stochasticQuantization
@@ -8,8 +7,10 @@ from Turbo import generateLagrangePolynomial
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
-p = 7   # modulo p 
-q = 3   # quantizaiton level q
+p = 7  # modulo p
+q = 3  # quantization level q
+bar_w = {}
+
 
 # make N theta_i
 # [호출] : 서버
@@ -24,7 +25,7 @@ def make_theta(n):
     return th
 
 
-# Secret polynomium coefficients r_ij
+# Secret poly coefficients r_ij
 # [호출] : 클라이언트
 # [인자] : T(threshold)
 # [리턴] : rij(사용자 i가 랜덤 생성한 계수)(j: 1~T)
@@ -49,15 +50,20 @@ def f(theta, w, T, rij):
 
 # make shares
 # [호출] : 클라이언트
-# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list
+# [인자] : flatten_weights, theta_list(서버가 알려준 theta list), T, rij_list
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
-def make_shares(w, theta_list, T, rij_list):
+def make_shares(flatten_weights, theta_list, T, rij_list):
+    global bar_w
     shares = []
+
+    # stochastic quantization
+    bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
+
     for theta in theta_list:
-        s = []
-        for k in w:
-            s.append(f(theta, k, T, rij_list))
-        shares.append(s)
+        sij = []
+        for k in bar_w:
+            sij.append(f(theta, k, T, rij_list))
+        shares.append(sij)
     return shares
 
 
@@ -65,14 +71,14 @@ def make_shares(w, theta_list, T, rij_list):
 # [호출] : 클라이언트
 # [인자] : w, rij_list
 # [리턴] : commitments (verify를 위한 commitment list)
-def generate_commitments(w, rij_list):
+def generate_commitments(rij_list):
     global q, p
 
     commitments = []
     for i, rij in enumerate(rij_list):
         if i == 0:
             c = []
-            for k in w:
+            for k in bar_w:
                 c.append(q ** k)
             commitments.append(c)
             continue
@@ -87,6 +93,7 @@ def generate_commitments(w, rij_list):
 # [리턴] : boolean
 def verify(share, commitments, theta):
     global p, q
+    res = False
 
     x = q ** np.array(share) # % q
     
@@ -98,21 +105,26 @@ def verify(share, commitments, theta):
             y = y * (c**(theta**i))
 
     for i in range(len(x)):
-        if np.allclose(x[i], y[i]) == True:
-            result = True
+        if np.allclose(x[i], y[i]):
+            res = True
         else:
-            result = False
+            res = False
             break
-    
-    return result
+
+    return res
 
 
 # [호출] : 클라이언트
-# [인자] : share1, share2(사용자 1과 사용자 2의 거리를 계산하기 위해 1에게 받은 share와 2에게 받은 share를 인자로)
+# [인자] : shares(sji), n
 # [리턴] : distance(계산한 거리)
-def calculate_distance(shares1, shares2):
-    distance = abs(np.array(shares1) - np.array(shares2)) ** 2
-    return distance
+def calculate_distance(shares, n, u):
+    distances = {}
+    for j in range(n):
+        for k in range(n):
+            if j != k != u:
+                dis = abs(np.array(shares[j]) - np.array(shares[k])) ** 2
+                distances[{j, k}] = dis
+    return distances
 
 #[호출] : 서버
 #[인자] : theta(theta_list), distances(djk_list)
@@ -128,8 +140,8 @@ def calculate_djk_from_h_polynomial(theta, distances):
 def real_domain_djk(_djk):
     global p
 
-    if(_djk >= ((p-1)/2) and _djk < p):
-       _djk = _djk - p
+    if ((p-1)/2) <= _djk < p:
+        _djk = _djk - p
     djk = _djk / (q ** 2)
     return djk
 
@@ -146,69 +158,55 @@ def multi_krum(n, m, djk):
     user = selected user's index
     """
     k = 1
-    a = 0   # ?
-    Sk = [] 
-    while(True):
+    a = 0  # ?
+    Sk = []
+    while True:
         _set = (n - k + 1) - a - 2
         skj = [0] * n
 
         for i in range(len(djk)):
             dis = []
-            for z in djk[i]:  
-                if(z != 0 and z != -1):
+            for z in djk[i]:
+                if z != 0 and z != -1:
                     dis.append(z)
             dis.sort()
 
-            if(dis != []):
+            if dis:
                 for j in range(_set):
-                    if(dis[j] != -1):
+                    if dis[j] != -1:
                         skj[i] += dis[j]
-                    else: 
+                    else:
                         j -= 1
                         continue
-        
+
         tmp = skj[0]
         user = 0
-        for t in range(len(skj)): # --> sort()
-            if(tmp <= 0): 
-                user += 1  
-                tmp = skj[user] 
-                continue 
-            if(tmp > skj[t] and skj[t] > 0):
+        for t in range(len(skj)):  # --> sort()
+            if tmp <= 0:
+                user += 1
+                tmp = skj[user]
+                continue
+            if tmp > skj[t] > 0:
                 tmp = skj[t]
-                user = t 
+                user = t
 
         Sk.append(user)
         k += 1
-        if(k == (m+1)): break
-        
+        if k == (m + 1):
+            break
+
         for e in range(len(djk)):
-            djk[user][e] = -1 
+            djk[user][e] = -1
             djk[e][user] = -1
-        
+
     return Sk
 
-#[호출] : 서버
-#[인자] : djk (실수 djk), _range: (N−k+1)−A−2 (범위 값)
-#[리턴] : skj
-def calcutate_skj_from_djk(djk, _range):
-    djk.sort()
-    skj = 0
-    for i in range(_range):
-        skj += djk[i]
-    return skj
-
-#[호출] : 서버
-#[인자] : skj
-#[리턴] : 선택된 유저의 skj, 선택된 유저의 인덱스 값
-def select_one_user_among_skj(skj):
-    tmp = skj[0]
-    user = 0
-    for i in range(skj):
-        if(tmp > skj[i]):
-            tmp = skj[i]
-            user = i
-    return skj[user], user
+def aggregate_share(shares, selected_user, u):
+    si = [0, ]
+    for i in selected_user:
+        if i != u:
+            si = np.array(shares[i]) + si
+    return si
 
 
 if __name__ == "__main__":
@@ -223,16 +221,14 @@ if __name__ == "__main__":
     local_model, local_weight, local_loss = fl.local_update(model, my_model[0], 0)
     model_weights_list = mhelper.weights_to_dic_of_list(local_weight)
     weights_info, flatten_weights = mhelper.flatten_list(model_weights_list)
-    
-    bar_w = stochasticQuantization(np.array(flatten_weights), q)
-    
+
     theta_list = make_theta(n)
     rij_list1 = generate_rij(T)
 
     rij_list2 = generate_rij(T)
-    shares2 = make_shares(bar_w, theta_list, T, rij_list2)
-    #commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
-    commitments2 = generate_commitments(bar_w, rij_list2)
+    shares2 = make_shares(flatten_weights, theta_list, T, rij_list2)
+    # commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
+    commitments2 = generate_commitments(rij_list2)
 
     result = verify(shares2[0], commitments2, theta_list[0])
     print(theta_list)
@@ -240,8 +236,8 @@ if __name__ == "__main__":
     print(shares2)
     print(commitments2)
     print(result)
-
-    distance = calculate_distance(shares2[0], shares2[1])
+    print(aggregate_share(shares2, [2,3], 1))
+    distance = calculate_distance(shares2, 4)
     print("distance: ", distance)
 
-    print(calculate_djk_from_h_polynomial([0,1,2],[1,2,3]))
+    # print(calculate_djk_from_h_polynomial([0, 1, 2], [1, 2, 3]))

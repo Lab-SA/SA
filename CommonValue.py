@@ -15,8 +15,8 @@ class TurboRound(Enum):
     Final = 7020
 
 class BreaRound(Enum):
-    setUp = 1
+    SetUp = 1
     ShareKeys = 2
-    ShareCommitmentsandVerifyShares = 3
+    ShareCommitmentsVerifyShares = 3
     ComputeDistance = 4
     Unmasking = 5

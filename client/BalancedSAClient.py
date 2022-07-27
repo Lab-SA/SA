@@ -88,14 +88,19 @@ class BalancedSAClient:
     def sendSecureWeight(self): # send secure weight S
         tag = BalancedSARound.Aggregation.name
 
-        request = {'cluster': self.cluster, 'index': self.index}
+        S = BalancedSA.generateSecureWeight(self.weight, self.ri, self.others_mask)
+        request = {'cluster': self.cluster, 'index': self.index, 'S': S}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+
+        self.dropout = response['dropout']
 
     def sendMasksOfDropout(self): # send the masks of drop-out users
         tag = BalancedSARound.RemoveMasks.name
 
-        request = {'cluster': self.cluster, 'index': self.index}
+        RS = BalancedSA.computeReconstructionValue(self.dropout, self.my_mask, self.others_mask)
+        request = {'cluster': self.cluster, 'index': self.index, 'RS': RS}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+        print(response)
 
 if __name__ == "__main__":
     client = BalancedSAClient()

@@ -27,6 +27,9 @@ class BalancedSAServer:
     users_keys = {}
     R = 0
 
+    IS = {} # intermediate sum
+    RS = {} # reconstruction value
+
     def __init__(self, n, k):
         self.n = n
         self.k = k # Repeat the entire process k times
@@ -103,6 +106,8 @@ class BalancedSAServer:
                                 self.saRound(round, requests[round][c], c)
                                 requests_clusters[round][c] = 0
                         if sum(requests_clusters[round].values()) == 0:
+                            if round == BalancedSARound.RemoveMasks.name:
+                                self.finalAggregation()
                             break # end of this round
 
         # End
@@ -115,7 +120,7 @@ class BalancedSAServer:
         elif tag == BalancedSARound.Aggregation.name:
             self.aggregationInCluster(requests, cluster)
         elif tag == BalancedSARound.RemoveMasks.name:
-            self.finalAggregation(requests, cluster)
+            self.removeDropoutMasks(requests, cluster)
 
     def setUp(self, requests):
         usersNow = len(requests)
@@ -183,14 +188,33 @@ class BalancedSAServer:
             response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
-
     def aggregationInCluster(self, requests, cluster):
-        response = {}
+        all_users = [i for i in range(self.perGroup[cluster])]
+        survived = []
+        for (clientSocket, requestData) in requests:
+            survived.append(int(requestData['index']))
+        dropout = list(set(all_users)-set(survived))
 
+        response = {'dropout': dropout}
+        response_json = json.dumps(response)
 
-    def finalAggregation(self, requests, cluster):
-        response = {}
+        S_list = []
+        for (clientSocket, requestData) in requests:
+            S_list.append(requestData['S'])
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+        self.IS[cluster] = list(sum(x) for x in zip(*S_list)) # sum
+
+    def removeDropoutMasks(self, requests, cluster):
+        RS = 0
+        for (clientSocket, requestData) in requests:
+            RS += int(requestData['RS'])
+            clientSocket.sendall(bytes("OK" + "\r\n", self.ENCODING))
+        self.IS[cluster] = list(map(lambda x : x + RS, self.IS[cluster]))
     
+    def finalAggregation(self):
+        new_weights = list(sum(x) for x in zip(*self.IS.values())) # sum
+        print(new_weights)
 
     def close(self):
         self.serverSocket.close()

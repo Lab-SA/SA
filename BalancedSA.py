@@ -102,6 +102,7 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
             mul_Mkn = (mul_Mkn * Mkn) % p
         if Ri != mul_Mkn:
             print('Mask is Invalid. 2')
+            return mask # temp
             return {}
             #raise Exception('Mask is Invalid. 2')
     
@@ -126,7 +127,7 @@ def computeReconstructionValue(drop_out, my_masks, masks):
     Args:
         drop_out (list): index list of drop-out users
         my_masks (dict): random masks by this user (mjk)
-        mask (dict): random masks (mkj)
+        mask (dict): random masks by other users (mkj)
     Returns:
         int: reconstruction value RSj
     """

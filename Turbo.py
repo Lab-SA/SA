@@ -135,7 +135,7 @@ def generateLagrangePolynomial(x_list, y_list):
         x_list = alpha_list, y_list = list(tildeX_dic.values())
 
     if 2. generate g_i of user k in group l-1 (reconstruct)
-        x_list = alphat_list + beta_list, y_list = list(tildeS_dic.values()) + list(barS_dic.values())
+        x_list = alpha_list + beta_list, y_list = list(tildeS_dic.values()) + list(barS_dic.values())
 
     return Lagrange Polynomial f_i
     """

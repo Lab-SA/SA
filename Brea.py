@@ -53,7 +53,7 @@ def f(theta, w, T, rij):
 # [호출] : 클라이언트
 # [인자] : flatten_weights, theta_list(서버가 알려준 theta list), T, rij_list
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
-def make_shares(flatten_weights, theta_list, T, rij_list):
+def make_shares(flatten_weights, theta_list, T, rij_list, index):
     global bar_w
     shares = []
 
@@ -61,6 +61,9 @@ def make_shares(flatten_weights, theta_list, T, rij_list):
     bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
 
     for theta in theta_list:
+        if shares.__sizeof__() == index:    # no secret share for self
+            shares.append([])
+            continue
         sij = []
         for k in bar_w:
             sij.append(f(theta, k, T, rij_list))
@@ -233,7 +236,7 @@ if __name__ == "__main__":
     rij_list1 = generate_rij(T)
 
     rij_list2 = generate_rij(T)
-    shares2 = make_shares(flatten_weights, theta_list, T, rij_list2)
+    shares2 = make_shares(flatten_weights, theta_list, T, rij_list2, 1)
     # commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
     commitments2 = generate_commitments(rij_list2)
 

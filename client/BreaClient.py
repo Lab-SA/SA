@@ -1,8 +1,10 @@
+import json
 import os
 import sys
 import numpy as np
 
 import Brea
+from dto.BreaSetupDto import BreaSetupDto
 from BasicSAClient import sendRequestAndReceive
 from CommonValue import BreaRound
 import learning.federated_main as fl
@@ -11,13 +13,14 @@ import learning.models_helper as mhelper
 SIZE = 2048
 ENCODING = 'utf-8'
 
+
 class BreaClient:
     HOST = 'localhost'
     PORT = 7000
     xu = 0
 
-    u = 0  # u = user index
-    n = t = g = p = R = 0 # common values
+    index = 0  # user index
+    n = t = g = p = R = 0  # common values
     model = {}
     weight = {}
     quantized_weight = {}
@@ -34,11 +37,15 @@ class BreaClient:
 
         # response: {"n": n, "t": t, "g": g, "p": p, "R": R, "data", "weights"}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, {})
-        self.n = response["n"]  # user num
-        self.u = response["index"]  # user index
-        self.t = response["t"]  # threshold T
-        self.p = response["p"]  # mod p
-        self.data = response["data"]
+        setupDto = json.loads(json.dumps(response), object_hook=lambda d: BreaSetupDto(**d))  #
+
+        self.n = setupDto.n  # user num
+        self.t = setupDto.t  # threshold
+        self.g = setupDto.g
+        self.p = setupDto.p
+        self.R = setupDto.R
+        self.index = setupDto.index  # user index
+        self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(response["weights"])
 
         if self.model == {}:
@@ -60,9 +67,9 @@ class BreaClient:
         self.rij = rij_list
 
         # generate shares and commitments
-        shares = Brea.make_shares(self.flatten_weights, theta_list, self.t, rij_list)
+        shares = Brea.make_shares(self.flatten_weights, theta_list, self.t, rij_list, self.index)
         self.shares = shares
-        request = {"shares": self.shares}
+        request = {"index": self.index, "shares": self.shares}
 
         # receive shares_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)

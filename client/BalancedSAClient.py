@@ -93,6 +93,8 @@ class BalancedSAClient:
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
         self.dropout = response['dropout']
+        if len(self.dropout) > 0:
+            self.sendMasksOfDropout()
 
     def sendMasksOfDropout(self): # send the masks of drop-out users
         tag = BalancedSARound.RemoveMasks.name
@@ -108,4 +110,3 @@ if __name__ == "__main__":
     while not client.shareRandomMasks(): # repeat step 2 until all member share valid mask
         continue
     client.sendSecureWeight()
-    client.sendMasksOfDropout()

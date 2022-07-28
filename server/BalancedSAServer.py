@@ -47,7 +47,7 @@ class BalancedSAServer:
             self.users_keys = {}
 
             requests = {round.name: {} for round in BalancedSARound}
-            requests_clusters = {round.name: {} for round in BalancedSARound} # check completion of clusters
+            self.requests_clusters = {round.name: {} for round in BalancedSARound} # check completion of clusters
             requests[BalancedSARound.SetUp.name][0] = []
 
             # execute BasicSA round (total 5)
@@ -98,14 +98,14 @@ class BalancedSAServer:
                             for round_t in BalancedSARound:
                                 for c in range(self.clusterNum):
                                     requests[round_t.name][c] = []
-                                    requests_clusters[round_t.name][c] = 1
+                                    self.requests_clusters[round_t.name][c] = 1
                             break
                     else: # check all nodes in cluster sent request
                         for c in range(self.clusterNum):
-                            if requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
+                            if self.requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
                                 self.saRound(round, requests[round][c], c)
-                                requests_clusters[round][c] = 0
-                        if sum(requests_clusters[round].values()) == 0:
+                                self.requests_clusters[round][c] = 0
+                        if sum(self.requests_clusters[round].values()) == 0:
                             if round == BalancedSARound.RemoveMasks.name:
                                 self.finalAggregation()
                             break # end of this round
@@ -197,6 +197,8 @@ class BalancedSAServer:
 
         response = {'dropout': dropout}
         response_json = json.dumps(response)
+        if len(dropout) == 0: # no need RemoveMasks stage in this cluster (step3-1 x)
+            self.requests_clusters[BalancedSARound.RemoveMasks.name][cluster] = 0
 
         S_list = []
         for (clientSocket, requestData) in requests:

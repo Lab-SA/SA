@@ -19,6 +19,7 @@ class BalancedSAServer:
     interval = 10 # server waits in one round # second
     timeout = 3
     totalRound = 4 # BalancedSA has 4 rounds
+    verifyRound = 'verify'
 
     userNum = {}
     requests = {}
@@ -49,6 +50,7 @@ class BalancedSAServer:
             requests = {round.name: {} for round in BalancedSARound}
             self.requests_clusters = {round.name: {} for round in BalancedSARound} # check completion of clusters
             requests[BalancedSARound.SetUp.name][0] = []
+            requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
 
             # execute BasicSA round (total 5)
             for i, r in enumerate(BalancedSARound):
@@ -99,12 +101,21 @@ class BalancedSAServer:
                                 for c in range(self.clusterNum):
                                     requests[round_t.name][c] = []
                                     self.requests_clusters[round_t.name][c] = 1
+                            requests[self.verifyRound] = {c: [] for c in range(self.clusterNum)}
                             break
                     else: # check all nodes in cluster sent request
                         for c in range(self.clusterNum):
-                            if self.requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
+                            if round == BalancedSARound.ShareMasks.name:
+                                if len(requests[self.verifyRound][c]) >= self.perGroup[c]: # verify ok
+                                    self.requests_clusters[round][c] = 0
+                                elif self.requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
+                                    self.saRound(round, requests[round][c], c)
+                                    requests[round][c] = [] # clear
+
+                            elif self.requests_clusters[round][c] == 1 and len(requests[round][c]) >= self.perGroup[c]:
                                 self.saRound(round, requests[round][c], c)
                                 self.requests_clusters[round][c] = 0
+
                         if sum(self.requests_clusters[round].values()) == 0:
                             if round == BalancedSARound.RemoveMasks.name:
                                 self.finalAggregation()

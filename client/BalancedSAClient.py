@@ -4,7 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import BalancedSA
 from CommonValue import BalancedSARound
-from BasicSAClient import sendRequestAndReceive
+from BasicSAClient import sendRequestAndReceive, sendRequest
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 from dto.BalancedSetupDto import BalancedSetupDto
@@ -16,6 +16,7 @@ ENCODING = 'utf-8'
 class BalancedSAClient:
     HOST = 'localhost'
     PORT = 7000
+    verifyRound = 'verify'
 
     n = g = p = R = 0 # common values
     cluster = clusterN = 0
@@ -70,20 +71,21 @@ class BalancedSAClient:
     def shareRandomMasks(self): # send random masks
         tag = BalancedSARound.ShareMasks.name
 
-        self.my_mask, encrypted_mask, public_mask = BalancedSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p, self.R)
-        request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
-        # print(self.my_mask, public_mask)
+        while True: # repete until all member share valid masks
+            self.my_mask, encrypted_mask, public_mask = BalancedSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p, self.R)
+            request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
+            response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+            # print(self.my_mask, public_mask)
 
-        emask = {int(key): value for key, value in response['emask'].items()}
-        pmask = {int(key): value for key, value in response['pmask'].items()}
-        # print(self.ri, self.Ri, pmask)
-        self.others_mask = BalancedSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
-        
-        if self.others_mask == {}:
-            return False # failed
-        else:
-            return True
+            emask = {int(key): value for key, value in response['emask'].items()}
+            pmask = {int(key): value for key, value in response['pmask'].items()}
+            # print(self.ri, self.Ri, pmask)
+            self.others_mask = BalancedSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
+
+            if self.others_mask != {}:
+                request = {'cluster': self.cluster, 'index': self.index}
+                sendRequest(self.HOST, self.PORT, self.verifyRound, request)
+                break
 
     def sendSecureWeight(self): # send secure weight S
         tag = BalancedSARound.Aggregation.name
@@ -107,6 +109,5 @@ class BalancedSAClient:
 if __name__ == "__main__":
     client = BalancedSAClient()
     client.setUp()
-    while not client.shareRandomMasks(): # repeat step 2 until all member share valid mask
-        continue
+    client.shareRandomMasks()
     client.sendSecureWeight()

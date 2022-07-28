@@ -86,7 +86,7 @@ class BreaClient:
 
         commitments = Brea.generate_commitments(self.rij)
         self.commitment = commitments
-        request = {"commitment": commitments}
+        request = {"index": self.index, "commitment": self.commitment}
 
         # receive commitments_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)

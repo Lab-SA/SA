@@ -58,11 +58,11 @@ class BreaServer(BasicSAServerV2):
     #     global usersNum
 
     def shareKeys(self, requests):
-        # (one) request example: {"index": index, "shares": sij}
+        # (one) request example: {"index": index, "shares": sij }
         # requests example: [{0: [([13]), ... ]}, {1: [(0), ... ]}, ... ]
         # sij : secret share from i for j
 
-        # response example: { 0: [([13]), ... ] 1: [e01, e11, e21, ... ] ... }
+        # response example: { 0: [([13]), ... ] 1: [([10]), ... }
         # sji : secret share from j for i
 
         response = {}
@@ -70,30 +70,23 @@ class BreaServer(BasicSAServerV2):
             requestData = request[1]  # (socket, data)
             for idx, data in requestData.items():
                 for j in range(len(data)):
-                    response[j][idx] = data[j]  # sji
+                    response[j][idx] = data[j]
 
         self.foreach(requests, response)
 
 
-    def advertiseKeys(self, requests):
-        # (one) request example: {0: [(0, 0, c00), (0, 1, c01) ... ]}
-        # requests example: [{0: [(0, 0, c00), ... ]}, {1: [(1, 0, c10), ... ]}, ... ]
+    def shareCommitmentsVerifyShares(self, requests):
+        # (one) request example: {"index": index, "commitment": cij }
+        # requests example: [{0: [([1]), ... ]}, {1: [(2187), ... ]}, ... ]
+        # cij : commitment from i
 
-        # response example: { 0: [c00, c10, c20, ...], 1: [c01, c11, c21, ... ] ... }
+        # response example: { 0: [([13]), ... ] 1: [([10]), ... }
         response = {}
-        requests_euv = []
         for request in requests:
-            requestData = request[1]  # (socket, data)
-            for idx, data in requestData.items():  # only one
-                response[idx] = {}  # make dic
-                requests_euv.append(data)
-        for request in requests_euv:
-            for (u, v, euv) in request:
-                try:
-                    response[str(v)][u] = euv
-                except KeyError:  # drop-out
-                    print("KeyError: drop-out!")
-                    pass
+            requestData = request[1]
+            for idx, data in requestData.items():
+                for j in range(len(data)):
+                    response[idx][j] = data[j] # cij
 
         self.broadcast(requests, response)
 

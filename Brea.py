@@ -61,9 +61,6 @@ def make_shares(flatten_weights, theta_list, T, rij_list, index):
     bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
 
     for theta in theta_list:
-        if shares.__sizeof__() == index:    # no secret share for self
-            shares.append([])
-            continue
         sij = []
         for k in bar_w:
             sij.append(f(theta, k, T, rij_list))

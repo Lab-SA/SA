@@ -96,22 +96,22 @@ def verify(share, commitments, theta):
     global p, q
     res = False
 
-    x = q ** np.array(share) # % q
+    x = q ** np.array(share)  # % q
     y = 1
-    for i, c in enumerate(commitments):
-        if i == 0:
-            m = mod(theta, i, q)
-            y = y * mod(np.array(c), m, q)
-        else:
-            y = y * (c**(theta**i))
 
-    for i in range(len(x)):
-        if np.allclose(x[i], y[i]):
-            res = True
-        else:
-            res = False
-            break
-
+    for i in commitments:
+        for k, c in enumerate(commitments[i]):
+            if k == 0:
+                m = mod(theta, k, q)
+                y = y * mod(np.array(c), m, q)
+            else:
+                y = y * (c ** (theta ** k))
+        for j in range(len(x)):
+            if np.allclose(x[j], y[j]):
+                res = True
+            else:
+                res = False
+                break
     return res
 
 def mod(theta, i, q):
@@ -138,7 +138,7 @@ def calculate_distance(shares, n, u):
 #[리턴] : _djk(hjk(0))
 def calculate_djk_from_h_polynomial(theta, distances):
     h = generateLagrangePolynomial(theta, distances)
-    djk = np.polyval(h,0)
+    djk = np.polyval(h, 0)
     return djk
 
 #[호출] : 서버
@@ -246,6 +246,5 @@ if __name__ == "__main__":
     print(aggregate_share(shares2, [2,3], 1))
     distance = calculate_distance(shares2, 4, 1)
     print("distance: ", distance)
-
-    # print(calculate_djk_from_h_polynomial([0, 1, 2], [1, 2, 3]))
+    print(calculate_djk_from_h_polynomial(theta_list, distance))
 

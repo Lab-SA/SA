@@ -85,8 +85,9 @@ class BreaServer(BasicSAServerV2):
         for request in requests:
             requestData = request[1]
             for idx, data in requestData.items():
+                response[idx] = {}
                 for j in range(len(data)):
-                    response[idx][j] = data[j] # cij
+                    response[idx][j] = data[j]  # cij
 
         self.broadcast(requests, response)
 
@@ -114,3 +115,9 @@ class BreaServer(BasicSAServerV2):
         # End
         self.broadcast(requests, "[Server] End protocol")
         fl.test_model(self.model)
+
+
+if __name__ == "__main__":
+    server = BreaServer(n=4, k=1)
+    for i in range(5):  # round
+        server.start()

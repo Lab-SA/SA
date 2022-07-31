@@ -91,7 +91,10 @@ class BreaClient:
         # receive commitments_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
-        result = Brea.verify(self.shares[0], commitments, self.theta[0])
+
+        #commitment 로는 cik, 그냥 넘어온 commitment 다 넘겨주면 될듯
+
+        result = Brea.verify(self.others_shares, response, self.theta)
         print("verify result : ", result)
 
 
@@ -99,7 +102,7 @@ class BreaClient:
         tag = BreaRound.ComputeDistance.name
 
         # d(i)jk
-        distance = Brea.calculate_distance(self.others_shares, self.n, self.u)
+        distance = Brea.calculate_distance(self.others_shares, self.n, self.index)
         self.distance = distance
         request = {"distance": distance}
 
@@ -113,11 +116,17 @@ class BreaClient:
 
     def unMasking(self):
         tag = BreaRound.Unmasking.name
-        si = Brea.aggregate_share(self.others_shares, self.selected_user, self.u)
+        si = Brea.aggregate_share(self.others_shares, self.selected_user, self.index)
         request = {"si ", si}
 
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
 
-
-    
+if __name__ == "__main__":
+    client = BreaClient()
+    for i in range(5):  # round
+        client.setUp()
+        client.shareKeys()
+        client.shareCommitmentsVerifyShares()
+        client.computeDistance()
+        client.unMasking()

@@ -151,7 +151,7 @@ class BalancedSAServer:
         self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
         hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
 
-        list_ri, list_Ri = BalancedSA.generateRandomNonce(self.clusterNum, self.g, self.p, self.R)
+        list_ri, list_Ri = BalancedSA.generateRandomNonce(self.clusterNum, self.g, self.p)
         c = 0
         for i in range(self.clusterNum): # get all users' public key
             ri = list_ri[i]

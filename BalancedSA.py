@@ -1,6 +1,7 @@
 import random
 from ecies.utils import generate_key
 from ecies import encrypt, decrypt
+from sympy import Q
 
 def generateECCKey():
     """ generate ECC key pair (secp256k1)
@@ -166,6 +167,48 @@ def computeIntermediateSum(S_dic, n, p, RS_dic = {}):
         return True, drop_out
 
 
+def clustering(G, a, b, k, rf, cf, U, t):
+    # node clustering
+    C = {i: [] for i in range(1, k+1)} # clusters
+    Uij = {i: {j: [] for j in range(1, b+1)} for i in range(1, a+1)}
+    for user, value in U.items():
+        i, j, PS = value
+        Uij[i][j].append((user, PS))
+
+    D = 0
+    while rf + D <= a or cf + D <= b:
+        r0 = max(rf-D, 1)
+        c0 = max(cf-D, 1)
+        r1 = min(rf+D, a)
+        c1 = min(cf+D, b)
+        for r in range(r0, r1+1):
+            for c in range(c0, c1+1):
+                if abs(r-rf) == D or abs(c-cf) == D:
+                    for user, PS in Uij[r][c]:
+                        C[PS].append(user) # PS is divided into k levels
+        D += 1
+
+    # merge clusters for satisfying constraint t
+    while k > 1:
+        if len(C[k]) < t:
+            l = t - len(C[k])
+            if len(C[k-1])-l >= t:
+                move = []
+                for _ in range(l):
+                    move.append(C[k-1].pop())
+                move.reverse()
+                C[k] = C[k] + move
+            else:
+                C[k-1] = C[k-1] + C[k]
+                del C[k]
+        k -= 1
+    if len(C[k]) < t: # k = 0
+        C[k+1] = C[k+1] + C[k]
+        del C[k]
+
+    return C
+
+
 if __name__ == "__main__":
     # example
     p = 7
@@ -214,3 +257,15 @@ if __name__ == "__main__":
 
         # after request RSj
         print(computeIntermediateSum({0: s0, 1: s1}, n, p, RS_dic))
+
+
+    # example: node clustring
+    n = 12
+    a = 1
+    b = 3
+    k = 3
+    t = 4
+    U = {}
+    for i in range(n):
+        U[i] = [random.randrange(1, a+1), random.randrange(1, b+1), random.randrange(1, k+1)]
+    print(clustering({}, a, b, k, 1, 2, U, t))

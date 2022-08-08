@@ -8,6 +8,18 @@ import learning.models_helper as mhelper
 SIZE = 2048
 ENCODING = 'utf-8'
 
+def sendRequest(host, port, tag, request):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host, port))
+    print(f"[{tag}] Server connected!")
+
+    # add tag to request
+    request['request'] = tag
+
+    # send request
+    s.sendall(bytes(json.dumps(request) + "\r\n", ENCODING))
+    print(f"[{tag}] Send request (no response)")
+
 def sendRequestAndReceive(host, port, tag, request):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, port))

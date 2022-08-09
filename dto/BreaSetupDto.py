@@ -6,6 +6,7 @@ class BreaSetupDto(NamedTuple):
     g: int
     p: int
     R: int
+    theta: int
     index: int
     data: dict
     weights: dict

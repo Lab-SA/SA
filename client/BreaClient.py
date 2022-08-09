@@ -26,10 +26,10 @@ class BreaClient:
     quantized_weight = {}
     rij = {}
     shares = {}
-    theta = {}
+    theta = 0
     others_shares = {}
     commitment = {}
-    distance = {}
+    distance = []
     selected_user = {}
 
     def setUp(self):
@@ -44,6 +44,7 @@ class BreaClient:
         self.g = setupDto.g
         self.p = setupDto.p
         self.R = setupDto.R
+        self.theta = setupDto.theta
         self.index = setupDto.index  # user index
         self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(response["weights"])
@@ -61,15 +62,13 @@ class BreaClient:
         tag = BreaRound.ShareKeys.name
 
         # generate theta and rij list
-        theta_list = Brea.make_theta(self.n)
         rij_list = Brea.generate_rij(self.t)
-        self.theta = theta_list
         self.rij = rij_list
 
         # generate shares and commitments
-        shares = Brea.make_shares(self.flatten_weights, theta_list, self.t, rij_list, self.index)
+        shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.index)
         self.shares = shares
-        request = {"index": self.index, "shares": self.shares}
+        request = {"index": self.index, "shares": self.shares, "theta": self.theta}
 
         # receive shares_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
@@ -91,10 +90,11 @@ class BreaClient:
         # receive commitments_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
+        commitment_all = {}
+        for idx, data in response.items():
+            commitment_all[idx] = data
 
-        #commitment 로는 cik, 그냥 넘어온 commitment 다 넘겨주면 될듯
-
-        result = Brea.verify(self.others_shares, response, self.theta)
+        result = Brea.verify(self.others_shares, commitment_all, self.theta)
         print("verify result : ", result)
 
 
@@ -103,8 +103,8 @@ class BreaClient:
 
         # d(i)jk
         distance = Brea.calculate_distance(self.others_shares, self.n, self.index)
-        self.distance = distance
-        request = {"distance": distance}
+        self.distance = distance  # (i, j, k, d(i)jk)
+        request = {"index": self.index, "distance": self.distance}
 
         #receive selected user list from server
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)

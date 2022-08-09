@@ -15,8 +15,10 @@ class BreaServer(BasicSAServerV2):
     n = 4
     t = 1
     R = 0
+    m = 4   # number of selecting user
     usersNow = 0  # number of users survived
     surviving_users = []
+    theta_list = {}
 
     def __init__(self, n, k):
         super().__init__(n, k)
@@ -27,6 +29,7 @@ class BreaServer(BasicSAServerV2):
 
         self.usersNow = len(requests)
         self.t = int(self.usersNow / 2)  # threshold
+        self.theta_list = Brea.make_theta(self.usersNow)
 
         commonValues = getCommonValues()
         self.R = commonValues["R"]
@@ -36,7 +39,7 @@ class BreaServer(BasicSAServerV2):
         # model
         if self.model == {}:
             self.model = fl.setup()
-        model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
+        self.model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(self.usersNow)
 
         for i in range(self.n):
@@ -45,10 +48,11 @@ class BreaServer(BasicSAServerV2):
                 t = self.t,
                 g = self.g, 
                 p = self.p, 
-                R = self.R, 
+                R = self.R,
+                theta = self.theta_list[i],
                 index = i, 
                 data = [int(k) for k in user_groups[i]],
-                weights= str(model_weights_list)
+                weights= str(self.model_weights_list)
             )._asdict()
             response_json = json.dumps(response_ij)
             clientSocket = requests[i][0]
@@ -58,7 +62,7 @@ class BreaServer(BasicSAServerV2):
     #     global usersNum
 
     def shareKeys(self, requests):
-        # (one) request example: {"index": index, "shares": sij }
+        # (one) request example: {"index": index, "shares": sij, "theta": theta }
         # requests example: [{0: [([13]), ... ]}, {1: [(0), ... ]}, ... ]
         # sij : secret share from i for j
 
@@ -91,23 +95,57 @@ class BreaServer(BasicSAServerV2):
 
         self.broadcast(requests, response)
 
-    def selectUsers(self, requests):
-        # (one) request example: {0: [(1, 2, d12), (1, 3, d13) ... ]}
-        # requests example: [{0: [(1, 2, d12), ... ]}, {1: [(0, 2, d02), ... ]}, ... ]
+
+    def computeDistanceSelectUser(self, requests):
+
+        # d(i)jk 받아서 jk를 기준으로 d(i)를 배열로 만든다. (쳌)
+        # 그러고 그를 바탕으로 _djk를 만든다
+        # real domain의 djk를 만든다
+        # multi krum을 실시한다
+        # 선택된 유저를 클라이언트에 보낸다
+
+        # (one) request example: {0: [(0, 1, 2, d(0)12), (0, 1, 3, d(0)13) ... ]} // d(i)jk
+        # requests example: [{0: [(0, 1, 2, d(0)12), ... ]}, {1: [(1, 0, 2, d(1)02), ... ]}, ... ]
 
         # if u0, u2, ... selected,
         # response example: [0, 2, ... ]    # selected user index
+        response = {}
+        djk = {}
+        requests_djk = []
         for request in requests:
             requestData = request[1]  # (socket, data)
+            for idx, data in requestData.items():
+                requests_djk.append(data)
+        for request in requests_djk:
+            for (i, j, k, d) in request:
+                try:
+                    djk[(j,k)][i] = d
+                except KeyError:
+                    print("KeyError")
+                    pass
+
+        real_djk = {}
+        for idx, data in djk.items():
+            _djk = Brea.calculate_djk_from_h_polynomial(self.theta_list, data)
+            real_djk = Brea.real_domain_djk(_djk)
+
+        response = Brea.multi_krum(self.n, self.m, real_djk)
+
 
     def unmasking(self, requests):
         # requests example: {0: s0, 1: s1, 2: s2, ... }
+        si = []
+        for request in requests:
+            requestData = request[1]
+            for idx, data in requestData.items():
+                si.append(data)
 
-        w_i = {}
+        # reconstruct _wj of selected users
+        # by recovering h with theta and si
+        _wj = Brea.calculate_djk_from_h_polynomial(self.theta_list, si)
 
-        # reconstruct w_i of selected users
-
-        new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, w_i)
+        _wjt = Brea.update_weight(_wj, self.model_weights_list)
+        new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, _wjt)
 
         # update global model
         fl.update_model(self.model, new_weights)

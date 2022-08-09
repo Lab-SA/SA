@@ -100,7 +100,7 @@ def verify(share, commitments, theta):
     y = 1
 
     for i in commitments:
-        for k, c in enumerate(commitments[i]):
+        for k, c in enumerate(i):
             if k == 0:
                 m = mod(theta, k, q)
                 y = y * mod(np.array(c), m, q)
@@ -124,13 +124,25 @@ def mod(theta, i, q):
 # [호출] : 클라이언트
 # [인자] : shares(sji), n
 # [리턴] : distance(계산한 거리)
+# def calculate_distance(shares, n, u):
+#     distances = []
+#     for j in range(n):
+#         for k in range(n):
+#             dis = abs(np.array(shares[j]) - np.array(shares[k])) ** 2
+#             distances.append((u, j, k, dis))
+#     return distances
+
 def calculate_distance(shares, n, u):
     distances = {}
     for j in range(n):
         for k in range(n):
-            if j != k != u:
-                dis = abs(np.array(shares[j]) - np.array(shares[k])) ** 2
-                distances[(j, k)] = dis
+            dis = abs(np.array(shares[j]) - np.array(shares[k])) ** 2
+            distances[(j, k)][u] = dis
+
+    for idx, data in distances.items():
+        print("idx: "+idx)
+        for u, dis in data:
+            print(" u: "+u+" dis: "+dis)
     return distances
 
 #[호출] : 서버
@@ -145,7 +157,7 @@ def calculate_djk_from_h_polynomial(theta, distances):
 #[인자] : _djk(hjk(0)), p, g(처음에 지정해준 p, g)
 #[리턴] : 실수 djk
 def real_domain_djk(_djk):
-    global p
+    global p, q
 
     if ((p-1)/2) <= _djk < p:
         _djk = _djk - p
@@ -155,7 +167,7 @@ def real_domain_djk(_djk):
 def multi_krum(n, m, djk):
     """
     n = All user
-    m = selected user
+    m = number of selecting user
     djk = distances between users  --> dictionary 
     a = Reed Solomon max number of error
     Sk = selected index set S(k)
@@ -216,6 +228,31 @@ def aggregate_share(shares, selected_user, u):
     return si
 
 
+def update_weight(_wj, model):
+    """
+    _wj = weight from user
+    demap_wj = wj with demapping function
+    model =  global model
+    para = paramater using leaning rate and q
+    """
+    global p, q
+
+    demap_wj = np.array(_wj)
+    _model = np.array(model)
+
+    learning_rate = 1
+    para = (learning_rate / q)
+
+    for idx_i, val_i in enumerate(demap_wj):
+        for idx_j, val_j in enumerate(val_i):
+            if ((p - 1) / 2) <= val_j < p:
+                demap_wj[idx_i][idx_j] = para * (val_j - p)
+            else:
+                demap_wj[idx_i][idx_j] = para * val_j
+
+    return _model - demap_wj
+
+
 if __name__ == "__main__":
     n = 4 # N = 40
     T = 3 # T = 7
@@ -235,9 +272,14 @@ if __name__ == "__main__":
     rij_list2 = generate_rij(T)
     shares2 = make_shares(flatten_weights, theta_list, T, rij_list2, 1)
     # commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
-    commitments2 = generate_commitments(rij_list2)
 
+    commitments2 = [generate_commitments(rij_list2)]
+    for i in range(n-1):
+        commitments2.append(commitments2[0])
+
+    # 0 user verify
     result = verify(shares2[0], commitments2, theta_list[0])
+
     print(theta_list)
     print(rij_list2)
     print(shares2)
@@ -246,5 +288,5 @@ if __name__ == "__main__":
     print(aggregate_share(shares2, [2,3], 1))
     distance = calculate_distance(shares2, 4, 1)
     print("distance: ", distance)
-    print(calculate_djk_from_h_polynomial(theta_list, distance))
+    # print(calculate_djk_from_h_polynomial(theta_list, distance))
 

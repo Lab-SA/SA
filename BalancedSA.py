@@ -45,26 +45,33 @@ def generateMasks(idx, n, ri, pub_keys, g, p):
         dict: encrypted masks (of mjk)
         dict: public masks (Mjk)
     """
-    mask = {}
-    encrypted_mask = {}
-    public_mask = {}
-    sum_mask = 0
 
-    for k in range(n):
-        if k == idx: continue
-        if (idx == n - 1 and k == n - 2) or k == n - 1:
-            # last mask (ri - sum_mask)
-            m = mask[k] = ri - sum_mask # allow negative value and zero
-        else:
-            m = mask[k] = random.randrange(1, p) # positive integer # for modular p
-            sum_mask = (sum_mask + m) % p
+    while True: # repeat until all masks are valid
+        mask = {}
+        encrypted_mask = {}
+        public_mask = {}
+        sum_mask = 0
+        flag = False
+
+        for k in range(n):
+            if k == idx: continue
+            if (idx == n - 1 and k == n - 2) or k == n - 1:
+                # last mask (ri - sum_mask)
+                m = mask[k] = ri - sum_mask # allow negative value
+                if m != 0: # mask is not allowed to be 0
+                    flag = True
+            else:
+                m = mask[k] = random.randrange(1, p) # positive integer # for modular p
+                sum_mask = (sum_mask + m) % p
+
+            encrypted_mask[k] = encrypt(pub_keys[k], bytes(str(m), 'ascii')).hex()
+            if m > 0:
+                public_mask[k] = (g ** m) % p
+            else:
+                public_mask[k] = (g ** (p - 1 + m)) % p
         
-        encrypted_mask[k] = encrypt(pub_keys[k], bytes(str(m), 'ascii')).hex()
-        if m > 0:
-            public_mask[k] = (g ** m) % p
-        else:
-            public_mask[k] = (g ** (p - 1 + m)) % p
-    
+        if flag: break # repeat cause last mask is 0
+
     return mask, encrypted_mask, public_mask
 
 

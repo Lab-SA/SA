@@ -125,68 +125,39 @@ def generatingOutput(yu_list, mask):
     sum_xu = add_to_weights(sum_yu, mask)
     return sum_xu
 
-def stochasticQuantization(x, q, p):
-    # x = local model of user i
+def stochasticQuantization(weights, q, p):
+    # weights = local model of user
     # q = quantization level
-    # p = modulo p
+    # p = large prime
 
-    # var_x = quantized x
-    
-    ret_x = stochasticRounding(x, q)
-    var_x = mappingX(q * np.array(ret_x), p)
-    return var_x
+    quantized = []
+    for x in weights:
+        floor_qx = math.floor(q * x)
+        selected = int(random.choices(
+            population = [floor_qx / q, (floor_qx + 1) / q],
+            weights = [1 - (q * x - floor_qx), q * x - floor_qx],
+            k = 1 # select one
+        )[0] * q)
+        if selected < 0:
+            selected = selected + p
+        quantized.append(selected)
 
-def stochasticRounding(x, q):
-    # x = local model of user i
+    return quantized
+
+def convertToRealDomain(weights, q, p):
+    # weights = local model of user
     # q = quantization level
+    # p = large prime
 
-    # ret_list = return value list after rounding x
-    # prob_list = probability list (weight for random.choices)
-    # ret_x = rounded x
+    real_numbers = []
+    m = (p - 1) / 2
+    for x in weights:
+        if 0 <= x and x < m:
+            real_numbers.append(x / q)
+        else: # (p-1)/2 <= x < p
+            real_numbers.append((x - p) / q)
+    return real_numbers
 
-    ret_x = []
-
-    for each_x in x:
-        ret_list = [math.floor(q * each_x) / q, (math.floor(q * each_x) + 1) / q]
-        prob_list = [1 - (q * each_x - math.floor(q * each_x)), q * each_x - math.floor(q * each_x)]
-        ret_x.append(random.choices(ret_list, prob_list))
-
-    return ret_x
-
-def mappingX(x, p):
-    """mappingX(x, p) is to represent a negative integer in the finite field
-    by using two’s complement representation"""
-    # % mod 연산으로 대체가 가능한 부분인가...?
-    
-    y = np.where(x < 0, x + p, x)
-    
-    return y
-
-# generate G quantizers randomly
-def generateQuantizers_heteroQ(G):
-    Q = []
-    for i in range(G):
-        Q.append(random.randint(1, 100))
-    return Q
-
-# return quantization level q
-def returnQuantizer(mode, l, g, B, Q):
-    # mode = homo quantization(0) or hetero quantization(1)
-    # l = segment index
-    # g = group index
-    # B = SS_Matrix
-    # Q = a set of quantization level
-
-    # q = quantization level
-    if mode == 0:  # homo quantization
-        q = Q[0]
-        return q
-    elif mode == 1:  # hetero quantization
-        q = Q[B[l][g]]
-        return q
-    else:
-        print("wrong input")
-        return 0
 
 # just for testing
 # if __name__ == "__main__":

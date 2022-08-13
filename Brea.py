@@ -132,17 +132,13 @@ def mod(theta, i, q):
 #             distances.append((u, j, k, dis))
 #     return distances
 
-def calculate_distance(shares, n, u):
+def calculate_distance(shares, n):
     distances = {}
     for j in range(n):
+        distances[j] = {}
         for k in range(n):
             dis = abs(np.array(shares[j]) - np.array(shares[k])) ** 2
-            distances[(j, k)][u] = dis
-
-    for idx, data in distances.items():
-        print("idx: "+idx)
-        for u, dis in data:
-            print(" u: "+u+" dis: "+dis)
+            distances[j][k] = dis
     return distances
 
 #[호출] : 서버
@@ -177,7 +173,7 @@ def multi_krum(n, m, djk):
     user = selected user's index
     """
     k = 1
-    a = 0  # ?
+    a = (n - k) / 2 # ?
     Sk = []
     while True:
         _set = (n - k + 1) - a - 2
@@ -185,9 +181,10 @@ def multi_krum(n, m, djk):
 
         for i in range(len(djk)):
             dis = []
-            for z in djk[i]:
-                if z != 0 and z != -1:
-                    dis.append(z)
+            for idx, val in djk[i]: # 0: [[0],[3],[9],[2],[1]]
+                for z in val:   # [[0],[3],[9],[2],[1]]
+                    if z != 0 and z != -1:
+                        dis.append(z)
             dis.sort()
 
             if dis:
@@ -257,7 +254,23 @@ if __name__ == "__main__":
     n = 4 # N = 40
     T = 3 # T = 7
 
-    print(multi_krum(5, 3, [[0,3,9,2,1],[3,0,5,2,1],[9,5,0,6,1],[2,2,6,0,3],[1,1,1,3,0]]))
+    print(multi_krum(4, 3, {0: {0: [[0],[3],[9],[2],[1]],
+                            1: [[3],[0],[5],[2],[1]],
+                            2: [[9],[5],[0],[6],[1]],
+                            3: [[2],[2],[6],[0],[3]]},
+                        1: {0: [[0],[3],[9],[2],[1]],
+                            1: [[3],[0],[5],[2],[1]],
+                            2: [[9],[5],[0],[6],[1]],
+                            3: [[2],[2],[6],[0],[3]]},
+                        2: {0: [[0],[3],[9],[2],[1]],
+                            1: [[3],[0],[5],[2],[1]],
+                            2: [[9],[5],[0],[6],[1]],
+                            3: [[2],[2],[6],[0],[3]]},
+                        3: {0: [[0],[3],[9],[2],[1]],
+                            1: [[3],[0],[5],[2],[1]],
+                            2: [[9],[5],[0],[6],[1]],
+                            3: [[2],[2],[6],[0],[3]]}}
+                    ))
 
     model = fl.setup()
     my_model = fl.get_user_dataset(n)
@@ -286,7 +299,7 @@ if __name__ == "__main__":
     print(commitments2)
     print(result)
     print(aggregate_share(shares2, [2,3], 1))
-    distance = calculate_distance(shares2, 4, 1)
+    distance = calculate_distance(shares2, 4)
     print("distance: ", distance)
     # print(calculate_djk_from_h_polynomial(theta_list, distance))
 

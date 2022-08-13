@@ -103,7 +103,7 @@ class BreaClient:
 
         # d(i)jk
         distance = Brea.calculate_distance(self.others_shares, self.n, self.index)
-        self.distance = distance  # (i, j, k, d(i)jk)
+        self.distance = distance  # (j, k, d(i)jk)
         request = {"index": self.index, "distance": self.distance}
 
         #receive selected user list from server

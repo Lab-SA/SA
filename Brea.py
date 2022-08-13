@@ -53,7 +53,7 @@ def f(theta, w, T, rij):
 # [호출] : 클라이언트
 # [인자] : flatten_weights, theta_list(서버가 알려준 theta list), T, rij_list
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
-def make_shares(flatten_weights, theta_list, T, rij_list, index):
+def make_shares(flatten_weights, theta_list, T, rij_list):
     global bar_w
     shares = []
 
@@ -173,47 +173,29 @@ def multi_krum(n, m, djk):
     user = selected user's index
     """
     k = 1
-    a = (n - k) / 2 # ?
+    a = (n - k) / 2     # ?
     Sk = []
     while True:
         _set = (n - k + 1) - a - 2
-        skj = [0] * n
+        skj = [0] * (n - k + 1)
 
         for i in range(len(djk)):
-            dis = []
-            for idx, val in djk[i]: # 0: [[0],[3],[9],[2],[1]]
-                for z in val:   # [[0],[3],[9],[2],[1]]
-                    if z != 0 and z != -1:
-                        dis.append(z)
-            dis.sort()
+            sum_dis = 0
+            for idx, val in djk[i]:
+                if idx not in Sk:
+                    sum_dis += sum(val)
+            skj[i] = sum_dis
 
-            if dis:
-                for j in range(_set):
-                    if dis[j] != -1:
-                        skj[i] += dis[j]
-                    else:
-                        j -= 1
-                        continue
+        tmp = min(skj)
+        index = skj.index(tmp)
 
-        tmp = skj[0]
-        user = 0
-        for t in range(len(skj)):  # --> sort()
-            if tmp <= 0:
-                user += 1
-                tmp = skj[user]
-                continue
-            if tmp > skj[t] > 0:
-                tmp = skj[t]
-                user = t
-
-        Sk.append(user)
-        k += 1
-        if k == (m + 1):
+        Sk.append(index)
+        if k == m:
             break
+        k += 1
 
         for e in range(len(djk)):
-            djk[user][e] = -1
-            djk[e][user] = -1
+            djk.pop(index)
 
     return Sk
 
@@ -254,23 +236,7 @@ if __name__ == "__main__":
     n = 4 # N = 40
     T = 3 # T = 7
 
-    print(multi_krum(4, 3, {0: {0: [[0],[3],[9],[2],[1]],
-                            1: [[3],[0],[5],[2],[1]],
-                            2: [[9],[5],[0],[6],[1]],
-                            3: [[2],[2],[6],[0],[3]]},
-                        1: {0: [[0],[3],[9],[2],[1]],
-                            1: [[3],[0],[5],[2],[1]],
-                            2: [[9],[5],[0],[6],[1]],
-                            3: [[2],[2],[6],[0],[3]]},
-                        2: {0: [[0],[3],[9],[2],[1]],
-                            1: [[3],[0],[5],[2],[1]],
-                            2: [[9],[5],[0],[6],[1]],
-                            3: [[2],[2],[6],[0],[3]]},
-                        3: {0: [[0],[3],[9],[2],[1]],
-                            1: [[3],[0],[5],[2],[1]],
-                            2: [[9],[5],[0],[6],[1]],
-                            3: [[2],[2],[6],[0],[3]]}}
-                    ))
+
 
     model = fl.setup()
     my_model = fl.get_user_dataset(n)
@@ -283,7 +249,7 @@ if __name__ == "__main__":
     rij_list1 = generate_rij(T)
 
     rij_list2 = generate_rij(T)
-    shares2 = make_shares(flatten_weights, theta_list, T, rij_list2, 1)
+    shares2 = make_shares(flatten_weights, theta_list, T, rij_list2)
     # commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
 
     commitments2 = [generate_commitments(rij_list2)]
@@ -301,5 +267,6 @@ if __name__ == "__main__":
     print(aggregate_share(shares2, [2,3], 1))
     distance = calculate_distance(shares2, 4)
     print("distance: ", distance)
+    print(multi_krum(4, 3,distance))
     # print(calculate_djk_from_h_polynomial(theta_list, distance))
 

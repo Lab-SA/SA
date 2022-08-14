@@ -90,9 +90,6 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
         dict: decrypted masks
     """
 
-    if n-1 != len(encrypted_mask) or n != len(public_mask):
-        raise Exception('Mask is Dropped during the Communication.')
-
     # verify Mkj = g^mkj mod p
     mask = {}
     for k, mkj in encrypted_mask.items():

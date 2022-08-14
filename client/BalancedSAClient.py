@@ -81,7 +81,6 @@ class BalancedSAClient:
             pmask = {int(key): value for key, value in response['pmask'].items()}
             # print(self.ri, self.Ri, pmask)
             self.others_mask = BalancedSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
-
             if self.others_mask != {}:
                 request = {'cluster': self.cluster, 'index': self.index}
                 sendRequest(self.HOST, self.PORT, self.verifyRound, request)

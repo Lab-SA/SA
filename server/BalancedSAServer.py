@@ -20,6 +20,7 @@ class BalancedSAServer:
     timeout = 3
     totalRound = 4 # BalancedSA has 4 rounds
     verifyRound = 'verify'
+    startTime = {}
 
     userNum = {}
     requests = {}
@@ -55,7 +56,7 @@ class BalancedSAServer:
             # execute BasicSA round (total 5)
             for i, r in enumerate(BalancedSARound):
                 round = r.name
-                # self.startTime = self.endTime = time.time()
+                startTime = time.time() # per round
                 # (self.endTime - self.startTime) < self.interval
                 while True:
                     currentClient = socket
@@ -87,8 +88,24 @@ class BalancedSAServer:
                         print(f'[{round}] Client: {clientTag}/{addr}/{cluster}')
 
                     except socket.timeout:
-                        # TODO check time
-                        pass
+                        if round == BalancedSARound.SetUp.name: continue
+                        now = time.time()
+                        for c in range(self.clusterNum):
+                            if round == BalancedSARound.ShareMasks.name:
+                                if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
+                                    if len(requests[self.verifyRound][c]) >= 1: # verify (minimum 1)
+                                        self.requests_clusters[round][c] = 0
+                                    elif self.requests_clusters[round][c] == 1:
+                                        self.saRound(round, requests[round][c], c)
+                                        requests[round][c] = [] # clear
+                            elif (now - startTime) >= self.perLatency[c] and self.requests_clusters[round][c] == 1:
+                                self.saRound(round, requests[round][c], c)
+                                self.requests_clusters[round][c] = 0
+                        if sum(self.requests_clusters[round].values()) == 0:
+                            if round == BalancedSARound.RemoveMasks.name:
+                                self.finalAggregation()
+                            break # end of this round
+                        continue
                     except:
                         print(f'[{self.__class__.__name__}] Exception: invalid request or unknown server error')
                         currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
@@ -101,6 +118,7 @@ class BalancedSAServer:
                                 for c in range(self.clusterNum):
                                     requests[round_t.name][c] = []
                                     self.requests_clusters[round_t.name][c] = 1
+                                    self.startTime[c] = time.time()
                             requests[self.verifyRound] = {c: [] for c in range(self.clusterNum)}
                             break
                     else: # check all nodes in cluster sent request
@@ -148,10 +166,11 @@ class BalancedSAServer:
 
         self.clusterNum = 1                                         # temp
         self.perGroup = {i: 4 for i in range(self.clusterNum)}      # at least 4 nodes # TODO balanced clustering
+        self.perLatency = {i: 10 for i in range(self.clusterNum)}   # define maximum latency(latency level) per cluster # TODO
         self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
         hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
 
-        list_ri, list_Ri = BalancedSA.generateRandomNonce(self.clusterNum, self.g, self.p, self.R)
+        list_ri, list_Ri = BalancedSA.generateRandomNonce(self.clusterNum, self.g, self.p)
         c = 0
         for i in range(self.clusterNum): # get all users' public key
             ri = list_ri[i]
@@ -198,6 +217,8 @@ class BalancedSAServer:
             response = {"emask": emask[index], "pmask": pmask}
             response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+        self.startTime[cluster] = time.time() # reset start time
 
     def aggregationInCluster(self, requests, cluster):
         all_users = [i for i in range(self.perGroup[cluster])]

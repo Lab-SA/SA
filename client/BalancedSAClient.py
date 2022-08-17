@@ -72,7 +72,7 @@ class BalancedSAClient:
         tag = BalancedSARound.ShareMasks.name
 
         while True: # repete until all member share valid masks
-            self.my_mask, encrypted_mask, public_mask = BalancedSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p, self.R)
+            self.my_mask, encrypted_mask, public_mask = BalancedSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p)
             request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             # print(self.my_mask, public_mask)
@@ -81,7 +81,6 @@ class BalancedSAClient:
             pmask = {int(key): value for key, value in response['pmask'].items()}
             # print(self.ri, self.Ri, pmask)
             self.others_mask = BalancedSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
-
             if self.others_mask != {}:
                 request = {'cluster': self.cluster, 'index': self.index}
                 sendRequest(self.HOST, self.PORT, self.verifyRound, request)
@@ -90,7 +89,7 @@ class BalancedSAClient:
     def sendSecureWeight(self): # send secure weight S
         tag = BalancedSARound.Aggregation.name
 
-        S = BalancedSA.generateSecureWeight(self.weight, self.ri, self.others_mask)
+        S = BalancedSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p)
         request = {'cluster': self.cluster, 'index': self.index, 'S': S}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 

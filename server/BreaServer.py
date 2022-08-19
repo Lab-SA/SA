@@ -44,22 +44,19 @@ class BreaServer(BasicSAServerV2):
 
         for i in range(self.n):
             response_ij = BreaSetupDto(
-                n = self.usersNow, 
+                n = self.usersNow,
                 t = self.t,
-                g = self.g, 
-                p = self.p, 
+                g = self.g,
+                p = self.p,
                 R = self.R,
                 theta = self.theta_list[i],
-                index = i, 
+                index = i,
                 data = [int(k) for k in user_groups[i]],
                 weights= str(self.model_weights_list)
             )._asdict()
             response_json = json.dumps(response_ij)
             clientSocket = requests[i][0]
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
-
-    # def secretSharing():
-    #     global usersNum
 
     def shareKeys(self, requests):
         # (one) request example: {"index": index, "shares": sij, "theta": theta }
@@ -156,6 +153,5 @@ class BreaServer(BasicSAServerV2):
 
 
 if __name__ == "__main__":
-    server = BreaServer(n=4, k=1)
-    for i in range(5):  # round
-        server.start()
+    server = BreaServer(n=1, k=5)
+    server.start()

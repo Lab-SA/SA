@@ -142,7 +142,9 @@ def computeReconstructionValue(drop_out, my_masks, masks):
     """
     RS = 0
     for k in drop_out:
-        RS = RS + masks[k] - my_masks[k]
+        try:
+            RS = RS + masks[k] - my_masks[k]
+        except KeyError: pass # drop out in shareMasks user
     return RS
 
 

@@ -2,6 +2,7 @@ import torch
 from iteration_utilities import deepflatten
 from .federated_main import args
 
+default_weights_size = 21840
 default_weights_info = {
     'conv1.weight': torch.Size([10, 1, 5, 5]),
     'conv1.bias': torch.Size([10]),

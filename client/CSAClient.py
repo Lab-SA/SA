@@ -1,4 +1,4 @@
-import os, sys, json
+import os, sys, json, random
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -95,7 +95,11 @@ class CSAClient:
     def sendSecureWeight(self): # send secure weight S
         tag = CSARound.Aggregation.name
 
-        S = CSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p)
+        if self.isBasic:    # BasicCSA
+            self.a = 0
+        else:               # FullCSA
+            self.a = random.randrange(1, self.p)
+        S = CSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p, self.a)
         request = {'cluster': self.cluster, 'index': self.index, 'S': S}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
@@ -106,9 +110,12 @@ class CSAClient:
     def sendMasksOfDropout(self): # send the masks of drop-out users
         tag = CSARound.RemoveMasks.name
 
+        request = {'cluster': self.cluster, 'index': self.index}
+        if not self.isBasic:
+            request['a'] = self.a
         while True:
             RS = CSA.computeReconstructionValue(self.survived, self.my_mask, self.others_mask, self.clusterN)
-            request = {'cluster': self.cluster, 'index': self.index, 'RS': RS}
+            request['RS'] = RS
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             self.survived = response['survived']
             if len(self.survived) == 0:

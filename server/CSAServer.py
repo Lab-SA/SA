@@ -257,13 +257,16 @@ class CSAServer:
         else:
             surv_S_list = []
             RS = 0
+            a = 0
             response = {'survived': []} # means no need to send RS
             response_json = bytes(json.dumps(response) + "\r\n", self.ENCODING)
             for (clientSocket, requestData) in requests:
                 surv_S_list.append(self.S_list[cluster][int(requestData['index'])])
                 RS += int(requestData['RS'])
+                if not self.isBasic:
+                    a += int(requestData['a'])
                 clientSocket.sendall(response_json)
-            self.IS[cluster] = list(sum(x) + RS for x in zip(*surv_S_list))
+            self.IS[cluster] = list(sum(x) + RS - a for x in zip(*surv_S_list))
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
 
         self.startTime[cluster] = time.time() # reset start time

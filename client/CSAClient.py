@@ -79,7 +79,7 @@ class CSAClient:
 
             emask = {int(key): value for key, value in response['emask'].items()}
             pmask = {int(key): value for key, value in response['pmask'].items()}
-            # print(self.ri, self.Ri, pmask)
+            # print(self.ri, self.Ri, self.index)
             self.others_mask = CSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
             if self.others_mask != {}:
                 request = {'cluster': self.cluster, 'index': self.index}

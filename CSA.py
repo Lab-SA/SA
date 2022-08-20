@@ -70,7 +70,12 @@ def generateMasks(idx, n, ri, pub_keys, g, p):
             else:
                 public_mask[k] = (g ** (p - 1 + m)) % p
         
-        if flag: break # repeat cause last mask is 0
+        if flag:
+            mul_Mkn = 1
+            for Mkn in public_mask.values():
+                mul_Mkn = (mul_Mkn * Mkn) % p
+            if (g ** ri) % p == mul_Mkn: break
+        #if flag: break # repeat cause last mask is 0
 
     return mask, encrypted_mask, public_mask
 
@@ -110,7 +115,6 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
             mul_Mkn = (mul_Mkn * Mkn) % p
         if Ri != mul_Mkn:
             print('Mask is Invalid. 2')
-            return mask # temp
             return {}
             #raise Exception('Mask is Invalid. 2')
     

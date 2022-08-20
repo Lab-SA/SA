@@ -17,6 +17,7 @@ class CSAClient:
     HOST = 'localhost'
     PORT = 7000
     verifyRound = 'verify'
+    isBasic = True # true if BasicCSA, else FullCSA
 
     n = g = p = R = 0 # common values
     cluster = clusterN = 0
@@ -27,6 +28,9 @@ class CSAClient:
     others_keys = {}  # other users' public key dic
     weight = {}
     model = {}
+
+    def __init__(self, isBasic):
+        self.isBasic = isBasic
 
     def setUp(self):
         tag = CSARound.SetUp.name
@@ -80,7 +84,9 @@ class CSAClient:
             emask = {int(key): value for key, value in response['emask'].items()}
             pmask = {int(key): value for key, value in response['pmask'].items()}
             # print(self.ri, self.Ri, self.index)
-            self.others_mask = CSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
+
+            self.nowN = len(pmask)
+            self.others_mask = CSA.verifyMasks(self.index, self.ri, emask, pmask, self.my_sk, self.g, self.p)
             if self.others_mask != {}:
                 request = {'cluster': self.cluster, 'index': self.index}
                 sendRequest(self.HOST, self.PORT, self.verifyRound, request)
@@ -93,20 +99,24 @@ class CSAClient:
         request = {'cluster': self.cluster, 'index': self.index, 'S': S}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
-        self.dropout = response['dropout']
-        if len(self.dropout) > 0:
+        self.survived = response['survived']
+        if not self.isBasic or len(self.survived) != self.nowN:
             self.sendMasksOfDropout()
 
     def sendMasksOfDropout(self): # send the masks of drop-out users
         tag = CSARound.RemoveMasks.name
 
-        RS = CSA.computeReconstructionValue(self.dropout, self.my_mask, self.others_mask)
-        request = {'cluster': self.cluster, 'index': self.index, 'RS': RS}
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
-        print(response)
+        while True:
+            RS = CSA.computeReconstructionValue(self.survived, self.my_mask, self.others_mask, self.clusterN)
+            request = {'cluster': self.cluster, 'index': self.index, 'RS': RS}
+            response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+            self.survived = response['survived']
+            if len(self.survived) == 0:
+                break
 
 if __name__ == "__main__":
-    client = CSAClient()
+    client = CSAClient(isBasic = True) # BasicCSA
+    # client = CSAClient(isBasic = False) # FullCSA
     client.setUp()
     client.shareRandomMasks()
     client.sendSecureWeight()

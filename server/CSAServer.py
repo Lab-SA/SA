@@ -20,8 +20,9 @@ class CSAServer:
     timeout = 3
     totalRound = 4 # CSA has 4 rounds
     verifyRound = 'verify'
-    startTime = {}
+    isBasic = True # true if BasicCSA, else FullCSA
 
+    startTime = {}
     userNum = {}
     requests = {}
 
@@ -29,12 +30,15 @@ class CSAServer:
     users_keys = {}
     R = 0
 
+    survived = {} # active user group per cluster
+    S_list = {}
     IS = {} # intermediate sum
     RS = {} # reconstruction value
 
-    def __init__(self, n, k):
+    def __init__(self, n, k, isBasic):
         self.n = n
         self.k = k # Repeat the entire process k times
+        self.isBasic = isBasic
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
         self.serverSocket.settimeout(self.timeout)
@@ -96,7 +100,7 @@ class CSAServer:
                                     requests[clientTag][c] = [] # clear
                             elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1:
                                 self.saRound(clientTag, requests[clientTag][c], c)
-                                self.requests_clusters[clientTag][c] = 0
+                                requests[clientTag][c] = [] # clear
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
                         break # end of this round
@@ -115,18 +119,20 @@ class CSAServer:
                                 self.requests_clusters[round_t.name][c] = 1
                                 self.startTime[c] = time.time()
                         requests[self.verifyRound] = {c: [] for c in range(self.clusterNum)}
+                        requests[clientTag][0] = [] # clear
                 else: # check all nodes in cluster sent request
                     for c in range(self.clusterNum):
+                        nowN = len(self.survived[c])
                         if clientTag == CSARound.ShareMasks.name:
                             if clientTag == self.verifyRound:
-                                if len(requests[self.verifyRound][c]) >= self.perGroup[c]: # verify ok
+                                if len(requests[self.verifyRound][c]) >= nowN: # verify ok
                                     self.requests_clusters[CSARound.ShareMasks.name][c] = 0
-                            elif self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= self.perGroup[c]:
+                            elif self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= nowN:
                                 self.saRound(clientTag, requests[clientTag][c], c)
                                 requests[clientTag][c] = [] # clear
-                        elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= self.perGroup[c]:
+                        elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= nowN:
                             self.saRound(clientTag, requests[clientTag][c], c)
-                            self.requests_clusters[clientTag][c] = 0
+                            requests[clientTag][c] = [] # clear
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
@@ -175,6 +181,7 @@ class CSAServer:
         c = 0
         for i in range(self.clusterNum):
             ri = list_ri[i]
+            self.survived[i] = [idx for idx in range(self.perGroup[i])]
             for j in range(self.perGroup[i]):
                 response_ij = BalancedSetupDto(
                     n = usersNow, 
@@ -198,11 +205,14 @@ class CSAServer:
     def shareMasks(self, requests, cluster):
         emask = {i: {} for i in range(self.perGroup[cluster])}
         pmask = {}
+        self.survived[cluster] = []
         for (clientSocket, requestData) in requests:
             index = requestData['index']
+            self.survived[cluster].append(int(index))
             pmask[index] = requestData['pmask']
             for k, mjk in requestData['emask'].items():
                 emask[int(k)][index] = mjk
+        # print(self.survived[cluster])
 
         # send response
         for (clientSocket, requestData) in requests:
@@ -214,41 +224,59 @@ class CSAServer:
         self.startTime[cluster] = time.time() # reset start time
 
     def aggregationInCluster(self, requests, cluster):
-        all_users = [i for i in range(self.perGroup[cluster])]
-        survived = []
+        beforeN = len(self.survived[cluster])
+        self.survived[cluster] = []
         for (clientSocket, requestData) in requests:
-            survived.append(int(requestData['index']))
-        dropout = list(set(all_users)-set(survived))
+            self.survived[cluster].append(int(requestData['index']))
 
-        response = {'dropout': dropout}
+        # print(self.survived[cluster])
+        response = {'survived': self.survived[cluster]}
         response_json = json.dumps(response)
-        if len(dropout) == 0: # no need RemoveMasks stage in this cluster (step3-1 x)
-            self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
 
-        S_list = []
+        self.S_list[cluster] = {}
         for (clientSocket, requestData) in requests:
-            S_list.append(requestData['S'])
+            self.S_list[cluster][int(requestData['index'])] = requestData['S']
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+        
+        if len(self.survived[cluster]) == beforeN and self.isBasic: # no need RemoveMasks stage in this cluster (step3-1 x)
+            self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
+            self.IS[cluster] = list(sum(x) for x in zip(*self.S_list[cluster].values())) # sum
 
-        self.IS[cluster] = list(sum(x) for x in zip(*S_list)) # sum
+        self.requests_clusters[CSARound.Aggregation.name][cluster] = 0
         self.startTime[cluster] = time.time() # reset start time
 
     def removeDropoutMasks(self, requests, cluster):
-        RS = 0
-        for (clientSocket, requestData) in requests:
-            RS += int(requestData['RS'])
-            clientSocket.sendall(bytes("OK" + "\r\n", self.ENCODING))
-        self.IS[cluster] = list(map(lambda x : x + RS, self.IS[cluster]))
+        if len(requests) != len(self.survived[cluster]): # dropout happened in recovery phase
+            self.survived[cluster] = []
+            for (clientSocket, requestData) in requests:
+                self.survived[cluster].append(int(requestData['index']))
+            response = {'survived': self.survived[cluster]}
+            response_json = bytes(json.dumps(response) + "\r\n", self.ENCODING)
+            for (clientSocket, requestData) in requests:
+                clientSocket.sendall(response_json)
+        else:
+            surv_S_list = []
+            RS = 0
+            response = {'survived': []} # means no need to send RS
+            response_json = bytes(json.dumps(response) + "\r\n", self.ENCODING)
+            for (clientSocket, requestData) in requests:
+                surv_S_list.append(self.S_list[cluster][int(requestData['index'])])
+                RS += int(requestData['RS'])
+                clientSocket.sendall(response_json)
+            self.IS[cluster] = list(sum(x) + RS for x in zip(*surv_S_list))
+            self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
+
         self.startTime[cluster] = time.time() # reset start time
     
     def finalAggregation(self):
         new_weights = list(sum(x) for x in zip(*self.IS.values())) # sum
-        print(new_weights)
+        print('final: ', new_weights)
 
     def close(self):
         self.serverSocket.close()
 
 
 if __name__ == "__main__":
-    server = CSAServer(n=4, k=1)
+    server = CSAServer(n=4, k=1, isBasic = True) # Basic CSA
+    # server = CSAServer(n=4, k=1, isBasic = False) # Full CSA
     server.start()

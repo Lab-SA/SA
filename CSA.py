@@ -80,12 +80,11 @@ def generateMasks(idx, n, ri, pub_keys, g, p):
     return mask, encrypted_mask, public_mask
 
 
-def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
+def verifyMasks(idx, ri, encrypted_mask, public_mask, sk, g, p):
     """ verify masks
     Args:
         idx (int): user's index (idx < n)
         ri (int): random nonce ri
-        n (int): number of nodes in a cluster
         encrypted_mask (dict): encrypted masks (of mkj)
         public_mask (2-dict): public masks in a cluster (Mnn)
         sk (bytes): secret key
@@ -121,34 +120,37 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
     return mask
 
 
-def generateSecureWeight(weight, ri, masks, p):
+def generateSecureWeight(weight, ri, masks, p, a = 0):
     """ generate secure weight Sj
     Args:
         weight (list): 1-d weight list
         ri (int): random nonce ri
         mask (dict): random masks (mkj)
         p (int): big prime number
+        a (int): random value [FullCSA]
     Returns:
         dict: secure weight Sj
     """
-    sum_mask = ri - (sum(masks.values()) % p)
+    sum_mask = ri - (sum(masks.values()) % p) + a
     return [w + sum_mask for w in weight]
 
 
-def computeReconstructionValue(drop_out, my_masks, masks):
+def computeReconstructionValue(survived, my_masks, masks, n):
     """ compute reconstruction value RSj
     Args:
-        drop_out (list): index list of drop-out users
+        survived (list): index list of survived(active) users
         my_masks (dict): random masks by this user (mjk)
         mask (dict): random masks by other users (mkj)
+        n (int): number of nodes in a cluster
     Returns:
         int: reconstruction value RSj
     """
     RS = 0
-    for k in drop_out:
-        try:
-            RS = RS + masks[k] - my_masks[k]
-        except KeyError: pass # drop out in shareMasks user
+    for k in range(n):
+        if k not in survived:
+            try:
+                RS = RS + masks[k] - my_masks[k]
+            except KeyError: pass # drop out in shareMasks user
     return RS
 
 
@@ -239,7 +241,7 @@ if __name__ == "__main__":
     
     e1 = {0: b0[1], 2: b2[1]}
     p1 = {0: c0, 1: c1, 2: c2}
-    verifyMasks(1, ri, n, e1, p1, sk1, g, p)
+    verifyMasks(1, ri, e1, p1, sk1, g, p)
 
 
     # IntermediateSum example
@@ -262,8 +264,8 @@ if __name__ == "__main__":
     if isDropout:
         # request Reconstruction Value RSj - R0, R1
         RS_dic = {}
-        RS_dic[0] = computeReconstructionValue(result, a0, m0)
-        RS_dic[1] = computeReconstructionValue(result, a1, m1)
+        RS_dic[0] = computeReconstructionValue(result, a0, m0, n)
+        RS_dic[1] = computeReconstructionValue(result, a1, m1, n)
 
         # after request RSj
         print(computeIntermediateSum({0: s0, 1: s1}, n, p, RS_dic))

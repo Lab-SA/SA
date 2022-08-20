@@ -2,23 +2,23 @@ import socket, json, time, sys, os
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-import BalancedSA
+import CSA
 from BasicSA import getCommonValues
-from CommonValue import BalancedSARound
+from CommonValue import CSARound
 from dto.BalancedSetupDto import BalancedSetupDto
 from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
 
-class BalancedSAServer:
+class CSAServer:
     host = 'localhost'
     port = 7000
     SIZE = 2048
     ENCODING = 'utf-8'
     interval = 10 # server waits in one round # second
     timeout = 3
-    totalRound = 4 # BalancedSA has 4 rounds
+    totalRound = 4 # CSA has 4 rounds
     verifyRound = 'verify'
     startTime = {}
 
@@ -48,12 +48,12 @@ class BalancedSAServer:
             # init
             self.users_keys = {}
 
-            requests = {round.name: {} for round in BalancedSARound}
-            self.requests_clusters = {round.name: {} for round in BalancedSARound} # check completion of clusters
-            requests[BalancedSARound.SetUp.name][0] = []
+            requests = {round.name: {} for round in CSARound}
+            self.requests_clusters = {round.name: {} for round in CSARound} # check completion of clusters
+            requests[CSARound.SetUp.name][0] = []
             requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
 
-            clientTag = BalancedSARound.SetUp.name
+            clientTag = CSARound.SetUp.name
             while True: # always listen
                 currentClient = socket
                 try:
@@ -75,7 +75,7 @@ class BalancedSAServer:
                     # request must contain {request: tag}
                     clientTag = requestData['request']
                     requestData.pop('request')
-                    if clientTag == BalancedSARound.SetUp.name:
+                    if clientTag == CSARound.SetUp.name:
                         cluster = 0
                     else:
                         cluster = int(requestData['cluster'])
@@ -84,20 +84,20 @@ class BalancedSAServer:
                     print(f'[{clientTag}] Client: {clientTag}/{addr}/{cluster}')
 
                 except socket.timeout:
-                    if clientTag == BalancedSARound.SetUp.name: continue
+                    if clientTag == CSARound.SetUp.name: continue
                     now = time.time()
                     for c in range(self.clusterNum):
                         if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
-                            if clientTag == BalancedSARound.ShareMasks.name:
+                            if clientTag == CSARound.ShareMasks.name:
                                 if len(requests[self.verifyRound][c]) >= 1: # verify
-                                    self.requests_clusters[BalancedSARound.ShareMasks.name][c] = 0
+                                    self.requests_clusters[CSARound.ShareMasks.name][c] = 0
                                 elif self.requests_clusters[clientTag][c] == 1:
                                     self.saRound(clientTag, requests[clientTag][c], c)
                                     requests[clientTag][c] = [] # clear
                             elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1:
                                 self.saRound(clientTag, requests[clientTag][c], c)
                                 self.requests_clusters[clientTag][c] = 0
-                    if sum(self.requests_clusters[BalancedSARound.RemoveMasks.name].values()) == 0:
+                    if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
                         break # end of this round
                     continue
@@ -106,10 +106,10 @@ class BalancedSAServer:
                     currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
                     pass
 
-                if clientTag == BalancedSARound.SetUp.name:
+                if clientTag == CSARound.SetUp.name:
                     if len(requests[clientTag][0]) >= self.n:
                         self.setUp(requests[clientTag][0])
-                        for round_t in BalancedSARound:
+                        for round_t in CSARound:
                             for c in range(self.clusterNum):
                                 requests[round_t.name][c] = []
                                 self.requests_clusters[round_t.name][c] = 1
@@ -117,10 +117,10 @@ class BalancedSAServer:
                         requests[self.verifyRound] = {c: [] for c in range(self.clusterNum)}
                 else: # check all nodes in cluster sent request
                     for c in range(self.clusterNum):
-                        if clientTag == BalancedSARound.ShareMasks.name:
+                        if clientTag == CSARound.ShareMasks.name:
                             if clientTag == self.verifyRound:
                                 if len(requests[self.verifyRound][c]) >= self.perGroup[c]: # verify ok
-                                    self.requests_clusters[BalancedSARound.ShareMasks.name][c] = 0
+                                    self.requests_clusters[CSARound.ShareMasks.name][c] = 0
                             elif self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= self.perGroup[c]:
                                 self.saRound(clientTag, requests[clientTag][c], c)
                                 requests[clientTag][c] = [] # clear
@@ -128,7 +128,7 @@ class BalancedSAServer:
                             self.saRound(clientTag, requests[clientTag][c], c)
                             self.requests_clusters[clientTag][c] = 0
 
-                    if sum(self.requests_clusters[BalancedSARound.RemoveMasks.name].values()) == 0:
+                    if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
                         break # end of this round
 
@@ -137,11 +137,11 @@ class BalancedSAServer:
         print(f'[{self.__class__.__name__}] Server finished')
 
     def saRound(self, tag, requests, cluster):
-        if tag == BalancedSARound.ShareMasks.name:
+        if tag == CSARound.ShareMasks.name:
             self.shareMasks(requests, cluster)
-        elif tag == BalancedSARound.Aggregation.name:
+        elif tag == CSARound.Aggregation.name:
             self.aggregationInCluster(requests, cluster)
-        elif tag == BalancedSARound.RemoveMasks.name:
+        elif tag == CSARound.RemoveMasks.name:
             self.removeDropoutMasks(requests, cluster)
 
     def setUp(self, requests):
@@ -163,7 +163,7 @@ class BalancedSAServer:
         self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
         hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
 
-        list_ri, list_Ri = BalancedSA.generateRandomNonce(self.clusterNum, self.g, self.p)
+        list_ri, list_Ri = CSA.generateRandomNonce(self.clusterNum, self.g, self.p)
         c = 0
         for i in range(self.clusterNum): # get all users' public key
             ri = list_ri[i]
@@ -181,7 +181,7 @@ class BalancedSAServer:
                     g = self.g, 
                     p = self.p, 
                     R = self.R, 
-                    encrypted_ri = BalancedSA.encrypt(self.users_keys[i][j], bytes(str(ri), 'ascii')).hex(),
+                    encrypted_ri = CSA.encrypt(self.users_keys[i][j], bytes(str(ri), 'ascii')).hex(),
                     Ri = list_Ri[i],
                     cluster = i,
                     clusterN = self.perGroup[i],
@@ -223,7 +223,7 @@ class BalancedSAServer:
         response = {'dropout': dropout}
         response_json = json.dumps(response)
         if len(dropout) == 0: # no need RemoveMasks stage in this cluster (step3-1 x)
-            self.requests_clusters[BalancedSARound.RemoveMasks.name][cluster] = 0
+            self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
 
         S_list = []
         for (clientSocket, requestData) in requests:
@@ -250,5 +250,5 @@ class BalancedSAServer:
 
 
 if __name__ == "__main__":
-    server = BalancedSAServer(n=4, k=1)
+    server = CSAServer(n=4, k=1)
     server.start()

@@ -2,8 +2,8 @@ import os, sys, json
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
-import BalancedSA
-from CommonValue import BalancedSARound
+import CSA
+from CommonValue import CSARound
 from BasicSAClient import sendRequestAndReceive, sendRequest
 import learning.federated_main as fl
 import learning.models_helper as mhelper
@@ -13,7 +13,7 @@ from ast import literal_eval
 SIZE = 2048
 ENCODING = 'utf-8'
 
-class BalancedSAClient:
+class CSAClient:
     HOST = 'localhost'
     PORT = 7000
     verifyRound = 'verify'
@@ -29,9 +29,9 @@ class BalancedSAClient:
     model = {}
 
     def setUp(self):
-        tag = BalancedSARound.SetUp.name
+        tag = CSARound.SetUp.name
 
-        self.my_sk, self.my_pk = BalancedSA.generateECCKey()
+        self.my_sk, self.my_pk = CSA.generateECCKey()
 
         # request with my public key (pk)
         # response: BalancedSetupDto
@@ -49,7 +49,7 @@ class BalancedSAClient:
         self.others_keys.pop(self.index)
 
         # decrypt ri and verity Ri = (g ** ri) mod p
-        self.ri = int(bytes.decode(BalancedSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
+        self.ri = int(bytes.decode(CSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
         self.Ri = int(setupDto.Ri)
         if self.Ri != (self.g ** self.ri) % self.p:
             print("Invalid Ri and ri.")
@@ -69,10 +69,10 @@ class BalancedSAClient:
         #self.weight = local_weight
     
     def shareRandomMasks(self): # send random masks
-        tag = BalancedSARound.ShareMasks.name
+        tag = CSARound.ShareMasks.name
 
         while True: # repete until all member share valid masks
-            self.my_mask, encrypted_mask, public_mask = BalancedSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p)
+            self.my_mask, encrypted_mask, public_mask = CSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p)
             request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             # print(self.my_mask, public_mask)
@@ -80,16 +80,16 @@ class BalancedSAClient:
             emask = {int(key): value for key, value in response['emask'].items()}
             pmask = {int(key): value for key, value in response['pmask'].items()}
             # print(self.ri, self.Ri, pmask)
-            self.others_mask = BalancedSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
+            self.others_mask = CSA.verifyMasks(self.index, self.ri, self.clusterN, emask, pmask, self.my_sk, self.g, self.p)
             if self.others_mask != {}:
                 request = {'cluster': self.cluster, 'index': self.index}
                 sendRequest(self.HOST, self.PORT, self.verifyRound, request)
                 break
 
     def sendSecureWeight(self): # send secure weight S
-        tag = BalancedSARound.Aggregation.name
+        tag = CSARound.Aggregation.name
 
-        S = BalancedSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p)
+        S = CSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p)
         request = {'cluster': self.cluster, 'index': self.index, 'S': S}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
@@ -98,15 +98,15 @@ class BalancedSAClient:
             self.sendMasksOfDropout()
 
     def sendMasksOfDropout(self): # send the masks of drop-out users
-        tag = BalancedSARound.RemoveMasks.name
+        tag = CSARound.RemoveMasks.name
 
-        RS = BalancedSA.computeReconstructionValue(self.dropout, self.my_mask, self.others_mask)
+        RS = CSA.computeReconstructionValue(self.dropout, self.my_mask, self.others_mask)
         request = {'cluster': self.cluster, 'index': self.index, 'RS': RS}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
         print(response)
 
 if __name__ == "__main__":
-    client = BalancedSAClient()
+    client = CSAClient()
     client.setUp()
     client.shareRandomMasks()
     client.sendSecureWeight()

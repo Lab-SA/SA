@@ -33,7 +33,6 @@ class CSAServer:
     survived = {} # active user group per cluster
     S_list = {}
     IS = {} # intermediate sum
-    RS = {} # reconstruction value
 
     def __init__(self, n, k, isBasic):
         self.n = n
@@ -51,6 +50,9 @@ class CSAServer:
         for j in range(self.k): # for k times        
             # init
             self.users_keys = {}
+            self.survived = {}
+            self.S_list = {}
+            self.IS = {}
 
             requests = {round.name: {} for round in CSARound}
             self.requests_clusters = {round.name: {} for round in CSARound} # check completion of clusters
@@ -272,14 +274,23 @@ class CSAServer:
         self.startTime[cluster] = time.time() # reset start time
     
     def finalAggregation(self):
-        new_weights = list(sum(x) for x in zip(*self.IS.values())) # sum
-        print('final: ', new_weights)
+        sum_weights = list(sum(x) for x in zip(*self.IS.values())) # sum
+        # print('final: ', sum_weights)
+
+        # update global model
+        new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
+        final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
+        average_weight = utils.average_weight(new_weight, final_userNum)
+        #print(average_weight['conv1.bias'])
+
+        self.model.load_state_dict(average_weight)
+        fl.test_model(self.model)
 
     def close(self):
         self.serverSocket.close()
 
 
 if __name__ == "__main__":
-    server = CSAServer(n=4, k=1, isBasic = True) # Basic CSA
+    server = CSAServer(n=4, k=3, isBasic = True) # Basic CSA
     # server = CSAServer(n=4, k=1, isBasic = False) # Full CSA
     server.start()

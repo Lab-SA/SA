@@ -64,13 +64,13 @@ class CSAClient:
         self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
 
-        self.weight = [1] # temp
-
-        #if self.model == {}:
-        #    self.model = fl.setup()
-        #fl.update_model(self.model, global_weights)
-        #local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
-        #self.weight = local_weight
+        #self.weight = [1] # temp
+        if self.model == {}:
+            self.model = fl.setup()
+        fl.update_model(self.model, global_weights)
+        local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
+        self.weights_info, self.weight = mhelper.flatten_tensor(local_weight)
+        #print(local_weight['conv1.bias'])
     
     def shareRandomMasks(self): # send random masks
         tag = CSARound.ShareMasks.name
@@ -87,6 +87,8 @@ class CSAClient:
 
             self.nowN = len(pmask)
             self.others_mask = CSA.verifyMasks(self.index, self.ri, emask, pmask, self.my_sk, self.g, self.p)
+            #print('my mask', self.my_mask)
+            #print('others mask', self.others_mask)
             if self.others_mask != {}:
                 request = {'cluster': self.cluster, 'index': self.index}
                 sendRequest(self.HOST, self.PORT, self.verifyRound, request)
@@ -100,6 +102,7 @@ class CSAClient:
         else:               # FullCSA
             self.a = random.randrange(1, self.p)
         S = CSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p, self.a)
+        #print(S[250:260])
         request = {'cluster': self.cluster, 'index': self.index, 'S': S}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
@@ -124,6 +127,7 @@ class CSAClient:
 if __name__ == "__main__":
     client = CSAClient(isBasic = True) # BasicCSA
     # client = CSAClient(isBasic = False) # FullCSA
-    client.setUp()
-    client.shareRandomMasks()
-    client.sendSecureWeight()
+    for _ in range(3):
+        client.setUp()
+        client.shareRandomMasks()
+        client.sendSecureWeight()

@@ -3,10 +3,9 @@ import socket, json, time, sys, os
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import CSA
-from BasicSA import getCommonValues
+from BasicSA import getCommonValues, convertToRealDomain
 from CommonValue import CSARound
 from dto.BalancedSetupDto import BalancedSetupDto
-from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
@@ -21,6 +20,7 @@ class CSAServer:
     totalRound = 4 # CSA has 4 rounds
     verifyRound = 'verify'
     isBasic = True # true if BasicCSA, else FullCSA
+    quantizationLevel = 30
 
     startTime = {}
     userNum = {}
@@ -274,8 +274,8 @@ class CSAServer:
         self.startTime[cluster] = time.time() # reset start time
     
     def finalAggregation(self):
-        sum_weights = list(sum(x) for x in zip(*self.IS.values())) # sum
-        # print('final: ', sum_weights)
+        sum_weights = list(sum(x) % self.p for x in zip(*self.IS.values())) # sum
+        sum_weights = convertToRealDomain(sum_weights, self.quantizationLevel, self.p)
 
         # update global model
         new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)

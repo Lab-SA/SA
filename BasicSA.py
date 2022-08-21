@@ -5,8 +5,8 @@ import SecureProtocol as sp
 from ast import literal_eval
 from learning.utils import sum_weights, add_to_weights
 
-g = 3 #temp
-p = 7 #temp #BREA -> p = 2 ** 32 - 5
+g = 31
+p = 131
 
 # Get common values for server set-up: n, t, ...
 def getCommonValues():
@@ -18,7 +18,7 @@ def getCommonValues():
     # _g, _p = sp.generator()
     # g = _g
     # p = _p
-    commonValues = {"g": 3, "p": 7, "R": R}
+    commonValues = {"g": g, "p": p, "R": R}
     return commonValues
 
 # Generate two key pairs

@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import CSA
 from CommonValue import CSARound
+from BasicSA import stochasticQuantization
 from BasicSAClient import sendRequestAndReceive, sendRequest
 import learning.federated_main as fl
 import learning.models_helper as mhelper
@@ -20,6 +21,7 @@ class CSAClient:
     isBasic = True # true if BasicCSA, else FullCSA
 
     n = g = p = R = 0 # common values
+    quantizationLevel = 30
     cluster = clusterN = 0
     index = 0
     ri = 0
@@ -70,6 +72,7 @@ class CSAClient:
         fl.update_model(self.model, global_weights)
         local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
         self.weights_info, self.weight = mhelper.flatten_tensor(local_weight)
+        self.weight = stochasticQuantization(self.weight, self.quantizationLevel, self.p)
         #print(local_weight['conv1.bias'])
     
     def shareRandomMasks(self): # send random masks

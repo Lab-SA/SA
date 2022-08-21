@@ -46,18 +46,18 @@ class CSAServer:
         # start!
         self.serverSocket.listen()
         print(f'[{self.__class__.__name__}] Server started')
-            
+
+        requests = {round.name: {} for round in CSARound}
+        self.requests_clusters = {round.name: {} for round in CSARound} # check completion of clusters
+        requests[CSARound.SetUp.name][0] = []
+        requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
+
         for j in range(self.k): # for k times        
             # init
             self.users_keys = {}
             self.survived = {}
             self.S_list = {}
             self.IS = {}
-
-            requests = {round.name: {} for round in CSARound}
-            self.requests_clusters = {round.name: {} for round in CSARound} # check completion of clusters
-            requests[CSARound.SetUp.name][0] = []
-            requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
 
             clientTag = CSARound.SetUp.name
             while True: # always listen

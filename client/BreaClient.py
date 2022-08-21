@@ -6,7 +6,7 @@ import numpy as np
 import Brea
 from dto.BreaSetupDto import BreaSetupDto
 from BasicSAClient import sendRequestAndReceive
-from CommonValue import BreaRound
+from CommonValue import BreaRound, BasicSARound
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 
@@ -20,33 +20,31 @@ class BreaClient:
     xu = 0
 
     index = 0  # user index
-    n = t = g = p = R = 0  # common values
+    commonValues = {} # g = p = R = 0
     model = {}
     weight = {}
     quantized_weight = {}
     rij = {}
     shares = {}
-    theta = 0
+    theta = {}
     others_shares = {}
     commitment = {}
     distance = []
     selected_user = {}
 
     def setUp(self):
-        tag = BreaRound.SetUp.name
+        tag = BasicSARound.SetUp.name
 
         # response: {"n": n, "t": t, "g": g, "p": p, "R": R, "data", "weights"}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, {})
-        setupDto = json.loads(json.dumps(response), object_hook=lambda d: BreaSetupDto(**d))  #
 
-        self.n = setupDto.n  # user num
-        self.t = setupDto.t  # threshold
-        self.g = setupDto.g
-        self.p = setupDto.p
-        self.R = setupDto.R
-        self.theta = setupDto.theta
-        self.index = setupDto.index  # user index
-        self.data = setupDto.data
+        self.commonValues = response
+        self.n = response["n"]
+        self.t = response["t"]
+        self.q = response["q"]
+        self.theta = response["theta"]
+        self.index = response["index"]
+        self.data = response["data"]
         global_weights = mhelper.dic_of_list_to_weights(response["weights"])
 
         if self.model == {}:
@@ -54,19 +52,19 @@ class BreaClient:
         fl.update_model(self.model, global_weights)
         local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0)  # epoch 0 (temp)
         self.weight = local_weight
+
         local_weights_list = mhelper.weights_to_dic_of_list(local_weight)
         weights_info, flatten_weights = mhelper.flatten_list(local_weights_list)
         self.flatten_weights = flatten_weights
 
-    def shareKeys(self):
-        tag = BreaRound.ShareKeys.name
+    def AdvertiseKeys(self):
+        tag = BasicSARound.AdvertiseKeys.name
 
         # generate theta and rij list
-        rij_list = Brea.generate_rij(self.t)
+        rij_list = Brea.generate_rij(self.t, self.q)
         self.rij = rij_list
-
         # generate shares and commitments
-        shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.index)
+        shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.q, self.commonValues["g"])
         self.shares = shares
         request = {"index": self.index, "shares": self.shares, "theta": self.theta}
 
@@ -80,10 +78,10 @@ class BreaClient:
         print(self.others_shares)
 
 
-    def shareCommitmentsVerifyShares(self):
-        tag = BreaRound.ShareCommitmentsVerifyShares.name
+    def ShareKeys(self):
+        tag = BasicSARound.ShareKeys.name
 
-        commitments = Brea.generate_commitments(self.rij)
+        commitments = Brea.generate_commitments(self.flatten_weights, self.rij, self.commonValues.g, self.q)
         self.commitment = commitments
         request = {"index": self.index, "commitment": self.commitment}
 
@@ -98,11 +96,11 @@ class BreaClient:
         print("verify result : ", result)
 
 
-    def computeDistance(self):
-        tag = BreaRound.ComputeDistance.name
+    def MaskedInputCollection(self):
+        tag = BasicSARound.MaskedInputCollection.name
 
-        # d(i)jk
-        distance = Brea.calculate_distance(self.others_shares, self.n, self.index)
+        # calculate 수정!
+        distance = Brea.calculate_distance(self.others_shares, self.n)
         self.distance = distance  # (j, k, d(i)jk)
         request = {"index": self.index, "distance": self.distance}
 
@@ -115,7 +113,7 @@ class BreaClient:
 
 
     def unMasking(self):
-        tag = BreaRound.Unmasking.name
+        tag = BasicSARound.Unmasking.name
         si = Brea.aggregate_share(self.others_shares, self.selected_user, self.index)
         request = {"si ", si}
 
@@ -126,7 +124,7 @@ if __name__ == "__main__":
     client = BreaClient()
     for i in range(5):  # round
         client.setUp()
-        client.shareKeys()
-        client.shareCommitmentsVerifyShares()
-        client.computeDistance()
+        client.AdvertiseKeys()
+        client.ShareKeys()
+        client.MaskedInputCollection()
         client.unMasking()

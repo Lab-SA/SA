@@ -8,34 +8,26 @@ from Turbo import generateLagrangePolynomial
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
-p = 7  # modulo p
-q = 3  # quantization level q
-bar_w = {}
-
 
 # make N theta_i
 # [호출] : 서버
-# [인자] : n(사용자수)
+# [인자] : n(사용자수), q
 # [리턴] : th(각 client들에 대한 theta list)
-def make_theta(n):
-    global p
-
+def make_theta(n, q):
     th = []
     for i in range(n):
-        th.append(random.randint(1, p))
+        th.append(random.randint(1, q))
     return th
 
 
-# Secret poly coefficients r_ij
+# Secret polynomium coefficients r_ij
 # [호출] : 클라이언트
-# [인자] : T(threshold)
+# [인자] : T(threshold), q
 # [리턴] : rij(사용자 i가 랜덤 생성한 계수)(j: 1~T)
-def generate_rij(T):
-    global p
-
-    rij = [0, ] # not using first index (0)
+def generate_rij(T, q):
+    rij = [0, ]  # not using first index (0)
     for j in range(T):
-        rij.append(random.randint(1, p))
+        rij.append(random.randint(1, q))
     return rij
 
 
@@ -51,25 +43,30 @@ def f(theta, w, T, rij):
 
 # make shares
 # [호출] : 클라이언트
-# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list
+# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list, g, q
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
-def make_shares(w, theta_list, T, rij_list):
+def make_shares(flatten_weights, theta_list, T, rij_list, g, q):
+    print("q:" + str(q)+" theta:"+str(theta_list))
+    bar_w = stochasticQuantization(np.array(flatten_weights), g, q)
     shares = []
     for theta in theta_list:
-        shares.append(f(theta, w, T, rij_list))
+        shares.append(f(theta, bar_w, T, rij_list))
     return shares
 
 
 # make commitment
 # [호출] : 클라이언트
-# [인자] : w, rij_list, g, q
+# [인자] : flatten_weights, rij_list, q, p
 # [리턴] : commitments (verify를 위한 commitment list)
-def generate_commitments(w, rij_list, g, q):
+def generate_commitments(flatten_weights, rij_list, q, p):
     commitments = []
+
+    bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
+
     for i, rij in enumerate(rij_list):
         if i == 0:
             c = []
-            for k in w:
+            for k in bar_w:
                 c.append(mod(g, int(np.max(k)), q))
             commitments.append(c)
             continue
@@ -127,6 +124,15 @@ def mod(theta, i, q):
 def calculate_distance(shares1, shares2):
     distance = abs(np.array(shares1) - np.array(shares2)) ** 2
     return distance
+
+# def calculate_distance(shares, n):
+#     distances = {}
+#     for j in range(n):
+#         distances[j] = {}
+#         for k in range(n):
+#             dis = abs(np.array(shares[j]) - np.array(shares[k])) ** 2
+#             distances[j][k] = dis
+#     return distances
 
 #[호출] : 서버
 #[인자] : theta(theta_list), distances(djk_list)
@@ -241,12 +247,12 @@ def update_weight(_wj, model):
 
 if __name__ == "__main__":
 
-    q = 7
-    g = 3
+    p = 7 # q -> p
+    q = 3 # g -> q
     n = 4 # N = 40
     T = 3 # T = 7
 
-
+    print(multi_krum(5, 3, [[0, 3, 9, 2, 1], [3, 0, 5, 2, 1], [9, 5, 0, 6, 1], [2, 2, 6, 0, 3], [1, 1, 1, 3, 0]]))
 
     model = fl.setup()
     my_model = fl.get_user_dataset(n)
@@ -255,18 +261,18 @@ if __name__ == "__main__":
     model_weights_list = mhelper.weights_to_dic_of_list(local_weight)
     weights_info, flatten_weights = mhelper.flatten_list(model_weights_list)
     
-    bar_w = stochasticQuantization(np.array(flatten_weights), g, q)
+    bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
     
-    theta_list = make_theta(n, q)
-    rij_list1 = generate_rij(T, q)
+    theta_list = make_theta(n, p)
+    rij_list1 = generate_rij(T, p)
 
-    rij_list2 = generate_rij(T, q)
+    rij_list2 = generate_rij(T, p)
     # print("rij_list2: ", rij_list2)
-    shares2 = make_shares(bar_w, theta_list, T, rij_list2)
+    shares2 = make_shares(bar_w, theta_list, T, rij_list2, q, p)
     #commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
-    commitments2 = generate_commitments(bar_w, rij_list2, g, q)
+    commitments2 = generate_commitments(bar_w, rij_list2, q, p)
 
-    result = verify(g, shares2[0], commitments2, theta_list[0], q)
+    result = verify(q, shares2[0], commitments2, theta_list[0], p)
     print("result: ", result)
 
     distance = calculate_distance(shares2[0], shares2[1])

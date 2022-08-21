@@ -16,6 +16,7 @@ class BreaServer(BasicSAServerV2):
     t = 1
     R = 0
     m = 4   # number of selecting user
+    q = 7
     usersNow = 0  # number of users survived
     surviving_users = []
     theta_list = {}
@@ -29,7 +30,7 @@ class BreaServer(BasicSAServerV2):
 
         self.usersNow = len(requests)
         self.t = int(self.usersNow / 2)  # threshold
-        self.theta_list = Brea.make_theta(self.usersNow)
+        self.theta_list = Brea.make_theta(self.usersNow, self.q)
 
         commonValues = getCommonValues()
         self.R = commonValues["R"]
@@ -39,26 +40,24 @@ class BreaServer(BasicSAServerV2):
         # model
         if self.model == {}:
             self.model = fl.setup()
-        self.model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
+        model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(self.usersNow)
 
         for i in range(self.n):
-            response_ij = BreaSetupDto(
-                n = self.usersNow,
-                t = self.t,
-                g = self.g,
-                p = self.p,
-                R = self.R,
-                theta = self.theta_list[i],
-                index = i,
-                data = [int(k) for k in user_groups[i]],
-                weights= str(self.model_weights_list)
-            )._asdict()
+            response_ij = copy.deepcopy(commonValues)
+            response_ij["n"] = self.usersNow
+            response_ij["t"] = self.t
+            response_ij["q"] = self.q
+            response_ij["theta"] = self.theta_list
+            response_ij["index"] = i
+            response_ij["data"] = [int(k) for k in user_groups[i]]
+            response_ij["weights"] = model_weights_list
+
             response_json = json.dumps(response_ij)
             clientSocket = requests[i][0]
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
-    def shareKeys(self, requests):
+    def AdvertiseKeys(self, requests):
         # (one) request example: {"index": index, "shares": sij, "theta": theta }
         # requests example: [{0: [([13]), ... ]}, {1: [(0), ... ]}, ... ]
         # sij : secret share from i for j
@@ -76,7 +75,7 @@ class BreaServer(BasicSAServerV2):
         self.foreach(requests, response)
 
 
-    def shareCommitmentsVerifyShares(self, requests):
+    def ShareKeys(self, requests):
         # (one) request example: {"index": index, "commitment": cij }
         # requests example: [{0: [([1]), ... ]}, {1: [(2187), ... ]}, ... ]
         # cij : commitment from i
@@ -93,7 +92,7 @@ class BreaServer(BasicSAServerV2):
         self.broadcast(requests, response)
 
 
-    def computeDistanceSelectUser(self, requests):
+    def MaskedInputCollection(self, requests):
 
         # d(i)jk 받아서 jk를 기준으로 d(i)를 배열로 만든다. (쳌)
         # 그러고 그를 바탕으로 _djk를 만든다

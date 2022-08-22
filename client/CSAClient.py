@@ -8,7 +8,7 @@ from BasicSA import stochasticQuantization
 from BasicSAClient import sendRequestAndReceive, sendRequest
 import learning.federated_main as fl
 import learning.models_helper as mhelper
-from dto.BalancedSetupDto import BalancedSetupDto
+from dto.CSASetupDto import CSASetupDto
 from ast import literal_eval
 
 SIZE = 2048
@@ -40,9 +40,9 @@ class CSAClient:
         self.my_sk, self.my_pk = CSA.generateECCKey()
 
         # request with my public key (pk)
-        # response: BalancedSetupDto
+        # response: CSASetupDto
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk.hex()})
-        setupDto = json.loads(json.dumps(response), object_hook=lambda d: BalancedSetupDto(**d))
+        setupDto = json.loads(json.dumps(response), object_hook=lambda d: CSASetupDto(**d))
         
         self.n = setupDto.n
         self.g = setupDto.g

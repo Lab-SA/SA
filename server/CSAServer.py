@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 import CSA
 from BasicSA import getCommonValues, convertToRealDomain
 from CommonValue import CSARound
-from dto.BalancedSetupDto import BalancedSetupDto
+from dto.CSASetupDto import CSASetupDto
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
@@ -185,7 +185,7 @@ class CSAServer:
             ri = list_ri[i]
             self.survived[i] = [idx for idx in range(self.perGroup[i])]
             for j in range(self.perGroup[i]):
-                response_ij = BalancedSetupDto(
+                response_ij = CSASetupDto(
                     n = usersNow, 
                     g = self.g, 
                     p = self.p, 

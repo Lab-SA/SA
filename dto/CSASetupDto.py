@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-class BalancedSetupDto(NamedTuple):
+class CSASetupDto(NamedTuple):
     n: int
     g: int
     p: int

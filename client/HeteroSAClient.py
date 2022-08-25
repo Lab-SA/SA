@@ -19,7 +19,6 @@ class HeteroSAClient:
     PORT = 7000
     xu = 0  # temp. local model of this client
 
-    u = 0  # u = user index
     n = t = g = p = R = 0 # common values
     group = 0
     index = 0
@@ -92,16 +91,15 @@ class HeteroSAClient:
 
         # t = threshold, u = user index
         # request = [[u, v1, euv], [u, v2, euv], ...]
-        euv_list, bu = sa.generateSharesOfMask(
+        self.euv_list, self.bu = sa.generateSharesOfMask(
             self.t,
             self.index,
             self.my_keys["s_sk"], 
             self.my_keys["c_sk"], 
             self.c_pk_dic,
-            self.R)
-        self.euv_list = euv_list
-        self.bu = bu
-        request = {self.index: euv_list}
+            self.R
+        )
+        request = {"index": self.index, "euv": self.euv_list}
 
         # receive euv_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
@@ -154,7 +152,8 @@ class HeteroSAClient:
             self.others_euv, 
             self.c_pk_dic,
             U2, 
-            self.U3)
+            self.U3
+        )
         # requests example: {"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk, ...}, "bu_shares": {1: b10, 4: b40, ...}]}
         request = {"index": self.index, "ssk_shares": str(s_sk_shares_dic), "bu_shares": str(bu_shares_dic)}
         print(request)

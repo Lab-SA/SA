@@ -96,7 +96,7 @@ class BasicSAClient:
         self.my_keys["c_sk"] = c_sk 
         self.my_keys["s_pk"] = s_pk
         self.my_keys["s_sk"] = s_sk
-        request = {"c_pk": c_pk, "s_pk": s_pk}
+        request = {"index": self.u, "c_pk": c_pk, "s_pk": s_pk}
 
         # send {"c_pk": c_pk, "s_pk": s_pk} to server in json format
         # receive other users' public keys from server in json format

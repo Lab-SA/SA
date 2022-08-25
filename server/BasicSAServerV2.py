@@ -161,11 +161,10 @@ class BasicSAServerV2:
         
         # response example: {0: {"index":0, "c_pk":"VALUE", "s_pk": "VALUE"}, 1: {"index":0, "c_pk":"VALUE", "s_pk": "VALUE"} }
         response = {}
-        for v, request in enumerate(requests):
-            requestData = request[1]  # (socket, data)
-            self.users_keys[v] = requestData  # store on server
-            requestData['index'] = v # add index
-            response[v] = requestData
+        for _, requestData in requests: # (socket, data)
+            index = requestData['index']
+            self.users_keys[index] = requestData  # store on server
+            response[index] = requestData
         self.broadcast(requests, response)
 
     def shareKeys(self, requests):

@@ -28,14 +28,14 @@ def gcd(a, b):
 # key generate
 def generateKeyPair(g, p):
     pri_key = random.randrange(50000, 90000) #temp
-    pub_key = g ** pri_key % p
+    pub_key = (g ** pri_key) % p
     return pub_key, pri_key
 
 # key agreement with hash function (md5)
 # return 128bit key
 def agree(sk, pk, p):
     # key = H((g^a)^b)
-    key = pk ** sk % p
+    key = (pk ** sk) % p
     # key agreement composed with a hash function md5: generate 128-bit key
     return hashlib.md5(bytes(key)).hexdigest()
 

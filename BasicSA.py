@@ -40,6 +40,7 @@ def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
 
     for i, user_dic in users.items():
         v = int(i)
+        if u == v: continue
         c_pk = user_dic["c_pk"]
         s_uv = sp.agree(c_sk, c_pk, p)
         plainText = str([u, v, s_sk_shares_list[v], bu_shares_list[v]])

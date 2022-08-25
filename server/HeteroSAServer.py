@@ -13,6 +13,7 @@ import learning.models_helper as mhelper
 
 class HeteroSAServer(BasicSAServerV2):
     users_keys = {}
+    port = 7002
     n = 4 # expected (== G * perGroup == G * G)
     t = 1
     R = 0

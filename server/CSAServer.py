@@ -12,7 +12,7 @@ import learning.utils as utils
 
 class CSAServer:
     host = 'localhost'
-    port = 7000
+    port = 8000
     SIZE = 2048
     ENCODING = 'utf-8'
     interval = 10 # server waits in one round # second

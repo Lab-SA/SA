@@ -16,7 +16,7 @@ ENCODING = 'utf-8'
 
 class CSAClient:
     HOST = 'localhost'
-    PORT = 7000
+    PORT = 8000
     verifyRound = 'verify'
     isBasic = True # true if BasicCSA, else FullCSA
 

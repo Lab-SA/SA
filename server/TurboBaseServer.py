@@ -10,7 +10,7 @@ import learning.models_helper as mhelper
 
 class TurboServer:
     host = 'localhost'
-    port = 7000
+    port = 7001
     SIZE = 2048
     ENCODING = 'utf-8'
     t = 1 # threshold

@@ -83,8 +83,7 @@ class HeteroSAServer(BasicSAServerV2):
 
         # make response
         # response example: {"INDEX": ("c_pk":"VALUE", "s_pk": "VALUE")}
-        for request in requests:
-            requestData = request[1]  # (socket, data)
+        for _, requestData in requests: # (socket, data)
             index = requestData["index"]
             self.users_keys[index] = {"c_pk": requestData["c_pk"], "s_pk": requestData["s_pk"]}
         self.broadcast(requests, self.users_keys)
@@ -93,25 +92,20 @@ class HeteroSAServer(BasicSAServerV2):
     def shareKeys(self, requests):
         # (one) request example: {0: [(0, 0, e00), (0, 1, e01) ... ]}
         # requests example: [{0: [(0, 0, e00), ... ]}, {1: [(1, 0, e10), ... ]}, ... ]
-
         # response example: { 0: [e00, e10, e20, ...], 1: [e01, e11, e21, ... ] ... }
-        response = {}
-        requests_euv = []
-        for request in requests:
-            requestData = request[1]  # (socket, data)
-            for idx, data in requestData.items(): #only one
-                response[idx] = {}  # make dic
-                requests_euv.append(data)
-        for request in requests_euv:
-            for (u, v, euv) in request:
-                try:
-                    response[str(v)][u] = euv
-                except KeyError:  # drop-out
-                    print("KeyError: drop-out!")
-                    pass
 
-        self.foreach(requests, response)
-    
+        euvs = {}
+        for _, requestData in requests: # (socket, data)
+            for u, v, euv in requestData['euv']:
+                if euvs.get(v) is None:
+                    euvs[v] = {}
+                euvs[v][u] = euv
+
+        # send response
+        for clientSocket, requestData in requests:
+            index = requestData['index']
+            response_json = json.dumps(euvs[index])
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
     def maskedInputCollection(self, requests):
         # if u3 dropped
@@ -119,8 +113,7 @@ class HeteroSAServer(BasicSAServerV2):
 
         # response example: { "users": [0, 1, 2 ... ] }
         self.segment_yu = {i: {j: [] for j in range(self.G)} for i in range(self.G)} # i: segment level, j: quantization level
-        for request in requests:
-            requestData = request[1]  # (socket, data)
+        for _, requestData in requests: # (socket, data)
             index = int(requestData["index"])
             self.surviving_users.append(index)
             for i, segment in requestData["segment_yu"].items():
@@ -139,9 +132,7 @@ class HeteroSAServer(BasicSAServerV2):
         bu_shares_dic = {}       # {0: [b10, b04, ... ], 1: [b10, b14, ... ], ... }
 
         # get s_sk_shares_dic, bu_shares_dic of user2\3, user3
-        for request in requests:
-            requestData = request[1]  # (socket, data)
-
+        for _, requestData in requests: # (socket, data)
             ssk_shares = literal_eval(requestData["ssk_shares"])
             for i, share in ssk_shares.items():
                 try: 

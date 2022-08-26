@@ -29,18 +29,19 @@ def generateKeyPairs():
     return (c_pk, c_sk), (s_pk, s_sk)
 
 # Generate secret-shares of s_sk and bu and encrypt those data
-# users [dictionary]: all users of the current round
-def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
+# c_pk_dic [dictionary]: all users' c_pk of the current round
+def generateSharesOfMask(t, u, s_sk, c_sk, c_pk_dic, R):
     global p
 
+    n = len(c_pk_dic)
     bu = random.randrange(1, R) # 1~R
-    s_sk_shares_list = sp.make_shares(s_sk, t, len(users))
-    bu_shares_list = sp.make_shares(bu, t, len(users))
+    s_sk_shares_list = sp.make_shares(s_sk, t, n)
+    bu_shares_list = sp.make_shares(bu, t, n)
     euv_list = []
 
-    for i, user_dic in users.items():
+    for i, c_pk in c_pk_dic.items():
         v = int(i)
-        c_pk = user_dic["c_pk"]
+        if u == v: continue
         s_uv = sp.agree(c_sk, c_pk, p)
         plainText = str([u, v, s_sk_shares_list[v], bu_shares_list[v]])
         euv = sp.encrypt(s_uv, plainText)

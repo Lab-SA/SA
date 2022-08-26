@@ -66,7 +66,8 @@ if __name__ == "__main__":
 
     host = 'localhost'
     port = 6000
-    args = {'t': int(n/2), 'perGroup': 2, 'G': 2, 'qLevel': 30}
+    quantization_levels = [20, 30, 60, 80, 100]
+    args = {'t': int(n/2), 'perGroup': 2, 'G': 2, 'qLevel': 30, 'quantization_levels': quantization_levels}
     sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
 
     # thread

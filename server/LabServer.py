@@ -18,7 +18,7 @@ def runServer(mode, k, n, args):
 
     elif mode == 3: # HeteroSA
         # WARN G == perGroup
-        server = HeteroSAServer(n=n, k=k, t=args['t'], G=args['G'], perGroup=args['perGroup'])
+        server = HeteroSAServer(n=n, k=k, t=args['t'], G=args['G'], perGroup=args['perGroup'], quantization_levels=args['quantization_levels'])
         server.start()
 
     elif mode == 4: # BasicCSA

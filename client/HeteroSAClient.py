@@ -25,6 +25,7 @@ class HeteroSAClient:
     index = 0
     B = []
     G = perGroup = 0
+    quantization_levels = []
     
     my_keys = {}  # c_pk, c_sk, s_pk, s_sk of this client
     others_keys = {}  # other users' public key dic\
@@ -51,6 +52,7 @@ class HeteroSAClient:
         self.index = setupDto.index
         self.B = setupDto.B
         self.G = self.perGroup = setupDto.G # (For now,) G == groups num == users num of one group
+        self.quantization_levels = setupDto.quantization_levels
 
         self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
@@ -127,8 +129,9 @@ class HeteroSAClient:
                 self.group,
                 self.perGroup,
                 self.weights_interval,
-                self.euv_list, 
-                s_pk_dic,
+                self.euv_list,
+                self.s_pk_dic,
+                self.quantization_levels,
                 self.p,
                 self.R
         )

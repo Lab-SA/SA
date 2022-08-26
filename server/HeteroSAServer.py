@@ -24,10 +24,11 @@ class HeteroSAServer(BasicSAServerV2):
     segment_yu = {}
     surviving_users = []
 
-    def __init__(self, n, k, t, G, perGroup):
+    def __init__(self, n, k, t, G, perGroup, quantization_levels):
         super().__init__(n, k, t)
         self.G = G
         self.perGroup = perGroup
+        self.quantization_levels = quantization_levels
 
     # broadcast common value
     def setUp(self, requests):
@@ -72,6 +73,7 @@ class HeteroSAServer(BasicSAServerV2):
                     index = idx, 
                     B = self.B, 
                     G = self.G,
+                    quantization_levels = self.quantization_levels,
                     data = [int(k) for k in user_groups[idx]],
                     weights= str(model_weights_list),
                     weights_interval = weights_interval
@@ -171,7 +173,8 @@ class HeteroSAServer(BasicSAServerV2):
             self.surviving_users, 
             self.users_keys, 
             s_sk_dic,
-            bu_shares_dic, 
+            bu_shares_dic,
+            self.quantization_levels,
             self.R
         )
         #print(f'segment_xu: {segment_xu}')
@@ -191,5 +194,6 @@ class HeteroSAServer(BasicSAServerV2):
         fl.test_model(self.model)
 
 if __name__ == "__main__":
-    server = HeteroSAServer(n=4, k=5, t=2, G=2, perGroup=2)
+    quantization_levels = [20, 30, 60, 80, 100]
+    server = HeteroSAServer(n=4, k=5, t=2, G=2, perGroup=2, quantization_levels=quantization_levels)
     server.start()

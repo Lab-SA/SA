@@ -66,7 +66,8 @@ if __name__ == "__main__":
 
     host = 'localhost'
     port = 6000
-    sendRequest(host, port, mode, {'n': n, 'k': k})
+    args = {'t': int(n/2), 'perGroup': 2, 'G': 2, 'qLevel': 30}
+    sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
 
     # thread
     for _ in range(n):

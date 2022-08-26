@@ -35,9 +35,11 @@ class TurboServer:
     drop_out = {}
     alpha = beta = []
 
-    def __init__(self, n, k):
-        self.n = n
+    def __init__(self, n, k, t, perGroup):
+        self.n = n # MUST be multiple of perGroup
         self.k = k # Repeat the entire process k times
+        self.t = t # threshold
+        self.perGroup = perGroup # number of clients per group
 
     def start(self):
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -230,9 +232,8 @@ class TurboServer:
         commonValues = getCommonValues()
         self.R = commonValues["R"]
         commonValues["n"] = self.n
-        commonValues["t"] = self.t = 1
-
-        commonValues["perGroup"] = self.perGroup = 2
+        commonValues["t"] = self.t
+        commonValues["perGroup"] = self.perGroup
 
         # generate common alpha/beta
         commonValues["alpha"], commonValues["beta"] = self.alpha, self.beta = generateRandomVectorSet(self.perGroup, commonValues["p"])
@@ -349,5 +350,5 @@ class TurboServer:
         print(f'[Turbo] Server finished')
 
 if __name__ == "__main__":
-    server = TurboServer(n=4, k=3)
+    server = TurboServer(n=4, k=3, t=2, perGroup=2)
     server.start()

@@ -5,27 +5,28 @@ from TurboBaseServer import TurboServer
 from HeteroSAServer import HeteroSAServer
 from CSAServer import CSAServer
 
-def runServer(mode, k, n):
+def runServer(mode, k, n, args):
     if mode == 0: # BasicSA
-        server = BasicSAServerV2(n=n, k=k)
+        server = BasicSAServerV2(n=n, k=k, t=args['t'])
         server.start()
 
     elif mode == 1: # Turbo
-        server = TurboServer(n=n, k=k)
+        server = TurboServer(n=n, k=k, t=args['t'], perGroup=args['perGroup'])
         server.start()
 
     #elif mode == 2: # BREA
 
     elif mode == 3: # HeteroSA
-        server = HeteroSAServer(n=n, k=k)
+        # WARN G == perGroup
+        server = HeteroSAServer(n=n, k=k, t=args['t'], G=args['G'], perGroup=args['perGroup'])
         server.start()
 
     elif mode == 4: # BasicCSA
-        server = CSAServer(n=n, k=k, isBasic = True)
+        server = CSAServer(n=n, k=k, isBasic=True, qLevel=args['qLevel'])
         server.start()
 
     elif mode == 5: # FullCSA
-        server = CSAServer(n=n, k=k, isBasic = False)
+        server = CSAServer(n=n, k=k, isBasic=False, qLevel=args['qLevel'])
         server.start()
 
 
@@ -59,8 +60,9 @@ class LabServer:
                     request = request + received
 
                 requestData = json.loads(request)
-                k = int(requestData['k'])    # rounds
-                n = int(requestData['n'])    # number of users
+                k = int(requestData['k'])       # rounds
+                n = int(requestData['n'])       # number of users
+                args = requestData['args']      # additional arguments (dict)
                 mode = int(requestData['request'])
                 """ mode
                 0: BasicSA Client
@@ -74,7 +76,7 @@ class LabServer:
                     raise AttributeError
 
                 print(f'[SERVER] Client: {addr}, request: {request}')
-                thread = threading.Thread(target=runServer, args=(mode, k, n))
+                thread = threading.Thread(target=runServer, args=(mode, k, n, args))
                 thread.start()
 
             except socket.timeout:

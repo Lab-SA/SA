@@ -24,8 +24,10 @@ class HeteroSAServer(BasicSAServerV2):
     segment_yu = {}
     surviving_users = []
 
-    def __init__(self, n, k):
-        super().__init__(n, k)
+    def __init__(self, n, k, t, G, perGroup):
+        super().__init__(n, k, t)
+        self.G = G
+        self.perGroup = perGroup
 
     # broadcast common value
     def setUp(self, requests):
@@ -35,7 +37,6 @@ class HeteroSAServer(BasicSAServerV2):
         self.surviving_users = []
 
         self.usersNow = len(requests)
-        self.t = int(self.usersNow / 2) # threshold
 
         commonValues = getCommonValues()
         self.R = commonValues["R"]
@@ -190,5 +191,5 @@ class HeteroSAServer(BasicSAServerV2):
         fl.test_model(self.model)
 
 if __name__ == "__main__":
-    server = HeteroSAServer(n=4, k=5)
+    server = HeteroSAServer(n=4, k=5, t=2, G=2, perGroup=2)
     server.start()

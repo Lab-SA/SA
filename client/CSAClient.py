@@ -51,6 +51,7 @@ class CSAClient:
         self.cluster = setupDto.cluster
         self.clusterN = setupDto.clusterN
         self.index = setupDto.index
+        self.quantizationLevel = setupDto.qLevel
         self.others_keys = {int(key): value for key, value in literal_eval(setupDto.cluster_keys).items()}
         self.others_keys.pop(self.index)
 

@@ -21,6 +21,7 @@ class BreaClient:
 
     index = 0  # user index
     commonValues = {} # g = p = R = 0
+    n = t = q = 0
     model = {}
     weight = {}
     quantized_weight = {}
@@ -33,7 +34,7 @@ class BreaClient:
     selected_user = {}
 
     def setUp(self):
-        tag = BasicSARound.SetUp.name
+        tag = BreaRound.SetUp.name
 
         # response: {"n": n, "t": t, "g": g, "p": p, "R": R, "data", "weights"}
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, {})
@@ -57,14 +58,14 @@ class BreaClient:
         weights_info, flatten_weights = mhelper.flatten_list(local_weights_list)
         self.flatten_weights = flatten_weights
 
-    def AdvertiseKeys(self):
-        tag = BasicSARound.AdvertiseKeys.name
+    def ShareKeys(self):
+        tag = BreaRound.ShareKeys.name
 
         # generate theta and rij list
         rij_list = Brea.generate_rij(self.t, self.q)
         self.rij = rij_list
         # generate shares and commitments
-        shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.q, self.commonValues["g"])
+        shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.q, self.commonValues["p"])
         self.shares = shares
         request = {"index": self.index, "shares": self.shares, "theta": self.theta}
 
@@ -78,10 +79,10 @@ class BreaClient:
         print(self.others_shares)
 
 
-    def ShareKeys(self):
-        tag = BasicSARound.ShareKeys.name
+    def ShareCommitmentsVerifyShares(self):
+        tag = BreaRound.ShareCommitmentsVerifyShares.name
 
-        commitments = Brea.generate_commitments(self.flatten_weights, self.rij, self.commonValues.g, self.q)
+        commitments = Brea.generate_commitments(self.flatten_weights, self.rij, self.q, self.commonValues["p"])
         self.commitment = commitments
         request = {"index": self.index, "commitment": self.commitment}
 
@@ -96,8 +97,8 @@ class BreaClient:
         print("verify result : ", result)
 
 
-    def MaskedInputCollection(self):
-        tag = BasicSARound.MaskedInputCollection.name
+    def ComputeDistance(self):
+        tag = BreaRound.ComputeDistance.name
 
         # calculate 수정!
         distance = Brea.calculate_distance(self.others_shares, self.n)
@@ -124,7 +125,7 @@ if __name__ == "__main__":
     client = BreaClient()
     for i in range(5):  # round
         client.setUp()
-        client.AdvertiseKeys()
         client.ShareKeys()
-        client.MaskedInputCollection()
+        client.ShareCommitmentsVerifyShares()
+        client.ComputeDistance()
         client.unMasking()

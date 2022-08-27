@@ -43,11 +43,10 @@ def f(theta, w, T, rij):
 
 # make shares
 # [호출] : 클라이언트
-# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list, g, q
+# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list, q, p
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
-def make_shares(flatten_weights, theta_list, T, rij_list, g, q):
-    print("q:" + str(q)+" theta:"+str(theta_list))
-    bar_w = stochasticQuantization(np.array(flatten_weights), g, q)
+def make_shares(flatten_weights, theta_list, T, rij_list, q, p):
+    bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
     shares = []
     for theta in theta_list:
         shares.append(f(theta, bar_w, T, rij_list))
@@ -67,35 +66,35 @@ def generate_commitments(flatten_weights, rij_list, q, p):
         if i == 0:
             c = []
             for k in bar_w:
-                c.append(mod(g, int(np.max(k)), q))
+                c.append(mod(q, int(np.max(k)), p))
             commitments.append(c)
             continue
 
-        commitments.append(np.array(mod(g, rij, q), dtype = np.float64))
+        commitments.append(np.array(mod(q, rij, p), dtype = np.float64))
     
     return commitments
 
 
 # verify commitments
 # [호출] : 클라이언트
-# [인자] : g, share(i 에게서 받은 share), commitments(i 가 생성한 commitment list), theta(자신의 theta), q
+# [인자] : q, share(i 에게서 받은 share), commitments(i 가 생성한 commitment list), theta(자신의 theta), p
 # [리턴] : boolean
-def verify(g, share, commitments, theta, q):
+def verify(q, share, commitments, theta, p):
     tmp_x = []
     for s in share:
-        tmp_x.append(mod(g, int(np.max(s)), q))
+        tmp_x.append(mod(q, int(np.max(s)), p))
     x = np.array(tmp_x)
     
     y = 1
     for i, c in enumerate(commitments):
         if i == 0:
-            m = mod(theta, i, q)
-            y = y * mod(np.array(c), m, q)
+            m = mod(theta, i, p)
+            y = y * mod(np.array(c), m, p)
         else:
-            m = mod(theta, i, q)
-            y = y * mod(c,m,q)
+            m = mod(theta, i, p)
+            y = y * mod(c,m,p)
 
-    y = y % q
+    y = y % p
 
     # f = open('result.txt', 'w')
     # f.write(str(x))
@@ -111,10 +110,10 @@ def verify(g, share, commitments, theta, q):
     
     return result
 
-def mod(theta, i, q):
+def mod(theta, i, p):
     ret = 1
     for idx in range(i):
-        ret = ret * theta % q 
+        ret = ret * theta % p
     return ret
 
 
@@ -143,10 +142,10 @@ def calculate_djk_from_h_polynomial(theta, distances):
     return djk
 
 #[호출] : 서버
-#[인자] : _djk(hjk(0)), p, g(처음에 지정해준 p, g)
+#[인자] : _djk(hjk(0)), p, q
 #[리턴] : 실수 djk
 def real_domain_djk(_djk, p, q):
-    if(_djk >= ((p-1)/2) and _djk < p):
+    if ((p - 1) / 2) <= _djk < p:
        _djk = _djk - p
     djk = _djk / (q ** 2)
     return djk

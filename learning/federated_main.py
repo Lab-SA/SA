@@ -124,7 +124,7 @@ def add_accuracy(list_acc, epoch):
 
 # [호츌] : 서버
 # [인자] : global_model
-# [리턴] : X
+# [리턴] : test accuracy
 # # 모든 학습이 끝난후 출력 
 def test_model(global_model):
     global train_accuracy, args
@@ -145,3 +145,4 @@ def test_model(global_model):
     #     pickle.dump([train_loss, train_accuracy], f)
     global start_time
     print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
+    return 100*test_acc

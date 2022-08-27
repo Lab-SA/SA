@@ -25,6 +25,7 @@ class CSAServer:
     startTime = {}
     userNum = {}
     requests = {}
+    run_data = []
 
     model = {}
     users_keys = {}
@@ -53,7 +54,12 @@ class CSAServer:
         requests[CSARound.SetUp.name][0] = []
         requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
 
-        for j in range(self.k): # for k times        
+        for j in range(self.k): # for k times
+            # time
+            self.start = time.time()
+            self.setupTime = 0
+            self.totalTime = 0
+
             # init
             self.users_keys = {}
             self.survived = {}
@@ -80,6 +86,9 @@ class CSAServer:
 
                     requestData = json.loads(request)
                     # request must contain {request: tag}
+                    if requestData['request'] == 'table': # request data
+                        clientSocket.sendall(bytes(json.dumps({'data': self.run_data}) + "\r\n", self.ENCODING))
+                        continue
                     clientTag = requestData['request']
                     requestData.pop('request')
                     if clientTag == CSARound.SetUp.name:
@@ -106,6 +115,7 @@ class CSAServer:
                                 requests[clientTag][c] = [] # clear
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
+                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
                         break # end of this round
                     continue
                 except:
@@ -139,6 +149,7 @@ class CSAServer:
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
+                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
                         break # end of this round
 
         # End
@@ -205,6 +216,8 @@ class CSAServer:
                 clientSocket = requests[c][0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
                 c += 1
+
+        self.setupTime = time.time() - self.start
     
     def shareMasks(self, requests, cluster):
         emask = {i: {} for i in range(self.perGroup[cluster])}
@@ -286,7 +299,9 @@ class CSAServer:
         #print(average_weight['conv1.bias'])
 
         self.model.load_state_dict(average_weight)
-        fl.test_model(self.model)
+        self.accuracy = fl.test_model(self.model)
+
+        self.totalTime = time.time() - self.start
 
     def close(self):
         self.serverSocket.close()

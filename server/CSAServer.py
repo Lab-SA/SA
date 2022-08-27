@@ -53,6 +53,7 @@ class CSAServer:
         self.requests_clusters = {round.name: {} for round in CSARound} # check completion of clusters
         requests[CSARound.SetUp.name][0] = []
         requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
+        self.allTime = 0
 
         for j in range(self.k): # for k times
             # time
@@ -116,6 +117,7 @@ class CSAServer:
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
                         self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
+                        print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
                         break # end of this round
                     continue
                 except:
@@ -150,11 +152,13 @@ class CSAServer:
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
                         self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
+                        print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
                         break # end of this round
 
         # End
         # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
+        print('\n|---- Total Time: ', self.allTime)
 
     def saRound(self, tag, requests, cluster):
         if tag == CSARound.ShareMasks.name:
@@ -217,7 +221,7 @@ class CSAServer:
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
                 c += 1
 
-        self.setupTime = time.time() - self.start
+        self.setupTime = round(time.time() - self.start, 4)
     
     def shareMasks(self, requests, cluster):
         emask = {i: {} for i in range(self.perGroup[cluster])}
@@ -299,9 +303,10 @@ class CSAServer:
         #print(average_weight['conv1.bias'])
 
         self.model.load_state_dict(average_weight)
-        self.accuracy = fl.test_model(self.model)
+        self.accuracy = round(fl.test_model(self.model), 4)
 
-        self.totalTime = time.time() - self.start
+        self.totalTime = round(time.time() - self.start, 4)
+        self.allTime = round(self.allTime + self.totalTime, 4)
 
     def close(self):
         self.serverSocket.close()

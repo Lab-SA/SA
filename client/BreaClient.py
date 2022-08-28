@@ -66,8 +66,7 @@ class BreaClient:
         self.rij = rij_list
         # generate shares and commitments
         self.shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.q, self.commonValues["p"])
-        request = {"index": self.index, "shares": self.shares, "theta": self.theta}
-
+        request = {"index": self.index, "shares": self.shares}
         # receive shares_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
@@ -92,7 +91,7 @@ class BreaClient:
         for idx, data in response.items():
             commitment_all[idx] = data
 
-        result = Brea.verify(self.others_shares, commitment_all, self.theta)
+        result = Brea.verify(self.q, self.others_shares, commitment_all, self.theta, self.commonValues["p"])
         print("verify result : ", result)
 
 

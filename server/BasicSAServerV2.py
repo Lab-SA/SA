@@ -124,6 +124,18 @@ class BasicSAServerV2:
             response_json = json.dumps(response[idx])
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
+    def foreach_share(self, requests, response):
+        # 'response' must be: { index: [response], ... }
+        # 'requestData' must be: { index: [...data], ... }
+        for (clientSocket, requestData) in requests:
+            idx = 0
+            for data in requestData.keys():
+                if data == 'index':
+                    idx = requestData[data]
+            response_json = json.dumps(response[idx])
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+
     def saRound(self, tag, requests):
         if tag == BasicSARound.SetUp.name:
             self.setUp(requests)

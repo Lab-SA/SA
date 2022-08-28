@@ -74,7 +74,7 @@ class BreaServer(BasicSAServerV2):
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
     def ShareKeys(self, requests):
-        # (one) request example: {"index": index, "shares": sij, "theta": theta }
+        # (one) request example: {"index": index, "shares": sij}
         # requests example: [{0: [([13]), ... ]}, {1: [(0), ... ]}, ... ]
         # sij : secret share from i for j
 
@@ -82,13 +82,21 @@ class BreaServer(BasicSAServerV2):
         # sji : secret share from j for i
 
         response = {}
+        response_shares = []
         for request in requests:
             requestData = request[1]  # (socket, data)
-            for idx, data in requestData.items():
-                for j in range(len(data)):
-                    response[j][idx] = data[j]
+            shares = requestData["shares"]
+            response_shares.append(requestData)
+            for idx in range(len(shares)):
+                response[idx] = {}
 
-        self.foreach(requests, response)
+        for request in response_shares:
+            i = int(request["index"])
+            shares = request["shares"]
+            for idx in range(len(shares)):
+                response[idx][i] = shares[idx]
+
+        self.foreach_share(requests, response)
 
 
     def ShareCommitmentsVerifyShares(self, requests):
@@ -167,5 +175,5 @@ class BreaServer(BasicSAServerV2):
 
 
 if __name__ == "__main__":
-    server = BreaServer(n=1, k=5)
+    server = BreaServer(n=2, k=5)
     server.start()

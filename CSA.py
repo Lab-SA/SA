@@ -179,13 +179,13 @@ def computeIntermediateSum(S_dic, n, p, RS_dic = {}):
         return True, drop_out
 
 
-def clustering(G, a, b, k, rf, cf, U, t):
+def clustering(a, b, k, rf, cf, U, t):
     # node clustering
     C = {i: [] for i in range(1, k+1)} # clusters
     Uij = {i: {j: [] for j in range(1, b+1)} for i in range(1, a+1)}
     for user, value in U.items():
-        i, j, PS = value
-        Uij[i][j].append((user, PS))
+        i, j, PS, request = value
+        Uij[i][j].append((user, PS, request))
 
     D = 0
     while rf + D <= a or cf + D <= b:
@@ -196,8 +196,8 @@ def clustering(G, a, b, k, rf, cf, U, t):
         for r in range(r0, r1+1):
             for c in range(c0, c1+1):
                 if abs(r-rf) == D or abs(c-cf) == D:
-                    for user, PS in Uij[r][c]:
-                        C[PS].append(user) # PS is divided into k levels
+                    for user, PS, request in Uij[r][c]:
+                        C[PS].append(request) # PS is divided into k levels
         D += 1
 
     # merge clusters for satisfying constraint t
@@ -209,13 +209,13 @@ def clustering(G, a, b, k, rf, cf, U, t):
                 for _ in range(l):
                     move.append(C[k-1].pop())
                 move.reverse()
-                C[k] = C[k] + move
+                C[k] = move + C[k]
             else:
                 C[k-1] = C[k-1] + C[k]
                 del C[k]
         k -= 1
     if len(C[k]) < t: # k = 0
-        C[k+1] = C[k+1] + C[k]
+        C[k+1] = C[k] + C[k+1]
         del C[k]
 
     return C
@@ -279,5 +279,5 @@ if __name__ == "__main__":
     t = 4
     U = {}
     for i in range(n):
-        U[i] = [random.randrange(1, a+1), random.randrange(1, b+1), random.randrange(1, k+1)]
-    print(clustering({}, a, b, k, 1, 2, U, t))
+        U[i] = [random.randrange(1, a+1), random.randrange(1, b+1), random.randrange(1, k+1), i]
+    print(clustering(a, b, k, 1, 2, U, t))

@@ -165,9 +165,20 @@ class CSAServer:
         model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(usersNow)
 
-        self.clusterNum = 1                                         # temp
-        self.perGroup = {i: 4 for i in range(self.clusterNum)}      # at least 4 nodes # TODO balanced clustering
-        self.perLatency = {i: 10 for i in range(self.clusterNum)}   # define maximum latency(latency level) per cluster # TODO
+        U = {}
+        for i, request in enumerate(requests):
+            #1. PS, GPS 받기
+            socket, requestData = request
+            gi = requestData['GPS_i']
+            gj = requestData['GPS_j']
+            PS = requestData['PS']
+            U[i] = [gi, gj, PS, request]
+
+        C = CSA.clustering(6, 8, 4, 2, 1, U, 4) # a: 6, b: 8, k: 4, rf: 2, cf: 1, U, t: 4
+        print(C)
+        self.clusterNum = len(C)
+        self.perGroup = {i: C[i] for i in range(self.clusterNum)}      # at least 4 nodes # TODO balanced clustering
+        self.perLatency = {i: 10 + i*5 for i in range(self.clusterNum)}   # define maximum latency(latency level) per cluster # TODO
         self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
         hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
 
@@ -179,7 +190,7 @@ class CSAServer:
                 hex_keys[i][j] = requests[c][1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
                 c += 1
-        
+
         c = 0
         for i in range(self.clusterNum):
             ri = list_ri[i]

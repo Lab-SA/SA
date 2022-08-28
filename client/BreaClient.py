@@ -65,8 +65,7 @@ class BreaClient:
         rij_list = Brea.generate_rij(self.t, self.q)
         self.rij = rij_list
         # generate shares and commitments
-        shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.q, self.commonValues["p"])
-        self.shares = shares
+        self.shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.q, self.commonValues["p"])
         request = {"index": self.index, "shares": self.shares, "theta": self.theta}
 
         # receive shares_list from server in json format

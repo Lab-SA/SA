@@ -34,11 +34,11 @@ def generate_rij(T, q):
 # share를 생성하기 위한 다항식 f
 # [인자] : theta(자신의 theta), w(weights. quantization한 값), T(threshold), rij(get_rij()의 리턴값)
 # [리턴] : y
-def f(theta, w, T, rij):
-    y = w
+def f(theta, w, T, rij, q):
+    y = np.array(w)
     for j in range(1, T+1):
         y = y + (rij[j] * (mod(theta, j, q)))
-    return y
+    return y.tolist()
 
 
 # make shares
@@ -46,10 +46,10 @@ def f(theta, w, T, rij):
 # [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list, q, p
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
 def make_shares(flatten_weights, theta_list, T, rij_list, q, p):
-    bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
+    bar_w = stochasticQuantization(flatten_weights, q, p)
     shares = []
     for theta in theta_list:
-        shares.append(f(theta, bar_w, T, rij_list))
+        shares.append(f(theta, bar_w, T, rij_list, q))
     return shares
 
 
@@ -60,7 +60,7 @@ def make_shares(flatten_weights, theta_list, T, rij_list, q, p):
 def generate_commitments(flatten_weights, rij_list, q, p):
     commitments = []
 
-    bar_w = stochasticQuantization(np.array(flatten_weights), q, p)
+    bar_w = stochasticQuantization(flatten_weights, q, p) # TODO duplicated
 
     for i, rij in enumerate(rij_list):
         if i == 0:

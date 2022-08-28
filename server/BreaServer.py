@@ -26,7 +26,7 @@ class BreaServer(BasicSAServerV2):
     theta_list = {}
 
     def __init__(self, n, k):
-        super().__init__(n, k)
+        super().__init__(n, k, isBrea=True)
 
     def saRound(self, tag, requests):
         if tag == BreaRound.SetUp.name:

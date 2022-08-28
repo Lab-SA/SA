@@ -91,7 +91,7 @@ class BreaClient:
         for idx, data in response.items():
             commitment_all[idx] = data
 
-        result = Brea.verify(self.q, self.others_shares, commitment_all, self.theta, self.commonValues["p"])
+        result = Brea.verify(self.q, self.others_shares, commitment_all, self.theta[self.index], self.commonValues["p"])
         print("verify result : ", result)
 
 

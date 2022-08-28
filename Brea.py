@@ -1,4 +1,6 @@
 import random
+
+import numpy
 import numpy as np
 import learning.federated_main as fl
 import BasicSA as bs
@@ -70,7 +72,7 @@ def generate_commitments(flatten_weights, rij_list, q, p):
             commitments.append(c)
             continue
 
-        commitments.append(np.array(mod(q, rij, p), dtype = np.float64))
+        commitments.append(mod(q, rij, p))
     
     return commitments
 
@@ -89,10 +91,10 @@ def verify(q, share, commitments, theta, p):
     for i, c in enumerate(commitments):
         if i == 0:
             m = mod(theta, i, p)
-            y = y * mod(np.array(c), m, p)
+            y = y * mod(np.array(c, dtype=numpy.int32), m, p)
         else:
             m = mod(theta, i, p)
-            y = y * mod(c,m,p)
+            y = y * mod(c, m, p)
 
     y = y % p
 

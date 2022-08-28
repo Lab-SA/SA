@@ -106,23 +106,24 @@ class BreaServer(BasicSAServerV2):
 
         # response example: { 0: [([13]), ... ] 1: [([10]), ... }
         response = {}
+        response_commit = []
         for request in requests:
             requestData = request[1]
-            for idx, data in requestData.items():
+            commit = requestData["commitment"]
+            response_commit.append(requestData)
+            for idx in range(len(commit)):
                 response[idx] = {}
-                for j in range(len(data)):
-                    response[idx][j] = data[j]  # cij
+
+        for request in response_commit:
+            i = int(request["index"])
+            commit = request["commitment"]
+            for idx in range(len(commit)):
+                response[idx][i] = commit[idx]
 
         self.broadcast(requests, response)
 
 
     def ComputeDistance(self, requests):
-        # d(i)jk 받아서 jk를 기준으로 d(i)를 배열로 만든다. (쳌)
-        # 그러고 그를 바탕으로 _djk를 만든다
-        # real domain의 djk를 만든다
-        # multi krum을 실시한다
-        # 선택된 유저를 클라이언트에 보낸다
-
         # (one) request example: {0: [(0, 1, 2, d(0)12), (0, 1, 3, d(0)13) ... ]} // d(i)jk
         # requests example: [{0: [(0, 1, 2, d(0)12), ... ]}, {1: [(1, 0, 2, d(1)02), ... ]}, ... ]
 

@@ -99,7 +99,7 @@ class BreaClient:
         tag = BreaRound.ComputeDistance.name
 
         # calculate 수정!
-        distance = Brea.calculate_distance(self.others_shares, self.n)
+        distance = Brea.calculate_distance(self.others_shares)
         self.distance = distance  # (j, k, d(i)jk)
         request = {"index": self.index, "distance": self.distance}
 

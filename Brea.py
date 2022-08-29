@@ -115,15 +115,18 @@ def verify(q, share, commitments, theta, p):
 def mod(theta, i, p):
     ret = 1
     for idx in range(i):
-        ret = ret * theta % p
+        ret = ret * int(theta) % p
     return ret
 
 
 # [호출] : 클라이언트
 # [인자] : share1, share2(사용자 1과 사용자 2의 거리를 계산하기 위해 1에게 받은 share와 2에게 받은 share를 인자로)
 # [리턴] : distance(계산한 거리)
-def calculate_distance(shares1, shares2):
-    distance = abs(np.array(shares1) - np.array(shares2)) ** 2
+def calculate_distance(shares):
+    distance = []
+    for i in range(len(shares)):
+        for j in range(len(shares)):
+            distance.append((i, j, (abs(np.array(shares[i]) - np.array(shares[j])) ** 2).tolist()))
     return distance
 
 # def calculate_distance(shares, n):

@@ -124,8 +124,8 @@ class BreaServer(BasicSAServerV2):
 
 
     def ComputeDistance(self, requests):
-        # (one) request example: {0: [(0, 1, 2, d(0)12), (0, 1, 3, d(0)13) ... ]} // d(i)jk
-        # requests example: [{0: [(0, 1, 2, d(0)12), ... ]}, {1: [(1, 0, 2, d(1)02), ... ]}, ... ]
+        # (one) request example: {0: [(1, 2, d(0)12), (1, 3, d(0)13) ... ]} // d(i)jk
+        # requests example: [{0: [(1, 2, d(0)12), ... ]}, {1: [(0, 2, d(1)02), ... ]}, ... ]
 
         # if u0, u2, ... selected,
         # response example: [0, 2, ... ]    # selected user index
@@ -134,22 +134,38 @@ class BreaServer(BasicSAServerV2):
         requests_djk = []
         for request in requests:
             requestData = request[1]  # (socket, data)
-            for idx, data in requestData.items():
-                requests_djk.append(data)
+            requests_djk.append(requestData)
+            index = requestData["index"]
+            distance = requestData["distance"]
+            for (j, k, d) in distance:
+                djk[(j, k)] = {}
+
         for request in requests_djk:
-            for (i, j, k, d) in request:
+            index = request["index"]
+            distance = request["distance"]
+            for(j, k, d) in distance:
                 try:
-                    djk[(j,k)][i] = d
+                    djk[(j, k)][index] = d
                 except KeyError:
                     print("KeyError")
                     pass
 
         real_djk = {}
-        for idx, data in djk.items():
-            _djk = Brea.calculate_djk_from_h_polynomial(self.theta_list, data)
-            real_djk = Brea.real_domain_djk(_djk,self.p, self.q)
+        _djk = []
+
+        for (j, k), data in djk.items():
+            real_djk[j] = {}
+            tmp = []
+            for index, dis in data.items():
+                tmp.append(dis)
+            _djk.append((j, k, Brea.calculate_djk_from_h_polynomial(self.theta_list, tmp)))  # [_d00, _d01, _d10, d_11 ..]
+
+        for (j, k, d) in _djk:
+            real_djk[j][k] = Brea.real_domain_djk(d, self.p, self.q)
 
         response = Brea.multi_krum(self.n, self.m, real_djk)
+
+        self.broadcast(requests, response)
 
 
     def unmasking(self, requests):

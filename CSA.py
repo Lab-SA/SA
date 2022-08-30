@@ -181,7 +181,7 @@ def computeIntermediateSum(S_dic, n, p, RS_dic = {}):
 
 def clustering(a, b, k, rf, cf, U, t):
     # node clustering
-    C = {i: [] for i in range(1, k+1)} # clusters
+    C = {i: [] for i in range(k+1)} # clusters
     Uij = {i: {j: [] for j in range(1, b+1)} for i in range(1, a+1)}
     for user, value in U.items():
         i, j, PS, request = value
@@ -197,11 +197,11 @@ def clustering(a, b, k, rf, cf, U, t):
             for c in range(c0, c1+1):
                 if abs(r-rf) == D or abs(c-cf) == D:
                     for user, PS, request in Uij[r][c]:
-                        C[PS].append(request) # PS is divided into k levels
+                        C[PS].append([user, request]) # PS is divided into k levels
         D += 1
 
     # merge clusters for satisfying constraint t
-    while k > 1:
+    while k > 0:
         if len(C[k]) < t:
             l = t - len(C[k])
             if len(C[k-1])-l >= t:
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     n = 3
     a = generateRandomNonce(c, g, p)
     ri = a[0][0]
-    
+
     sk0, pk0 = generateECCKey()
     sk1, pk1 = generateECCKey()
     sk2, pk2 = generateECCKey()
@@ -238,7 +238,7 @@ if __name__ == "__main__":
     a0, b0, c0 = generateMasks(0, n, ri, pub_keys, g, p)
     a1, b1, c1 = generateMasks(1, n, ri, pub_keys, g, p)
     a2, b2, c2 = generateMasks(2, n, ri, pub_keys, g, p)
-    
+
     e1 = {0: b0[1], 2: b2[1]}
     p1 = {0: c0, 1: c1, 2: c2}
     verifyMasks(1, ri, e1, p1, sk1, g, p)
@@ -272,12 +272,12 @@ if __name__ == "__main__":
 
 
     # example: node clustring
-    n = 12
-    a = 1
-    b = 3
-    k = 3
-    t = 4
+    n = 25
+    a = 5
+    b = 10
+    k = 9
+    t = 6
     U = {}
     for i in range(n):
-        U[i] = [random.randrange(1, a+1), random.randrange(1, b+1), random.randrange(1, k+1), i]
+        U[i] = [random.randrange(1, a+1), random.randrange(1, b+1), random.randrange(0, k), i]
     print(clustering(a, b, k, 1, 2, U, t))

@@ -174,28 +174,31 @@ class CSAServer:
             PS = requestData['PS']
             U[i] = [gi, gj, PS, request]
 
-        C = CSA.clustering(6, 8, 4, 2, 1, U, 4) # a: 6, b: 8, k: 4, rf: 2, cf: 1, U, t: 4
-        print(C)
+        a = 6
+        b = 8
+        k = 3
+        rf = 2
+        cf = 1
+        t = 4
+        C = CSA.clustering(a, b, k, rf, cf, U, t)
+
         self.clusterNum = len(C)
-        self.perGroup = {i: C[i] for i in range(self.clusterNum)}      # at least 4 nodes # TODO balanced clustering
-        self.perLatency = {i: 10 + i*5 for i in range(self.clusterNum)}   # define maximum latency(latency level) per cluster # TODO
+        self.perGroup = {}      # at least 4 nodes
+        self.perLatency = {}   # define maximum latency(latency level) per cluster
         self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
         hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
 
         list_ri, list_Ri = CSA.generateRandomNonce(self.clusterNum, self.g, self.p)
-        c = 0
-        for i in range(self.clusterNum): # get all users' public key
-            ri = list_ri[i]
-            for j in range(self.perGroup[i]):
-                hex_keys[i][j] = requests[c][1]['pk']
+        for i, cluster in C.items(): # get all users' public key
+            self.perGroup[i] = len(cluster)
+            self.perLatency[i] = 10 + i*5
+            for j, request in cluster:
+                hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
-                c += 1
-
-        c = 0
-        for i in range(self.clusterNum):
+        for i, cluster in C.items():
             ri = list_ri[i]
             self.survived[i] = [idx for idx in range(self.perGroup[i])]
-            for j in range(self.perGroup[i]):
+            for j, request in cluster:
                 response_ij = CSASetupDto(
                     n = usersNow, 
                     g = self.g, 
@@ -207,13 +210,12 @@ class CSAServer:
                     clusterN = self.perGroup[i],
                     cluster_keys = str(hex_keys[i]), # node's id and public key
                     index = j,
-                    data = [int(k) for k in user_groups[c]],
+                    data = [int(k) for k in user_groups[j]],
                     weights= str(model_weights_list),
                 )._asdict()
                 response_json = json.dumps(response_ij)
-                clientSocket = requests[c][0]
+                clientSocket = request[0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
-                c += 1
     
     def shareMasks(self, requests, cluster):
         emask = {i: {} for i in range(self.perGroup[cluster])}
@@ -302,6 +304,6 @@ class CSAServer:
 
 
 if __name__ == "__main__":
-    server = CSAServer(n=4, k=3, isBasic = True) # Basic CSA
+    server = CSAServer(n=8, k=3, isBasic = True) # Basic CSA
     # server = CSAServer(n=4, k=1, isBasic = False) # Full CSA
     server.start()

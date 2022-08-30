@@ -10,7 +10,7 @@ p = 131
 
 # Get common values for server set-up: n, t, ...
 def getCommonValues():
-    global g, p
+    global g, p # TODO
 
     # R: domain
     # g: generator, p: prime

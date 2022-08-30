@@ -8,15 +8,16 @@ import learning.models_helper as mhelper
 
 default_r1 = -1
 default_r2 = 1
-default_quantization_levels = [20, 30, 60, 80, 100]
+# default_quantization_levels = [20, 30, 60, 80, 100]
 
-def quantization(x, _Kg, r1, r2):
+def quantization(x, _Kg, r1, r2, quantization_levels):
     # x = local model value of user i
     # Kg = number of quantization levels
     # [r1, r2] = quantization range
+    # quantization_levels = quantization levels
 
     # delK = quantization interval
-    Kg = default_quantization_levels[_Kg]
+    Kg = quantization_levels[_Kg]
     delK = (r2 - r1) / (Kg - 1)
 
     # T = discrete value from quantization range point list
@@ -32,13 +33,14 @@ def quantization(x, _Kg, r1, r2):
     
     return -1 # fail (only when x < r1 or x > r2)
 
-def quantization_weights(weights, _Kg, r1, r2):
+def quantization_weights(weights, _Kg, r1, r2, quantization_levels):
     # x = local weigths in 1-dim
     # Kg = number of quantization levels
     # [r1, r2] = quantization range
+    # quantization_levels = quantization levels
 
     # delK = quantization interval
-    Kg = default_quantization_levels[_Kg]
+    Kg = quantization_levels[_Kg]
     delK = (r2 - r1) / (Kg - 1)
 
     # T = discrete value from quantization range point list
@@ -61,14 +63,15 @@ def quantization_weights(weights, _Kg, r1, r2):
 
     return quantized_weights
 
-def dequantization_weights(weights, _Kg, r1, r2, u):
+def dequantization_weights(weights, _Kg, r1, r2, u, quantization_levels):
     # x = local weigths in 1-dim
     # Kg = number of quantization levels
     # [r1, r2] = quantization range
     # u = number of surviving users of same segment (= |U|)
+    # quantization_levels = quantization levels
 
     # delK = quantization interval
-    Kg = default_quantization_levels[_Kg]
+    Kg = quantization_levels[_Kg]
     delK = (r2 - r1) / (Kg - 1)
 
     # mapping to the corresponding values in discrete set of real numbers: |U|r1 ~ |U|r2
@@ -106,7 +109,7 @@ def getSegmentInfoFromB(B, G, perGroup):
                 segment_info[l][value].append(i * perGroup + idx)
     return segment_info
 
-def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, weights_interval, euv_list, s_pk_dic, p, R):
+def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, weights_interval, euv_list, s_pk_dic, quantization_levels, p, R):
     """ generate masked input of segments and do quantization
     Args:
         index (int): user's index
@@ -120,6 +123,7 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, we
         weights_interval (list): interval index of weights (for each segment)
         euv_list (list): user's evu_list
         s_pk_dic (dict): other's public key s dictionary (key: index, value: s_pk)
+        quantization_levels (list) = quantization levels
         p (int): prime
         R (int): field
     Returns:
@@ -164,7 +168,7 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, we
         print(f'puv list[{l}]: {p_uv_list}')
 
         # quantization weights
-        quantized_xu = quantization_weights(segment_xu[l], q, default_r1, default_r2)
+        quantized_xu = quantization_weights(segment_xu[l], q, default_r1, default_r2, quantization_levels)
 
         # generate yu (masked xu) of segment l
         mask = pu + sum(p_uv_list)
@@ -195,7 +199,7 @@ def reconstructSSKofSegments(B, G, perGroup, s_sk_shares_dic):
 
     return s_sk_dic
 
-def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic, bu_shares_dic, R):
+def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic, bu_shares_dic, quantization_levels, R):
     """ generate masked input of segments and do dequantization
     Args:
         segment_info (dict): segment info (key: segment index, value: dict (key: quantization level, value: index list))
@@ -205,6 +209,7 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
         users_keys (dict): public keys of users
         s_sk_dic (dict): s_sk of drop-out users (key: segment index, value: dict (key: quantization level, value: reconstructed_s_sk))
         bu_shares_dic (dict): shares for bu (key: index, value: list of shares)
+        quantization_levels (list) = quantization levels
         R (int): field
     Returns:
         dict: xu(real-value) of segments (key: segment index, value: dict (key: quantization level, value: encoded xu))
@@ -242,7 +247,7 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
             # print(f'q level: {q} / surviving_num: {surviving_num} / min: {min(raw_segment_xu)} / max: {max(raw_segment_xu)}')
 
             # dequantization: to real numbers
-            dequantized = dequantization_weights(raw_segment_xu, q, default_r1, default_r2, surviving_num)
+            dequantized = dequantization_weights(raw_segment_xu, q, default_r1, default_r2, surviving_num, quantization_levels)
             segment_xu[l].append(list(x/n for x in dequantized)) # y
 
     return segment_xu

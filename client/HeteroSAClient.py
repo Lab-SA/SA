@@ -16,7 +16,7 @@ ENCODING = 'utf-8'
 
 class HeteroSAClient:
     HOST = 'localhost'
-    PORT = 7000
+    PORT = 7002
     xu = 0  # temp. local model of this client
 
     n = t = g = p = R = 0 # common values
@@ -24,6 +24,7 @@ class HeteroSAClient:
     index = 0
     B = []
     G = perGroup = 0
+    quantization_levels = []
     
     my_keys = {}    # c_pk, c_sk, s_pk, s_sk of this client
     s_pk_dic = {}   # other users' s_pk(public key) dic
@@ -51,6 +52,7 @@ class HeteroSAClient:
         self.index = setupDto.index
         self.B = setupDto.B
         self.G = self.perGroup = setupDto.G # (For now,) G == groups num == users num of one group
+        self.quantization_levels = setupDto.quantization_levels
 
         self.data = setupDto.data
         global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
@@ -126,8 +128,9 @@ class HeteroSAClient:
                 self.group,
                 self.perGroup,
                 self.weights_interval,
-                self.euv_list, 
+                self.euv_list,
                 self.s_pk_dic,
+                self.quantization_levels,
                 self.p,
                 self.R
         )

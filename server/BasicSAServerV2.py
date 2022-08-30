@@ -27,9 +27,10 @@ class BasicSAServerV2:
     yu_list = []
     R = 0
 
-    def __init__(self, n, k):
+    def __init__(self, n, k, t):
         self.n = n
         self.k = k # Repeat the entire process k times
+        self.t = t # threshold
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
         self.serverSocket.settimeout(self.timeout)
@@ -140,7 +141,7 @@ class BasicSAServerV2:
         commonValues = getCommonValues()
         self.R = commonValues["R"]
         commonValues["n"] = usersNow
-        self.t = commonValues["t"] = int(usersNow / 2) # threshold
+        commonValues["t"] = self.t
 
         if self.model == {}:
             self.model = fl.setup()
@@ -260,5 +261,5 @@ class BasicSAServerV2:
         self.serverSocket.close()
 
 if __name__ == "__main__":
-    server = BasicSAServerV2(n=3, k=5)
+    server = BasicSAServerV2(n=3, k=5, t=1)
     server.start()

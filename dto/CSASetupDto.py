@@ -11,5 +11,6 @@ class CSASetupDto(NamedTuple):
     clusterN: int   # number of nodes in cluster
     cluster_keys: dict
     index: int
+    qLevel: int
     data: dict
     weights: dict

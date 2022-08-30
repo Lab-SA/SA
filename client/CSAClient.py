@@ -41,9 +41,9 @@ class CSAClient:
         tag = CSARound.SetUp.name
 
         self.my_sk, self.my_pk = CSA.generateECCKey()
-        self.PS = random.randint(1, 4)
-        self.GPS_i = random.randint(1, 6)
-        self.GPS_j = random.randint(1, 8)
+        self.PS = random.randrange(0, 3)
+        self.GPS_i = random.randrange(1, 6)
+        self.GPS_j = random.randrange(1, 8)
 
         # request with my public key (pk)
         # response: CSASetupDto

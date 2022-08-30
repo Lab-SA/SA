@@ -10,6 +10,7 @@ class HeteroSetupDto(NamedTuple):
     index: int
     B: list
     G: int
+    quantization_levels: list
     data: dict
     weights: dict
     weights_interval: list

@@ -12,7 +12,7 @@ import learning.utils as utils
 
 class CSAServer:
     host = 'localhost'
-    port = 7000
+    port = 8000
     SIZE = 2048
     ENCODING = 'utf-8'
     interval = 10 # server waits in one round # second
@@ -34,9 +34,10 @@ class CSAServer:
     S_list = {}
     IS = {} # intermediate sum
 
-    def __init__(self, n, k, isBasic):
+    def __init__(self, n, k, isBasic, qLevel):
         self.n = n
         self.k = k # Repeat the entire process k times
+        self.quantizationLevel = qLevel
         self.isBasic = isBasic
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
@@ -210,6 +211,7 @@ class CSAServer:
                     clusterN = self.perGroup[i],
                     cluster_keys = str(hex_keys[i]), # node's id and public key
                     index = j,
+                    qLevel = self.quantizationLevel,
                     data = [int(k) for k in user_groups[j]],
                     weights= str(model_weights_list),
                 )._asdict()
@@ -304,6 +306,6 @@ class CSAServer:
 
 
 if __name__ == "__main__":
-    server = CSAServer(n=8, k=3, isBasic = True) # Basic CSA
-    # server = CSAServer(n=4, k=1, isBasic = False) # Full CSA
+    server = CSAServer(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
+    # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
     server.start()

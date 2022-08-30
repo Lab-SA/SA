@@ -27,9 +27,10 @@ class BasicSAServerV2:
     yu_list = []
     R = 0
 
-    def __init__(self, n, k):
+    def __init__(self, n, k, t):
         self.n = n
         self.k = k # Repeat the entire process k times
+        self.t = t # threshold
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
         self.serverSocket.settimeout(self.timeout)
@@ -114,6 +115,7 @@ class BasicSAServerV2:
         # 'response' must be: { index: [response], ... }
         # 'requestData' must be: { index: [...data], ... }
         for (clientSocket, requestData) in requests:
+
             idx = 0
             for data in requestData.keys():
                 idx = data
@@ -139,7 +141,7 @@ class BasicSAServerV2:
         commonValues = getCommonValues()
         self.R = commonValues["R"]
         commonValues["n"] = usersNow
-        self.t = commonValues["t"] = int(usersNow / 2) # threshold
+        commonValues["t"] = self.t
 
         if self.model == {}:
             self.model = fl.setup()
@@ -161,33 +163,29 @@ class BasicSAServerV2:
         
         # response example: {0: {"index":0, "c_pk":"VALUE", "s_pk": "VALUE"}, 1: {"index":0, "c_pk":"VALUE", "s_pk": "VALUE"} }
         response = {}
-        for v, request in enumerate(requests):
-            requestData = request[1]  # (socket, data)
-            self.users_keys[v] = requestData  # store on server
-            requestData['index'] = v # add index
-            response[v] = requestData
+        for _, requestData in requests: # (socket, data)
+            index = requestData['index']
+            self.users_keys[index] = requestData  # store on server
+            response[index] = requestData
         self.broadcast(requests, response)
 
     def shareKeys(self, requests):
         # (one) request example: {0: [(0, 0, e00), (0, 1, e01) ... ]}
         # requests example: [{0: [(0, 0, e00), ... ]}, {1: [(1, 0, e10), ... ]}, ... ]
-
         # response example: { 0: [e00, e10, e20, ...], 1: [e01, e11, e21, ... ] ... }
-        response = {}
-        requests_euv = []
-        for request in requests:
-            requestData = request[1]  # (socket, data)
-            for idx, data in requestData.items(): #only one
-                response[idx] = {}  # make dic
-                requests_euv.append(data)
-        for request in requests_euv:
-            for (u, v, euv) in request:
-                try:
-                    response[str(v)][u] = euv
-                except KeyError:  # drop-out
-                    print("KeyError")
-                    pass
-        self.foreach(requests, response)
+
+        euvs = {}
+        for _, requestData in requests: # (socket, data)
+            for u, v, euv in requestData['euv']:
+                if euvs.get(v) is None:
+                    euvs[v] = {}
+                euvs[v][u] = euv
+
+        # send response
+        for clientSocket, requestData in requests:
+            index = requestData['index']
+            response_json = json.dumps(euvs[index])
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
         
     def maskedInputCollection(self, requests):
         # if u3 dropped
@@ -195,24 +193,22 @@ class BasicSAServerV2:
 
         # response example: { "users": [0, 1, 2 ... ] }
         response = []
-        for request in requests:
-            requestData = request[1]  # (socket, data)
-            response.append(int(requestData["idx"]))
+        for _, requestData in requests: # (socket, data)
+            response.append(int(requestData["index"]))
             yu_ = mhelper.dic_of_list_to_weights(requestData["yu"])
             self.yu_list.append(yu_)
 
         self.broadcast(requests, {"users": response})
 
     def unmasking(self, requests):
-        # (one) request: {"idx": u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
-        # if u2, u3 dropped, requests: [{"idx": 0, "ssk_shares": {2: s20_sk, 3: s30_sk}, "bu_shares": {1: b10, 4: b40}}, ...]
+        # (one) request: {"index": u, "ssk_shares": s_sk_shares_dic, "bu_shares": bu_shares_dic}
+        # if u2, u3 dropped, requests: [{"index": 0, "ssk_shares": {2: s20_sk, 3: s30_sk}, "bu_shares": {1: b10, 4: b40}}, ...]
 
         s_sk_shares_dic = {}     # {2: [s20_sk, s21_sk, ... ], 3: [s30_sk, s31_sk, ... ], ... }
         bu_shares_dic = {}       # {0: [b10, b04, ... ], 1: [b10, b14, ... ], ... }
 
         # get s_sk_shares_dic, bu_shares_dic of user2\3, user3
-        for request in requests:
-            requestData = request[1]  # (socket, data)
+        for _, requestData in requests: # (socket, data)
             ssk_shares = literal_eval(requestData["ssk_shares"])
             for i, share in ssk_shares.items():
                 try: 
@@ -265,5 +261,5 @@ class BasicSAServerV2:
         self.serverSocket.close()
 
 if __name__ == "__main__":
-    server = BasicSAServerV2(n=3, k=5)
+    server = BasicSAServerV2(n=3, k=5, t=1)
     server.start()

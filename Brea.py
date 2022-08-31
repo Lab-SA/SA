@@ -38,7 +38,7 @@ def generate_rij(T, q):
 # [리턴] : y
 def f(theta, w, T, rij, q):
     y = np.array(w)
-    for j in range(1, T+1):
+    for j in range(1, T + 1):
         y = y + (rij[j] * (mod(theta, j, q)))
     return y.tolist()
 
@@ -62,7 +62,7 @@ def make_shares(flatten_weights, theta_list, T, rij_list, q, p):
 def generate_commitments(flatten_weights, rij_list, q, p):
     commitments = []
 
-    bar_w = stochasticQuantization(flatten_weights, q, p) # TODO duplicated
+    bar_w = stochasticQuantization(flatten_weights, q, p)  # TODO duplicated
 
     for i, rij in enumerate(rij_list):
         if i == 0:
@@ -168,29 +168,27 @@ def multi_krum(n, m, djk):
     user = selected user's index
     """
     k = 1
-    a = (n - k) / 2     # ?
+    a = n / 2
     Sk = []
     while True:
         _set = (n - k + 1) - a - 2
-        skj = [0] * (n - k + 1)
-
-        for i in range(len(djk)):
+        skj = {}
+        for key, value in djk.items():
             sum_dis = 0
-            for idx, val in djk[i]:
+            for idx, val in djk[key].items():
                 if idx not in Sk:
-                    sum_dis += sum(val)
-            skj[i] = sum_dis
+                    sum_dis += val
+            print("SUM_DIS" + str(sum_dis))
+            skj[key] = sum_dis
 
-        tmp = min(skj)
-        index = skj.index(tmp)
+        index = min(skj, key=skj.get)
+        print("INDEX" + str(index))
 
         Sk.append(index)
         if k == m:
             break
         k += 1
-
-        for e in range(len(djk)):
-            djk.pop(index)
+        djk.pop(index)
 
     return Sk
 
@@ -220,7 +218,7 @@ def aggregate_share(shares, selected_user, u):
     si = [0, ]
     for i in selected_user:
         if i != u:
-            si = np.array(shares[i]) + si
+            si = shares[i] + si
     return si
 
 

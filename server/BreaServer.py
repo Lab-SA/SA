@@ -18,7 +18,7 @@ class BreaServer(BasicSAServerV2):
     n = 4
     t = 1
     R = 0
-    m = 4   # number of selecting user
+    m = 3   # number of selecting user
     q = 7
     p = 3
     usersNow = 0  # number of users survived
@@ -124,18 +124,13 @@ class BreaServer(BasicSAServerV2):
 
 
     def ComputeDistance(self, requests):
-        # (one) request example: {0: [(1, 2, d(0)12), (1, 3, d(0)13) ... ]} // d(i)jk
-        # requests example: [{0: [(1, 2, d(0)12), ... ]}, {1: [(0, 2, d(1)02), ... ]}, ... ]
+        # (one) request example: {"index": index, "distance": djk(i) }
 
-        # if u0, u2, ... selected,
-        # response example: [0, 2, ... ]    # selected user index
-        response = {}
         djk = {}
         requests_djk = []
         for request in requests:
             requestData = request[1]  # (socket, data)
             requests_djk.append(requestData)
-            index = requestData["index"]
             distance = requestData["distance"]
             for (j, k, d) in distance:
                 djk[(j, k)] = {}
@@ -161,8 +156,9 @@ class BreaServer(BasicSAServerV2):
             _djk.append((j, k, Brea.calculate_djk_from_h_polynomial(self.theta_list, tmp)))  # [_d00, _d01, _d10, d_11 ..]
 
         for (j, k, d) in _djk:
-            real_djk[j][k] = Brea.real_domain_djk(d, self.p, self.q)
+            real_djk[j][k] = Brea.real_domain_djk(d, self.p, self.q).item()
 
+        print("real_DJK" + str(real_djk))
         response = Brea.multi_krum(self.n, self.m, real_djk)
 
         self.broadcast(requests, response)
@@ -170,15 +166,26 @@ class BreaServer(BasicSAServerV2):
 
     def unmasking(self, requests):
         # requests example: {0: s0, 1: s1, 2: s2, ... }
-        si = []
-        for request in requests:
-            requestData = request[1]
-            for idx, data in requestData.items():
-                si.append(data)
+        # si = []
+        # for request in requests:
+        #     requestData = request[1]
+        #     for idx, data in requestData.items():
+        #         si.append(data)
 
+        _si = {}
+        for request in requests:
+            requestData = request[1]  # (socket, data)
+            print(str(requestData))
+            index = requestData["index"]
+            print("index: "+str(index))
+            si = requestData["aggregate"]
+            _si[index] = si
+            print(str(_si))
+
+        print("FINAL:"+str(_si))
         # reconstruct _wj of selected users
         # by recovering h with theta and si
-        _wj = Brea.calculate_djk_from_h_polynomial(self.theta_list, si)
+        _wj = Brea.calculate_djk_from_h_polynomial(self.theta_list, _si.values())
 
         _wjt = Brea.update_weight(_wj, self.model_weights_list)
         new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, _wjt)
@@ -192,5 +199,5 @@ class BreaServer(BasicSAServerV2):
 
 
 if __name__ == "__main__":
-    server = BreaServer(n=2, k=5)
+    server = BreaServer(n=3, k=5)
     server.start()

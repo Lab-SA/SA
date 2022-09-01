@@ -37,8 +37,8 @@ class BreaServer(BasicSAServerV2):
             self.ShareCommitmentsVerifyShares(requests)
         elif tag == BreaRound.ComputeDistance.name:
             self.ComputeDistance(requests)
-        else:
-            self.unmasking(requests)
+        elif tag == BreaRound.Unmasking.name:
+            self.Unmasking(requests)
 
     def setUp(self, requests):
         # init
@@ -56,7 +56,7 @@ class BreaServer(BasicSAServerV2):
         # model
         if self.model == {}:
             self.model = fl.setup()
-        model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
+        self.model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(self.usersNow)
 
         for i in range(self.n):
@@ -67,7 +67,7 @@ class BreaServer(BasicSAServerV2):
             response_ij["theta"] = self.theta_list
             response_ij["index"] = i
             response_ij["data"] = [int(k) for k in user_groups[i]]
-            response_ij["weights"] = model_weights_list
+            response_ij["weights"] = self.model_weights_list
 
             response_json = json.dumps(response_ij)
             clientSocket = requests[i][0]
@@ -158,13 +158,12 @@ class BreaServer(BasicSAServerV2):
         for (j, k, d) in _djk:
             real_djk[j][k] = Brea.real_domain_djk(d, self.p, self.q).item()
 
-        print("real_DJK" + str(real_djk))
         response = Brea.multi_krum(self.n, self.m, real_djk)
 
         self.broadcast(requests, response)
 
 
-    def unmasking(self, requests):
+    def Unmasking(self, requests):
         # requests example: {0: s0, 1: s1, 2: s2, ... }
         # si = []
         # for request in requests:
@@ -175,19 +174,19 @@ class BreaServer(BasicSAServerV2):
         _si = {}
         for request in requests:
             requestData = request[1]  # (socket, data)
-            print(str(requestData))
             index = requestData["index"]
-            print("index: "+str(index))
-            si = requestData["aggregate"]
+            si = requestData["si"]
             _si[index] = si
-            print(str(_si))
 
-        print("FINAL:"+str(_si))
+        si_list = []
+        for key, value in sorted(_si.items()):
+            si_list.append(value)
+
         # reconstruct _wj of selected users
         # by recovering h with theta and si
-        _wj = Brea.calculate_djk_from_h_polynomial(self.theta_list, _si.values())
+        _wj = Brea.calculate_djk_from_h_polynomial(self.theta_list, si_list)
 
-        _wjt = Brea.update_weight(_wj, self.model_weights_list)
+        _wjt = Brea.update_weight(_wj, self.model_weights_list, self.p, self.q)
         new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, _wjt)
 
         # update global model

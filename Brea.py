@@ -140,8 +140,8 @@ def calculate_distance(shares):
 
 #[호출] : 서버
 #[인자] : theta(theta_list), distances(djk_list)
-#[리턴] : _djk(hjk(0))
-def calculate_djk_from_h_polynomial(theta, distances):
+#[리턴] :_djk(hjk(0))
+def calculate_djk_from_h_polynomial(theta,  distances):
     h = generateLagrangePolynomial(theta, distances)
     djk = np.polyval(h,0)
     return djk
@@ -222,29 +222,27 @@ def aggregate_share(shares, selected_user, u):
     return si
 
 
-def update_weight(_wj, model):
+def update_weight(_wj, model, p, q):
     """
     _wj = weight from user
     demap_wj = wj with demapping function
     model =  global model
     para = paramater using leaning rate and q
     """
-    global p, q
 
-    demap_wj = np.array(_wj)
-    _model = np.array(model)
+    demap_wj = _wj
 
-    learning_rate = 1
+    learning_rate = 0.01
     para = (learning_rate / q)
 
-    for idx_i, val_i in enumerate(demap_wj):
+    for idx_i, val_i in enumerate(demap_wj):    # 여기이부분!
         for idx_j, val_j in enumerate(val_i):
             if ((p - 1) / 2) <= val_j < p:
                 demap_wj[idx_i][idx_j] = para * (val_j - p)
             else:
                 demap_wj[idx_i][idx_j] = para * val_j
 
-    return _model - demap_wj
+    return model - demap_wj
 
 
 if __name__ == "__main__":

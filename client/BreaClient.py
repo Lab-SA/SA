@@ -74,7 +74,6 @@ class BreaClient:
         # other shares list : sji
         for j, shares in response.items():
             self.others_shares[int(j)] = shares
-        print(self.others_shares)
 
 
     def ShareCommitmentsVerifyShares(self):
@@ -105,16 +104,16 @@ class BreaClient:
 
         #receive selected user list from server
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
-        print("response : ", response)
 
         # store select user from server to client
-        self.selected_user = response[0]
+        self.selected_user = response
+        print("selected_user : ", self.selected_user)
 
 
     def unMasking(self):
-        tag = BasicSARound.Unmasking.name
+        tag = BreaRound.Unmasking.name
         si = Brea.aggregate_share(self.others_shares, self.selected_user, self.index)
-        request = {"si ", si}
+        request = {"index": self.index, "si": si}
 
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 

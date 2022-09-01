@@ -214,8 +214,11 @@ def clustering(a, b, k, rf, cf, U, t):
                 C[k-1] = C[k-1] + C[k]
                 del C[k]
         k -= 1
-    if len(C[k]) < t: # k = 0
-        C[k+1] = C[k] + C[k+1]
+
+    while len(C[0]) < t: # k = 0
+        k += 1
+        if C.get(k) is None: continue
+        C[0] = C[0] + C[k]
         del C[k]
 
     return C
@@ -269,7 +272,6 @@ if __name__ == "__main__":
 
         # after request RSj
         print(computeIntermediateSum({0: s0, 1: s1}, n, p, RS_dic))
-
 
     # example: node clustring
     n = 25

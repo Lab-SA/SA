@@ -15,11 +15,11 @@ class CSAServer:
     port = 8000
     SIZE = 2048
     ENCODING = 'utf-8'
-    interval = 10 # server waits in one round # second
+    interval = 10       # server waits in one round # second
     timeout = 3
-    totalRound = 4 # CSA has 4 rounds
+    totalRound = 4      # CSA has 4 rounds
     verifyRound = 'verify'
-    isBasic = True # true if BasicCSA, else FullCSA
+    isBasic = True      # true if BasicCSA, else FullCSA
     quantizationLevel = 30
 
     startTime = {}
@@ -27,12 +27,13 @@ class CSAServer:
     requests = {}
 
     model = {}
-    users_keys = {}
+    clusters = []       # list of cluster index
+    users_keys = {}     # clients' public key
     R = 0
 
-    survived = {} # active user group per cluster
+    survived = {}       # active user group per cluster
     S_list = {}
-    IS = {} # intermediate sum
+    IS = {}             # intermediate sum
 
     def __init__(self, n, k, isBasic, qLevel):
         self.n = n
@@ -93,7 +94,7 @@ class CSAServer:
                 except socket.timeout:
                     if clientTag == CSARound.SetUp.name: continue
                     now = time.time()
-                    for c in range(self.clusterNum):
+                    for c in self.clusters:
                         if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
                             if clientTag == CSARound.ShareMasks.name:
                                 if len(requests[self.verifyRound][c]) >= 1: # verify
@@ -117,14 +118,14 @@ class CSAServer:
                     if len(requests[clientTag][0]) >= self.n:
                         self.setUp(requests[clientTag][0])
                         for round_t in CSARound:
-                            for c in range(self.clusterNum):
+                            for c in self.clusters:
                                 requests[round_t.name][c] = []
                                 self.requests_clusters[round_t.name][c] = 1
                                 self.startTime[c] = time.time()
-                        requests[self.verifyRound] = {c: [] for c in range(self.clusterNum)}
+                        requests[self.verifyRound] = {c: [] for c in self.clusters}
                         requests[clientTag][0] = [] # clear
                 else: # check all nodes in cluster sent request
-                    for c in range(self.clusterNum):
+                    for c in self.clusters:
                         nowN = len(self.survived[c])
                         if clientTag == CSARound.ShareMasks.name:
                             if clientTag == self.verifyRound:
@@ -184,21 +185,25 @@ class CSAServer:
         C = CSA.clustering(a, b, k, rf, cf, U, t)
 
         self.clusterNum = len(C)
-        self.perGroup = {}      # at least 4 nodes
+        self.clusters = []     # list of clusters' index
         self.perLatency = {}   # define maximum latency(latency level) per cluster
-        self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
-        hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
+        self.users_keys = {}   # {clusterIndex: {index: pk(:bytes)}}
+        hex_keys = {}          # {clusterIndex: {index: pk(:hex)}}
 
         list_ri, list_Ri = CSA.generateRandomNonce(self.clusterNum, self.g, self.p)
         for i, cluster in C.items(): # get all users' public key
-            self.perGroup[i] = len(cluster)
+            self.clusters.append(i) # store clusters' index
+            hex_keys[i] = {}
+            self.users_keys[i] = {}
             self.perLatency[i] = 10 + i*5
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
+
         for i, cluster in C.items():
             ri = list_ri[i]
-            self.survived[i] = [idx for idx in range(self.perGroup[i])]
+            self.survived[i] = [j for j, request in cluster]
+            clusterN = len(cluster)
             for j, request in cluster:
                 response_ij = CSASetupDto(
                     n = usersNow, 
@@ -208,7 +213,7 @@ class CSAServer:
                     encrypted_ri = CSA.encrypt(self.users_keys[i][j], bytes(str(ri), 'ascii')).hex(),
                     Ri = list_Ri[i],
                     cluster = i,
-                    clusterN = self.perGroup[i],
+                    clusterN = clusterN,
                     cluster_keys = str(hex_keys[i]), # node's id and public key
                     index = j,
                     qLevel = self.quantizationLevel,
@@ -220,7 +225,7 @@ class CSAServer:
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
     
     def shareMasks(self, requests, cluster):
-        emask = {i: {} for i in range(self.perGroup[cluster])}
+        emask = {}
         pmask = {}
         self.survived[cluster] = []
         for (clientSocket, requestData) in requests:
@@ -228,7 +233,10 @@ class CSAServer:
             self.survived[cluster].append(int(index))
             pmask[index] = requestData['pmask']
             for k, mjk in requestData['emask'].items():
-                emask[int(k)][index] = mjk
+                k = int(k)
+                if emask.get(k) is None:
+                    emask[k] = {}
+                emask[k][index] = mjk
         # print(self.survived[cluster])
 
         # send response

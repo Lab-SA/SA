@@ -31,11 +31,11 @@ def generateRandomNonce(c, g, p):
     list_Ri = [(g ** ri) % p for ri in list_ri]
     return list_ri, list_Ri
 
-def generateMasks(idx, n, ri, pub_keys, g, p):
+def generateMasks(idx, cluster_indexes, ri, pub_keys, g, p):
     """ generate masks
     Args:
         idx (int): user's index (idx < n)
-        n (int): number of nodes in a cluster
+        cluster_indexes (list): index of nodes in a cluster (without my index)
         ri (int): random nonce ri
         pub_keys (dict): public keys
         g (int): secure parameter
@@ -53,9 +53,9 @@ def generateMasks(idx, n, ri, pub_keys, g, p):
         sum_mask = 0
         flag = False
 
-        for k in range(n):
-            if k == idx: continue
-            if (idx == n - 1 and k == n - 2) or k == n - 1:
+        n = len(cluster_indexes)
+        for i, k in enumerate(cluster_indexes):
+            if i == n - 1: # lask mask
                 # last mask (ri - sum_mask)
                 m = mask[k] = ri - sum_mask # allow negative value
                 if m != 0: # mask is not allowed to be 0
@@ -135,18 +135,18 @@ def generateSecureWeight(weight, ri, masks, p, a = 0):
     return [w + sum_mask for w in weight]
 
 
-def computeReconstructionValue(survived, my_masks, masks, n):
+def computeReconstructionValue(survived, my_masks, masks, cluster_indexes):
     """ compute reconstruction value RSj
     Args:
         survived (list): index list of survived(active) users
         my_masks (dict): random masks by this user (mjk)
         mask (dict): random masks by other users (mkj)
-        n (int): number of nodes in a cluster
+        cluster_indexes (list): index of nodes in a cluster
     Returns:
         int: reconstruction value RSj
     """
     RS = 0
-    for k in range(n):
+    for k in cluster_indexes:
         if k not in survived:
             try:
                 RS = RS + masks[k] - my_masks[k]

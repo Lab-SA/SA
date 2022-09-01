@@ -214,6 +214,7 @@ class CSAServer:
                     Ri = list_Ri[i],
                     cluster = i,
                     clusterN = clusterN,
+                    cluster_indexes = self.survived[i],
                     cluster_keys = str(hex_keys[i]), # node's id and public key
                     index = j,
                     qLevel = self.quantizationLevel,

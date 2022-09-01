@@ -190,7 +190,6 @@ class CSAServer:
         self.users_keys = {}   # {clusterIndex: {index: pk(:bytes)}}
         hex_keys = {}          # {clusterIndex: {index: pk(:hex)}}
 
-        list_ri, list_Ri = CSA.generateRandomNonce(self.clusterNum, self.g, self.p)
         for i, cluster in C.items(): # get all users' public key
             self.clusters.append(i) # store clusters' index
             hex_keys[i] = {}
@@ -199,6 +198,8 @@ class CSAServer:
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
+
+        list_ri, list_Ri = CSA.generateRandomNonce(self.clusters, self.g, self.p)
 
         for i, cluster in C.items():
             ri = list_ri[i]

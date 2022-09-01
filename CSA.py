@@ -17,18 +17,18 @@ def generateECCKey():
     # decrypt(sk_bytes, cipher)
     return sk_bytes, pk_bytes
 
-def generateRandomNonce(c, g, p):
+def generateRandomNonce(clusters, g, p):
     """ generate random nonce for clusters
     Args:
-        c (int): number of clusters
+        clusters (list): index of clusters
         g (int): secure parameter
         p (int): big prime number
     Returns:
         list: list of random nonces
         list: list of Ri
     """
-    list_ri = [random.randrange(1, p) for i in range(c)] # for modular p
-    list_Ri = [(g ** ri) % p for ri in list_ri]
+    list_ri = {c: random.randrange(1, p) for c in clusters} # for modular p
+    list_Ri = {c: (g ** ri) % p for c, ri in list_ri.items()}
     return list_ri, list_Ri
 
 def generateMasks(idx, cluster_indexes, ri, pub_keys, g, p):

@@ -25,6 +25,9 @@ class CSAClient:
     cluster = clusterN = 0
     index = 0
     ri = 0
+    PS = 0
+    GPS_i = 0
+    GPS_j = 0
 
     my_sk = my_pk = 0
     others_keys = {}  # other users' public key dic
@@ -38,12 +41,15 @@ class CSAClient:
         tag = CSARound.SetUp.name
 
         self.my_sk, self.my_pk = CSA.generateECCKey()
+        self.PS = random.randrange(0, 3)
+        self.GPS_i = random.randrange(1, 6)
+        self.GPS_j = random.randrange(1, 8)
 
         # request with my public key (pk)
         # response: CSASetupDto
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk.hex()})
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk.hex(), 'PS': self.PS, 'GPS_i': self.GPS_i, 'GPS_j': self.GPS_j})
         setupDto = json.loads(json.dumps(response), object_hook=lambda d: CSASetupDto(**d))
-        
+
         self.n = setupDto.n
         self.g = setupDto.g
         self.p = setupDto.p
@@ -75,7 +81,7 @@ class CSAClient:
         self.weights_info, self.weight = mhelper.flatten_tensor(local_weight)
         self.weight = stochasticQuantization(self.weight, self.quantizationLevel, self.p)
         #print(local_weight['conv1.bias'])
-    
+
     def shareRandomMasks(self): # send random masks
         tag = CSARound.ShareMasks.name
 

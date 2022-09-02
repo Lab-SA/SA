@@ -5,13 +5,10 @@ from CommonValue import BreaRound
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from BasicSAServerV2 import BasicSAServerV2
-from MainServer import MainServer
 from BasicSA import getCommonValues
-from dto.BreaSetupDto import BreaSetupDto
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import Brea
-
 
 class BreaServer(BasicSAServerV2):
     users_keys = {}
@@ -19,8 +16,7 @@ class BreaServer(BasicSAServerV2):
     t = 1
     R = 0
     m = 3   # number of selecting user
-    q = 7
-    p = 3
+    quantization_level = 30
     usersNow = 0  # number of users survived
     surviving_users = []
     theta_list = {}
@@ -49,9 +45,9 @@ class BreaServer(BasicSAServerV2):
 
         commonValues = getCommonValues()
         self.R = commonValues["R"]
-        self.q = commonValues["g"]
+        self.g = commonValues["g"]
         self.p = commonValues["p"]
-        self.theta_list = Brea.make_theta(self.usersNow, self.q)
+        self.theta_list = Brea.make_theta(self.usersNow, self.p)
 
         # model
         if self.model == {}:
@@ -63,7 +59,7 @@ class BreaServer(BasicSAServerV2):
             response_ij = copy.deepcopy(commonValues)
             response_ij["n"] = self.usersNow
             response_ij["t"] = self.t
-            response_ij["q"] = self.q
+            response_ij["q"] = self.quantization_level
             response_ij["theta"] = self.theta_list
             response_ij["index"] = i
             response_ij["data"] = [int(k) for k in user_groups[i]]

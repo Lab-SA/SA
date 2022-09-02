@@ -16,7 +16,7 @@ ENCODING = 'utf-8'
 
 class HeteroSAClient:
     HOST = 'localhost'
-    PORT = 7002
+    PORT = 7003
     xu = 0  # temp. local model of this client
 
     n = t = g = p = R = 0 # common values

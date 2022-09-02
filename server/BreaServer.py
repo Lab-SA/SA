@@ -11,18 +11,18 @@ import learning.models_helper as mhelper
 import Brea
 
 class BreaServer(BasicSAServerV2):
+    host = 'localhost'
+    port = 7002
     users_keys = {}
-    n = 4
-    t = 1
-    R = 0
     m = 3   # number of selecting user
     quantization_level = 30
     usersNow = 0  # number of users survived
     surviving_users = []
     theta_list = {}
 
-    def __init__(self, n, k):
-        super().__init__(n, k, isBrea=True)
+    def __init__(self, n, k, t, qLevel):
+        super().__init__(n, k, t, isBrea=True)
+        self.quantization_level = qLevel
 
     def saRound(self, tag, requests):
         if tag == BreaRound.SetUp.name:
@@ -199,7 +199,8 @@ class BreaServer(BasicSAServerV2):
 
         _wjt = Brea.update_weight(_wj, self.flatten_weights, self.p, self.quantization_level, self.usersNow)
         new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, _wjt)
-        print("new_weights" + str(new_weights))
+        #print("new_weights" + str(new_weights))
+
         # update global model
         fl.update_model(self.model, new_weights)
 
@@ -209,5 +210,5 @@ class BreaServer(BasicSAServerV2):
 
 
 if __name__ == "__main__":
-    server = BreaServer(n=3, k=5)
+    server = BreaServer(n=3, k=5, t=1, qLevel=30)
     server.start()

@@ -17,12 +17,13 @@ ENCODING = 'utf-8'
 
 class BreaClient:
     HOST = 'localhost'
-    PORT = 7000
+    PORT = 7002
     xu = 0
 
     index = 0  # user index
     commonValues = {} # g = p = R = 0
     n = t = g = p = 0
+    quantization_level = 0
     model = {}
     weight = {}
     quantized_weight = {}
@@ -43,7 +44,7 @@ class BreaClient:
         self.commonValues = response
         self.n = response["n"]
         self.t = response["t"]
-        self.q = response["q"]
+        self.g = response["g"]
         self.p = response["p"]
         self.quantization_level = response["q"]
         self.theta = response["theta"]

@@ -168,10 +168,10 @@ def multi_krum(n, m, djk):
         _set = (n - k + 1) - a - 2
         skj = {}
         for key, value in djk.items():
-            sum_dis = [0,]
+            sum_dis = 0
             for idx, val in djk[key].items():
                 if idx not in Sk:
-                    sum_dis = [x + y for x, y in zip(sum_dis, val)]
+                    sum_dis += sum(val)
             print("SUM_DIS" + str(sum_dis))
             skj[key] = sum_dis
 
@@ -229,14 +229,13 @@ def update_weight(_wj, model, p, q, n):
     learning_rate = 0.01
     para = (q * n)
 
-    for idx_i, val_i in enumerate(demap_wj):    # 여기이부분!
-        for idx_j, val_j in enumerate(val_i):
-            if ((p - 1) / 2) <= val_j < p:
-                demap_wj[idx_i][idx_j] = (val_j - p) / para
-            else:
-                demap_wj[idx_i][idx_j] = val_j / para
+    for idx, val in enumerate(demap_wj):
+        if ((p - 1) / 2) <= val < p:
+            demap_wj[idx] = (val - p) / para
+        else:
+            demap_wj[idx] = val / para
 
-    return model - demap_wj
+    return [m - d for m, d in zip(model, demap_wj)]
 
 
 if __name__ == "__main__":

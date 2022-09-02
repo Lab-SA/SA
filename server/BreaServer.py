@@ -53,6 +53,7 @@ class BreaServer(BasicSAServerV2):
         if self.model == {}:
             self.model = fl.setup()
         self.model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
+        self.weights_info, self.flatten_weights = mhelper.flatten_tensor(self.model.state_dict())
         user_groups = fl.get_user_dataset(self.usersNow)
 
         for i in range(self.n):
@@ -143,7 +144,7 @@ class BreaServer(BasicSAServerV2):
                     print("KeyError")
                     pass
 
-
+        d = 0
         for (j, k), data in djk.items():
             tmp_djk = []
             tmp_theta = []
@@ -151,17 +152,17 @@ class BreaServer(BasicSAServerV2):
                 tmp_theta.append(self.theta_list[index])
                 tmp_djk.append(dis)
 
-            d = tmp_djk[0]
+            d = len(tmp_djk[0])
             h = []
 
-            for x in range(len(d)):
+            for x in range(d):
                 d_one = []
                 for u in range(self.usersNow):
                     d_one.append(tmp_djk[u][x])
                 # reconstruct with theta and djk(i)
                 _h = Brea.calculate_djk_from_h_polynomial(tmp_theta, d_one)
                 # djk to real domain
-                h.append(Brea.real_domain_djk(_h, self.p, self.q))
+                h.append(Brea.real_domain_djk(_h, self.p, self.quantization_level))
             real_djk[j][k] = h
 
         response = Brea.multi_krum(self.n, self.m, real_djk)
@@ -173,11 +174,13 @@ class BreaServer(BasicSAServerV2):
         # requests example: {0: s0, 1: s1, 2: s2, ... }
 
         _si = {}
+        s = 0
         for request in requests:
             requestData = request[1]  # (socket, data)
             index = requestData["index"]
             si = requestData["si"]
             _si[index] = si
+            s = len(si)
 
         si_list = []
         for key, value in sorted(_si.items()):
@@ -185,11 +188,18 @@ class BreaServer(BasicSAServerV2):
 
         # reconstruct _wj of selected users
         # by recovering h with theta and si
-        _wj = Brea.calculate_djk_from_h_polynomial(self.theta_list, si_list)
+        _wj = []
+        for i in range(s):
+            tmp_si = []
+            tmp_theta = []
+            for key, value in _si.items():
+                tmp_theta.append(self.theta_list[key])
+                tmp_si.append(value[i])
+            _wj.append(Brea.calculate_djk_from_h_polynomial(tmp_theta, tmp_si))
 
-        _wjt = Brea.update_weight(_wj, self.model_weights_list, self.p, self.q, self.usersNow)
+        _wjt = Brea.update_weight(_wj, self.flatten_weights, self.p, self.quantization_level, self.usersNow)
         new_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, _wjt)
-
+        print("new_weights" + str(new_weights))
         # update global model
         fl.update_model(self.model, new_weights)
 

@@ -39,6 +39,7 @@ class CSAClient:
 
     def setUp(self):
         tag = CSARound.SetUp.name
+        print("Start New Round")
 
         self.my_sk, self.my_pk = CSA.generateECCKey()
         self.PS = random.randrange(0, 3)

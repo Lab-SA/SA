@@ -154,31 +154,6 @@ def computeReconstructionValue(survived, my_masks, masks, cluster_indexes):
     return RS
 
 
-def computeIntermediateSum(S_dic, n, p, RS_dic = {}):
-    """ compute intermediate sum ISi
-    Args:
-        S_dic (dict): dict of Sj
-        n (int): number of nodes in a cluster
-        p (int): big prime number
-        RS_dic (dict): for drop-out users
-    Returns:
-        dict: random masks (mkj)
-    """
-    # check drop-out users
-    drop_out = []
-    for j in range(n):
-        if j not in S_dic:
-            drop_out.append(j)
-    
-    if drop_out == []:  # no drop-out user
-        return False, list(sum(x) % p for x in zip(*list(S_dic.values())))
-    elif RS_dic != {}:  # remove masks of drop-out users
-        removed_masks = sum(RS_dic.values())
-        return False, list((sum(x)+removed_masks) % p for x in zip(*list(S_dic.values())))
-    else:               # need RS
-        return True, drop_out
-
-
 def clustering(a, b, k, rf, cf, U, t):
     # node clustering
     C = {i: [] for i in range(k+1)} # clusters
@@ -225,54 +200,6 @@ def clustering(a, b, k, rf, cf, U, t):
 
 
 if __name__ == "__main__":
-    # example
-    p = 7
-    g = 3
-    c = 3
-    n = 3
-    a = generateRandomNonce(c, g, p)
-    ri = a[0][0]
-
-    sk0, pk0 = generateECCKey()
-    sk1, pk1 = generateECCKey()
-    sk2, pk2 = generateECCKey()
-    pub_keys = {0: pk0, 1: pk1, 2: pk2}
-
-    a0, b0, c0 = generateMasks(0, n, ri, pub_keys, g, p)
-    a1, b1, c1 = generateMasks(1, n, ri, pub_keys, g, p)
-    a2, b2, c2 = generateMasks(2, n, ri, pub_keys, g, p)
-
-    e1 = {0: b0[1], 2: b2[1]}
-    p1 = {0: c0, 1: c1, 2: c2}
-    verifyMasks(1, ri, e1, p1, sk1, g, p)
-
-
-    # IntermediateSum example
-    w0 = [1,2,3] # weights
-    w1 = [2,3,4]
-    w2 = [3,4,5]
-    m0 = {1: a1[0], 2: a2[0]} # masks for user 0
-    m1 = {0: a0[1], 2: a2[1]}
-    m2 = {0: a0[2], 1: a1[2]} # drop-out
-
-    s0 = generateSecureWeight(w0, ri, m0, p)
-    s1 = generateSecureWeight(w1, ri, m1, p)
-    s2 = generateSecureWeight(w2, ri, m2, p) # drop-out
-
-    # case 1: no drop-out
-    print(computeIntermediateSum({0: s0, 1: s1, 2: s2}, n, p))
-
-    # case 2: 1 drop-out user
-    isDropout, result = computeIntermediateSum({0: s0, 1: s1}, n, p)
-    if isDropout:
-        # request Reconstruction Value RSj - R0, R1
-        RS_dic = {}
-        RS_dic[0] = computeReconstructionValue(result, a0, m0, n)
-        RS_dic[1] = computeReconstructionValue(result, a1, m1, n)
-
-        # after request RSj
-        print(computeIntermediateSum({0: s0, 1: s1}, n, p, RS_dic))
-
     # example: node clustring
     n = 25
     a = 5

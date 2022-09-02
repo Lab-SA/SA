@@ -182,10 +182,6 @@ class BreaServer(BasicSAServerV2):
             _si[index] = si
             s = len(si)
 
-        si_list = []
-        for key, value in sorted(_si.items()):
-            si_list.append(value)
-
         # reconstruct _wj of selected users
         # by recovering h with theta and si
         _wj = []

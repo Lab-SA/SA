@@ -181,26 +181,40 @@ class CSAServer:
         model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(usersNow)
 
-        self.clusterNum = 1                                         # temp
-        self.perGroup = {i: 4 for i in range(self.clusterNum)}      # at least 4 nodes # TODO balanced clustering
-        self.perLatency = {i: 10 for i in range(self.clusterNum)}   # define maximum latency(latency level) per cluster # TODO
+        U = {}
+        for i, request in enumerate(requests):
+            #1. PS, GPS 받기
+            socket, requestData = request
+            gi = requestData['GPS_i']
+            gj = requestData['GPS_j']
+            PS = requestData['PS']
+            U[i] = [gi, gj, PS, request]
+
+        a = 6
+        b = 8
+        k = 3
+        rf = 2
+        cf = 1
+        t = 4
+        C = CSA.clustering(a, b, k, rf, cf, U, t)
+
+        self.clusterNum = len(C)
+        self.perGroup = {}      # at least 4 nodes
+        self.perLatency = {}   # define maximum latency(latency level) per cluster
         self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
         hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
 
         list_ri, list_Ri = CSA.generateRandomNonce(self.clusterNum, self.g, self.p)
-        c = 0
-        for i in range(self.clusterNum): # get all users' public key
-            ri = list_ri[i]
-            for j in range(self.perGroup[i]):
-                hex_keys[i][j] = requests[c][1]['pk']
+        for i, cluster in C.items(): # get all users' public key
+            self.perGroup[i] = len(cluster)
+            self.perLatency[i] = 10 + i*5
+            for j, request in cluster:
+                hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
-                c += 1
-        
-        c = 0
-        for i in range(self.clusterNum):
+        for i, cluster in C.items():
             ri = list_ri[i]
             self.survived[i] = [idx for idx in range(self.perGroup[i])]
-            for j in range(self.perGroup[i]):
+            for j, request in cluster:
                 response_ij = CSASetupDto(
                     n = usersNow, 
                     g = self.g, 
@@ -213,13 +227,12 @@ class CSAServer:
                     cluster_keys = str(hex_keys[i]), # node's id and public key
                     index = j,
                     qLevel = self.quantizationLevel,
-                    data = [int(k) for k in user_groups[c]],
+                    data = [int(k) for k in user_groups[j]],
                     weights= str(model_weights_list),
                 )._asdict()
                 response_json = json.dumps(response_ij)
-                clientSocket = requests[c][0]
+                clientSocket = request[0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
-                c += 1
 
         self.setupTime = round(time.time() - self.start, 4)
     

@@ -70,17 +70,21 @@ def generateMasks(idx, n, ri, pub_keys, g, p):
             else:
                 public_mask[k] = (g ** (p - 1 + m)) % p
         
-        if flag: break # repeat cause last mask is 0
+        if flag:
+            mul_Mkn = 1
+            for Mkn in public_mask.values():
+                mul_Mkn = (mul_Mkn * Mkn) % p
+            if (g ** ri) % p == mul_Mkn: break
+        #if flag: break # repeat cause last mask is 0
 
     return mask, encrypted_mask, public_mask
 
 
-def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
+def verifyMasks(idx, ri, encrypted_mask, public_mask, sk, g, p):
     """ verify masks
     Args:
         idx (int): user's index (idx < n)
         ri (int): random nonce ri
-        n (int): number of nodes in a cluster
         encrypted_mask (dict): encrypted masks (of mkj)
         public_mask (2-dict): public masks in a cluster (Mnn)
         sk (bytes): secret key
@@ -110,39 +114,43 @@ def verifyMasks(idx, ri, n, encrypted_mask, public_mask, sk, g, p):
             mul_Mkn = (mul_Mkn * Mkn) % p
         if Ri != mul_Mkn:
             print('Mask is Invalid. 2')
-            return mask # temp
             return {}
             #raise Exception('Mask is Invalid. 2')
     
     return mask
 
 
-def generateSecureWeight(weight, ri, masks, p):
+def generateSecureWeight(weight, ri, masks, p, a = 0):
     """ generate secure weight Sj
     Args:
         weight (list): 1-d weight list
         ri (int): random nonce ri
         mask (dict): random masks (mkj)
         p (int): big prime number
+        a (int): random value [FullCSA]
     Returns:
         dict: secure weight Sj
     """
-    sum_mask = ri - (sum(masks.values()) % p)
+    sum_mask = ri - (sum(masks.values()) % p) + a
     return [w + sum_mask for w in weight]
 
 
-def computeReconstructionValue(drop_out, my_masks, masks):
+def computeReconstructionValue(survived, my_masks, masks, n):
     """ compute reconstruction value RSj
     Args:
-        drop_out (list): index list of drop-out users
+        survived (list): index list of survived(active) users
         my_masks (dict): random masks by this user (mjk)
         mask (dict): random masks by other users (mkj)
+        n (int): number of nodes in a cluster
     Returns:
         int: reconstruction value RSj
     """
     RS = 0
-    for k in drop_out:
-        RS = RS + masks[k] - my_masks[k]
+    for k in range(n):
+        if k not in survived:
+            try:
+                RS = RS + masks[k] - my_masks[k]
+            except KeyError: pass # drop out in shareMasks user
     return RS
 
 
@@ -171,13 +179,13 @@ def computeIntermediateSum(S_dic, n, p, RS_dic = {}):
         return True, drop_out
 
 
-def clustering(G, a, b, k, rf, cf, U, t):
+def clustering(a, b, k, rf, cf, U, t):
     # node clustering
-    C = {i: [] for i in range(1, k+1)} # clusters
+    C = {i: [] for i in range(k+1)} # clusters
     Uij = {i: {j: [] for j in range(1, b+1)} for i in range(1, a+1)}
     for user, value in U.items():
-        i, j, PS = value
-        Uij[i][j].append((user, PS))
+        i, j, PS, request = value
+        Uij[i][j].append((user, PS, request))
 
     D = 0
     while rf + D <= a or cf + D <= b:
@@ -188,12 +196,12 @@ def clustering(G, a, b, k, rf, cf, U, t):
         for r in range(r0, r1+1):
             for c in range(c0, c1+1):
                 if abs(r-rf) == D or abs(c-cf) == D:
-                    for user, PS in Uij[r][c]:
-                        C[PS].append(user) # PS is divided into k levels
+                    for user, PS, request in Uij[r][c]:
+                        C[PS].append([user, request]) # PS is divided into k levels
         D += 1
 
     # merge clusters for satisfying constraint t
-    while k > 1:
+    while k > 0:
         if len(C[k]) < t:
             l = t - len(C[k])
             if len(C[k-1])-l >= t:
@@ -201,13 +209,13 @@ def clustering(G, a, b, k, rf, cf, U, t):
                 for _ in range(l):
                     move.append(C[k-1].pop())
                 move.reverse()
-                C[k] = C[k] + move
+                C[k] = move + C[k]
             else:
                 C[k-1] = C[k-1] + C[k]
                 del C[k]
         k -= 1
     if len(C[k]) < t: # k = 0
-        C[k+1] = C[k+1] + C[k]
+        C[k+1] = C[k] + C[k+1]
         del C[k]
 
     return C
@@ -221,7 +229,7 @@ if __name__ == "__main__":
     n = 3
     a = generateRandomNonce(c, g, p)
     ri = a[0][0]
-    
+
     sk0, pk0 = generateECCKey()
     sk1, pk1 = generateECCKey()
     sk2, pk2 = generateECCKey()
@@ -230,10 +238,10 @@ if __name__ == "__main__":
     a0, b0, c0 = generateMasks(0, n, ri, pub_keys, g, p)
     a1, b1, c1 = generateMasks(1, n, ri, pub_keys, g, p)
     a2, b2, c2 = generateMasks(2, n, ri, pub_keys, g, p)
-    
+
     e1 = {0: b0[1], 2: b2[1]}
     p1 = {0: c0, 1: c1, 2: c2}
-    verifyMasks(1, ri, n, e1, p1, sk1, g, p)
+    verifyMasks(1, ri, e1, p1, sk1, g, p)
 
 
     # IntermediateSum example
@@ -256,20 +264,20 @@ if __name__ == "__main__":
     if isDropout:
         # request Reconstruction Value RSj - R0, R1
         RS_dic = {}
-        RS_dic[0] = computeReconstructionValue(result, a0, m0)
-        RS_dic[1] = computeReconstructionValue(result, a1, m1)
+        RS_dic[0] = computeReconstructionValue(result, a0, m0, n)
+        RS_dic[1] = computeReconstructionValue(result, a1, m1, n)
 
         # after request RSj
         print(computeIntermediateSum({0: s0, 1: s1}, n, p, RS_dic))
 
 
     # example: node clustring
-    n = 12
-    a = 1
-    b = 3
-    k = 3
-    t = 4
+    n = 25
+    a = 5
+    b = 10
+    k = 9
+    t = 6
     U = {}
     for i in range(n):
-        U[i] = [random.randrange(1, a+1), random.randrange(1, b+1), random.randrange(1, k+1)]
-    print(clustering({}, a, b, k, 1, 2, U, t))
+        U[i] = [random.randrange(1, a+1), random.randrange(1, b+1), random.randrange(0, k), i]
+    print(clustering(a, b, k, 1, 2, U, t))

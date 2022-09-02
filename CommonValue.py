@@ -14,7 +14,7 @@ class TurboRound(Enum):
     TurboFinal = 7012
     Final = 7020
 
-class BalancedSARound(Enum):
+class CSARound(Enum):
     SetUp = 1
     ShareMasks = 2
     Aggregation = 3

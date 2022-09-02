@@ -10,7 +10,7 @@ import learning.models_helper as mhelper
 
 class TurboClient:
     HOST = 'localhost'
-    PORT = 7000
+    PORT = 7001
     xu = 0  # temp. local model of this client
 
     u = 0  # u = user index

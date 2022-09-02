@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-class BalancedSetupDto(NamedTuple):
+class CSASetupDto(NamedTuple):
     n: int
     g: int
     p: int
@@ -11,5 +11,6 @@ class BalancedSetupDto(NamedTuple):
     clusterN: int   # number of nodes in cluster
     cluster_keys: dict
     index: int
+    qLevel: int
     data: dict
     weights: dict

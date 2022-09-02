@@ -3,9 +3,7 @@ import random
 import numpy
 import numpy as np
 import learning.federated_main as fl
-import BasicSA as bs
 import learning.models_helper as mhelper
-from BasicSA import stochasticQuantization
 from Turbo import generateLagrangePolynomial
 
 np.set_printoptions(threshold=np.inf, linewidth=np.inf)
@@ -13,45 +11,44 @@ np.set_printoptions(threshold=np.inf, linewidth=np.inf)
 
 # make N theta_i
 # [호출] : 서버
-# [인자] : n(사용자수), q
+# [인자] : n(사용자수), p
 # [리턴] : th(각 client들에 대한 theta list)
-def make_theta(n, q):
+def make_theta(n, p):
     th = []
     for i in range(n):
-        th.append(random.randint(1, q))
+        th.append(random.randint(1, p))
     return th
 
 
 # Secret polynomium coefficients r_ij
 # [호출] : 클라이언트
-# [인자] : T(threshold), q
+# [인자] : T(threshold), p
 # [리턴] : rij(사용자 i가 랜덤 생성한 계수)(j: 1~T)
-def generate_rij(T, q):
+def generate_rij(T, p):
     rij = [0, ]  # not using first index (0)
     for j in range(T):
-        rij.append(random.randint(1, q))
+        rij.append(random.randint(1, p))
     return rij
 
 
 # share를 생성하기 위한 다항식 f
 # [인자] : theta(자신의 theta), w(weights. quantization한 값), T(threshold), rij(get_rij()의 리턴값)
 # [리턴] : y
-def f(theta, w, T, rij, q):
+def f(theta, w, T, rij, p):
     y = np.array(w)
     for j in range(1, T + 1):
-        y = y + (rij[j] * (mod(theta, j, q)))
+        y = y + (rij[j] * (mod(theta, j, p)))
     return y.tolist()
 
 
 # make shares
 # [호출] : 클라이언트
-# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list, q, p
+# [인자] : w, theta_list(서버가 알려준 theta list), T, rij_list, g, p
 # [리턴] : shares (다른 사용자들에게 보낼 share list)
-def make_shares(flatten_weights, theta_list, T, rij_list, q, p):
-    bar_w = stochasticQuantization(flatten_weights, q, p)
+def make_shares(flatten_weights, theta_list, T, rij_list, p):
     shares = []
     for theta in theta_list:
-        shares.append(f(theta, bar_w, T, rij_list, q))
+        shares.append(f(theta, flatten_weights, T, rij_list, p))
     return shares
 
 
@@ -59,32 +56,29 @@ def make_shares(flatten_weights, theta_list, T, rij_list, q, p):
 # [호출] : 클라이언트
 # [인자] : flatten_weights, rij_list, q, p
 # [리턴] : commitments (verify를 위한 commitment list)
-def generate_commitments(flatten_weights, rij_list, q, p):
+def generate_commitments(flatten_weights, rij_list, g, p):
     commitments = []
-
-    bar_w = stochasticQuantization(flatten_weights, q, p)  # TODO duplicated
-
     for i, rij in enumerate(rij_list):
         if i == 0:
             c = []
-            for k in bar_w:
-                c.append(mod(q, int(np.max(k)), p))
+            for k in flatten_weights:
+                c.append(mod(g, int(np.max(k)), p))
             commitments.append(c)
             continue
 
-        commitments.append(mod(q, rij, p))
+        commitments.append(mod(g, rij, p))
     
     return commitments
 
 
 # verify commitments
 # [호출] : 클라이언트
-# [인자] : q, share(i 에게서 받은 share), commitments(i 가 생성한 commitment list), theta(자신의 theta), p
+# [인자] : g, share(i 에게서 받은 share), commitments(i 가 생성한 commitment list), theta(자신의 theta), p
 # [리턴] : boolean
-def verify(q, share, commitments, theta, p):
+def verify(g, share, commitments, theta, p):
     tmp_x = []
     for s in share:
-        tmp_x.append(mod(q, int(np.max(s)), p))
+        tmp_x.append(mod(g, int(np.max(s)), p))
     x = np.array(tmp_x)
     
     y = 1
@@ -252,8 +246,8 @@ if __name__ == "__main__":
     n = 4 # N = 40
     T = 3 # T = 7
 
-    print(multi_krum(5, 3, [[0, 3, 9, 2, 1], [3, 0, 5, 2, 1], [9, 5, 0, 6, 1], [2, 2, 6, 0, 3], [1, 1, 1, 3, 0]]))
-
+#    print(multi_krum(5, 3, [[0, 3, 9, 2, 1], [3, 0, 5, 2, 1], [9, 5, 0, 6, 1], [2, 2, 6, 0, 3], [1, 1, 1, 3, 0]]))
+'''
     model = fl.setup()
     my_model = fl.get_user_dataset(n)
 
@@ -271,6 +265,8 @@ if __name__ == "__main__":
     shares2 = make_shares(bar_w, theta_list, T, rij_list2, q, p)
     #commitments1 = generate_commitments(bar_w1, rij_list1, g, q)
     commitments2 = generate_commitments(bar_w, rij_list2, q, p)
+    print(shares2)
+    print(commitments2)
 
     result = verify(q, shares2[0], commitments2, theta_list[0], p)
     print("result: ", result)
@@ -282,3 +278,4 @@ if __name__ == "__main__":
     # print(calculate_djk_from_h_polynomial(theta_list, distance))
 
     print(calculate_djk_from_h_polynomial([0,1,2],[1,2,3]))
+    '''

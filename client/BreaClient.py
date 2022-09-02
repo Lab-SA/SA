@@ -9,6 +9,7 @@ from BasicSAClient import sendRequestAndReceive
 from CommonValue import BreaRound, BasicSARound
 import learning.federated_main as fl
 import learning.models_helper as mhelper
+from BasicSA import stochasticQuantization
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -21,7 +22,7 @@ class BreaClient:
 
     index = 0  # user index
     commonValues = {} # g = p = R = 0
-    n = t = q = 0
+    n = t = g = p = 0
     model = {}
     weight = {}
     quantized_weight = {}
@@ -43,6 +44,8 @@ class BreaClient:
         self.n = response["n"]
         self.t = response["t"]
         self.q = response["q"]
+        self.p = response["p"]
+        self.quantization_level = response["q"]
         self.theta = response["theta"]
         self.index = response["index"]
         self.data = response["data"]
@@ -56,16 +59,16 @@ class BreaClient:
 
         local_weights_list = mhelper.weights_to_dic_of_list(local_weight)
         weights_info, flatten_weights = mhelper.flatten_list(local_weights_list)
-        self.flatten_weights = flatten_weights
+        self.flatten_weights = stochasticQuantization(flatten_weights, self.quantization_level, self.p)
 
     def ShareKeys(self):
         tag = BreaRound.ShareKeys.name
 
         # generate theta and rij list
-        rij_list = Brea.generate_rij(self.t, self.q)
+        rij_list = Brea.generate_rij(self.t, self.p)
         self.rij = rij_list
         # generate shares and commitments
-        self.shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.q, self.commonValues["p"])
+        self.shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.p)
         request = {"index": self.index, "shares": self.shares}
         # receive shares_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
@@ -79,7 +82,7 @@ class BreaClient:
     def ShareCommitmentsVerifyShares(self):
         tag = BreaRound.ShareCommitmentsVerifyShares.name
 
-        commitments = Brea.generate_commitments(self.flatten_weights, self.rij, self.q, self.commonValues["p"])
+        commitments = Brea.generate_commitments(self.flatten_weights, self.rij, self.g, self.p)
         self.commitment = commitments
         request = {"index": self.index, "commitment": self.commitment}
 
@@ -90,7 +93,7 @@ class BreaClient:
         for idx, data in response.items():
             commitment_all[idx] = data
 
-        result = Brea.verify(self.q, self.others_shares, commitment_all, self.theta[self.index], self.commonValues["p"])
+        result = Brea.verify(self.g, self.others_shares, commitment_all, self.theta[self.index], self.p)
         print("verify result : ", result)
 
 

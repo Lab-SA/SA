@@ -174,10 +174,10 @@ def multi_krum(n, m, djk):
         _set = (n - k + 1) - a - 2
         skj = {}
         for key, value in djk.items():
-            sum_dis = 0
+            sum_dis = [0,]
             for idx, val in djk[key].items():
                 if idx not in Sk:
-                    sum_dis += val
+                    sum_dis = [x + y for x, y in zip(sum_dis, val)]
             print("SUM_DIS" + str(sum_dis))
             skj[key] = sum_dis
 
@@ -222,7 +222,7 @@ def aggregate_share(shares, selected_user, u):
     return si
 
 
-def update_weight(_wj, model, p, q):
+def update_weight(_wj, model, p, q, n):
     """
     _wj = weight from user
     demap_wj = wj with demapping function
@@ -233,14 +233,14 @@ def update_weight(_wj, model, p, q):
     demap_wj = _wj
 
     learning_rate = 0.01
-    para = (learning_rate / q)
+    para = (q * n)
 
     for idx_i, val_i in enumerate(demap_wj):    # 여기이부분!
         for idx_j, val_j in enumerate(val_i):
             if ((p - 1) / 2) <= val_j < p:
-                demap_wj[idx_i][idx_j] = para * (val_j - p)
+                demap_wj[idx_i][idx_j] = (val_j - p) / para
             else:
-                demap_wj[idx_i][idx_j] = para * val_j
+                demap_wj[idx_i][idx_j] = val_j / para
 
     return model - demap_wj
 

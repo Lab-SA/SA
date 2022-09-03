@@ -3,7 +3,7 @@ import socket, json, time, copy, sys, os
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 from BasicSA import getCommonValues, reconstructPvu, reconstructPu, reconstruct, generatingOutput
-from CommonValue import BasicSARound
+from CommonValue import BasicSARound, BreaRound
 from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
@@ -27,10 +27,14 @@ class BasicSAServerV2:
     yu_list = []
     R = 0
 
-    def __init__(self, n, k, t):
+    RoundValue = BasicSARound
+
+    def __init__(self, n, k, t, isBrea = False):
         self.n = n
         self.k = k # Repeat the entire process k times
         self.t = t # threshold
+        if isBrea:
+            self.RoundValue = BreaRound
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
         self.serverSocket.settimeout(self.timeout)
@@ -45,12 +49,12 @@ class BasicSAServerV2:
             self.users_keys = {}
             self.yu_list = []
 
-            self.requests = {round.name: [] for round in BasicSARound}
-            self.userNum = {i: 0 for i in range(len(BasicSARound))}
+            self.requests = {round.name: [] for round in self.RoundValue}
+            self.userNum = {i: 0 for i in range(len(self.RoundValue))}
             self.userNum[-1] = self.n
 
             # execute BasicSA round (total 5)
-            for i, r in enumerate(BasicSARound):
+            for i, r in enumerate(self.RoundValue):
                 round = r.name
                 self.startTime = self.endTime = time.time()
                 while (self.endTime - self.startTime) < self.interval:
@@ -121,6 +125,18 @@ class BasicSAServerV2:
                 idx = data
             response_json = json.dumps(response[idx])
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+    def foreach_share(self, requests, response):
+        # 'response' must be: { index: [response], ... }
+        # 'requestData' must be: { index: [...data], ... }
+        for (clientSocket, requestData) in requests:
+            idx = 0
+            for data in requestData.keys():
+                if data == 'index':
+                    idx = requestData[data]
+            response_json = json.dumps(response[idx])
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
 
     def saRound(self, tag, requests):
         if tag == BasicSARound.SetUp.name:

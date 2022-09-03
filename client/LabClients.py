@@ -2,6 +2,7 @@ import threading
 
 from BasicSAClient import BasicSAClient, sendRequest
 from TurboClient import TurboClient
+from BreaClient import BreaClient
 from HeteroSAClient import HeteroSAClient
 from CSAClient import CSAClient
 
@@ -24,7 +25,14 @@ def runOneClient(mode, k):
             client.turbo_value()
             client.turbo_final()
 
-    #elif mode == 2: # BREA
+    elif mode == 2: # BREA
+        client = BreaClient()
+        for i in range(k):
+            client.setUp()
+            client.ShareKeys()
+            client.ShareCommitmentsVerifyShares()
+            client.ComputeDistance()
+            client.unMasking()
 
     elif mode == 3: # HeteroSA
         client = HeteroSAClient()

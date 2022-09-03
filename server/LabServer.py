@@ -2,6 +2,7 @@ import socket, json, time, threading
 
 from BasicSAServerV2 import BasicSAServerV2
 from TurboBaseServer import TurboServer
+from BreaServer import BreaServer
 from HeteroSAServer import HeteroSAServer
 from CSAServer import CSAServer
 
@@ -14,7 +15,9 @@ def runServer(mode, k, n, args):
         server = TurboServer(n=n, k=k, t=args['t'], perGroup=args['perGroup'])
         server.start()
 
-    #elif mode == 2: # BREA
+    elif mode == 2: # BREA
+        server = BreaServer(n=n, k=k, t=args['t'], qLevel=args['qLevel'])
+        server.start()
 
     elif mode == 3: # HeteroSA
         # WARN G == perGroup

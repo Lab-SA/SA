@@ -1,47 +1,36 @@
 # Lab-SA Basic SA for Federated Learning
 import random, math
-import numpy as np
 import SecureProtocol as sp
 from ast import literal_eval
 from learning.utils import sum_weights, add_to_weights
 
-g = 31
-p = 131
-
 # Get common values for server set-up: n, t, ...
 def getCommonValues():
-    global g, p
-
     # R: domain
     # g: generator, p: prime
     R = 100 #temp
-    # _g, _p = sp.generator()
-    # g = _g
-    # p = _p
-    commonValues = {"g": g, "p": p, "R": R}
+    commonValues = {"g": sp.g, "p": sp.p, "R": R}
     return commonValues
 
 # Generate two key pairs
 def generateKeyPairs():
-    global g, p
-    c_pk, c_sk = sp.generateKeyPair(g, p)
-    s_pk, s_sk = sp.generateKeyPair(g, p)
+    c_pk, c_sk = sp.generateKeyPair(sp.g, sp.p)
+    s_pk, s_sk = sp.generateKeyPair(sp.g, sp.p)
     return (c_pk, c_sk), (s_pk, s_sk)
 
 # Generate secret-shares of s_sk and bu and encrypt those data
-# users [dictionary]: all users of the current round
-def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
-    global p
-
+# c_pk_dic [dictionary]: all users' c_pk of the current round
+def generateSharesOfMask(t, u, s_sk, c_sk, c_pk_dic, R):
+    n = len(c_pk_dic)
     bu = random.randrange(1, R) # 1~R
-    s_sk_shares_list = sp.make_shares(s_sk, t, len(users))
-    bu_shares_list = sp.make_shares(bu, t, len(users))
+    s_sk_shares_list = sp.make_shares(s_sk, t, n)
+    bu_shares_list = sp.make_shares(bu, t, n)
     euv_list = []
 
-    for i, user_dic in users.items():
+    for i, c_pk in c_pk_dic.items():
         v = int(i)
-        c_pk = user_dic["c_pk"]
-        s_uv = sp.agree(c_sk, c_pk, p)
+        if u == v: continue
+        s_uv = sp.agree(c_sk, c_pk, sp.p)
         plainText = str([u, v, s_sk_shares_list[v], bu_shares_list[v]])
         euv = sp.encrypt(s_uv, plainText)
         euv_list.append((u, v, euv))
@@ -49,14 +38,13 @@ def generateSharesOfMask(t, u, s_sk, c_sk, users, R):
     return euv_list, bu
 
 def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
-    global p
 
     # compute p_uv
     p_uv_list = []
     for u, v, euv in euv_list: # euv_list = [ (u, v, euv), (u, v, euv) ... ]
         if u == v:
             continue
-        s_uv = sp.agree(s_sk, s_pk_dic[v], p)
+        s_uv = sp.agree(s_sk, s_pk_dic[v], sp.p)
         random.seed(s_uv)
         p_uv = random.randrange(1, R) # 1~R
         if u < v:
@@ -75,8 +63,6 @@ def generateMaskedInput(u, bu, xu, s_sk, euv_list, s_pk_dic, R):
 # users_previous [list]: users who were alive in the previous round
 # users_last [list]: users who were alive in the recent round
 def unmasking(u, c_sk, euv_dic, c_pk_dic, users_previous, users_last):
-    global p
-
     s_sk_shares_dic = {}
     bu_shares_dic = {}
     for v in users_previous:
@@ -84,7 +70,7 @@ def unmasking(u, c_sk, euv_dic, c_pk_dic, users_previous, users_last):
             continue
         try:
             # decrypt
-            s_uv = sp.agree(c_sk, c_pk_dic[v], p)
+            s_uv = sp.agree(c_sk, c_pk_dic[v], sp.p)
             plainText = sp.decrypt(s_uv, euv_dic[v])
             _v, _u, s_sk_shares, bu_shares = literal_eval(plainText) # list
 
@@ -105,9 +91,7 @@ def reconstruct(shares_list):
     return sp.combine_shares(shares_list)
 
 def reconstructPvu(v, u, s_sk_v, s_pk_u, R):
-    global p
-
-    s_uv = sp.agree(s_sk_v, s_pk_u, p)
+    s_uv = sp.agree(s_sk_v, s_pk_u, sp.p)
     random.seed(s_uv)
     p_vu = random.randrange(1, R)
     if v < u:

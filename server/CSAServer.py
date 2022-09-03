@@ -12,31 +12,34 @@ import learning.utils as utils
 
 class CSAServer:
     host = 'localhost'
-    port = 7000
+    port = 8000
     SIZE = 2048
     ENCODING = 'utf-8'
-    interval = 10 # server waits in one round # second
+    interval = 10       # server waits in one round # second
     timeout = 3
-    totalRound = 4 # CSA has 4 rounds
+    totalRound = 4      # CSA has 4 rounds
     verifyRound = 'verify'
-    isBasic = True # true if BasicCSA, else FullCSA
+    isBasic = True      # true if BasicCSA, else FullCSA
     quantizationLevel = 30
 
     startTime = {}
     userNum = {}
     requests = {}
+    run_data = []
 
     model = {}
-    users_keys = {}
+    clusters = []       # list of cluster index
+    users_keys = {}     # clients' public key
     R = 0
 
-    survived = {} # active user group per cluster
+    survived = {}       # active user group per cluster
     S_list = {}
-    IS = {} # intermediate sum
+    IS = {}             # intermediate sum
 
-    def __init__(self, n, k, isBasic):
+    def __init__(self, n, k, isBasic, qLevel):
         self.n = n
         self.k = k # Repeat the entire process k times
+        self.quantizationLevel = qLevel
         self.isBasic = isBasic
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
@@ -51,8 +54,14 @@ class CSAServer:
         self.requests_clusters = {round.name: {} for round in CSARound} # check completion of clusters
         requests[CSARound.SetUp.name][0] = []
         requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
+        self.allTime = 0
 
-        for j in range(self.k): # for k times        
+        for j in range(self.k): # for k times
+            # time
+            self.start = time.time()
+            self.setupTime = 0
+            self.totalTime = 0
+
             # init
             self.users_keys = {}
             self.survived = {}
@@ -79,6 +88,9 @@ class CSAServer:
 
                     requestData = json.loads(request)
                     # request must contain {request: tag}
+                    if requestData['request'] == 'table': # request data
+                        clientSocket.sendall(bytes(json.dumps({'data': self.run_data}) + "\r\n", self.ENCODING))
+                        continue
                     clientTag = requestData['request']
                     requestData.pop('request')
                     if clientTag == CSARound.SetUp.name:
@@ -92,7 +104,7 @@ class CSAServer:
                 except socket.timeout:
                     if clientTag == CSARound.SetUp.name: continue
                     now = time.time()
-                    for c in range(self.clusterNum):
+                    for c in self.clusters:
                         if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
                             if clientTag == CSARound.ShareMasks.name:
                                 if len(requests[self.verifyRound][c]) >= 1: # verify
@@ -105,6 +117,8 @@ class CSAServer:
                                 requests[clientTag][c] = [] # clear
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
+                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
+                        print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
                         break # end of this round
                     continue
                 except:
@@ -116,14 +130,14 @@ class CSAServer:
                     if len(requests[clientTag][0]) >= self.n:
                         self.setUp(requests[clientTag][0])
                         for round_t in CSARound:
-                            for c in range(self.clusterNum):
+                            for c in self.clusters:
                                 requests[round_t.name][c] = []
                                 self.requests_clusters[round_t.name][c] = 1
                                 self.startTime[c] = time.time()
-                        requests[self.verifyRound] = {c: [] for c in range(self.clusterNum)}
+                        requests[self.verifyRound] = {c: [] for c in self.clusters}
                         requests[clientTag][0] = [] # clear
                 else: # check all nodes in cluster sent request
-                    for c in range(self.clusterNum):
+                    for c in self.clusters:
                         nowN = len(self.survived[c])
                         if clientTag == CSARound.ShareMasks.name:
                             if clientTag == self.verifyRound:
@@ -138,11 +152,14 @@ class CSAServer:
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
+                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
+                        print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
                         break # end of this round
 
         # End
         # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
+        print('\n|---- Total Time: ', self.allTime)
 
     def saRound(self, tag, requests, cluster):
         if tag == CSARound.ShareMasks.name:
@@ -165,26 +182,45 @@ class CSAServer:
         model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(usersNow)
 
-        self.clusterNum = 1                                         # temp
-        self.perGroup = {i: 4 for i in range(self.clusterNum)}      # at least 4 nodes # TODO balanced clustering
-        self.perLatency = {i: 10 for i in range(self.clusterNum)}   # define maximum latency(latency level) per cluster # TODO
-        self.users_keys = {i: {} for i in range(self.clusterNum)}   # {clusterNum: {index: pk(:bytes)}}
-        hex_keys = {i: {} for i in range(self.clusterNum)}          # {clusterNum: {index: pk(:hex)}}
+        U = {}
+        for i, request in enumerate(requests):
+            #1. PS, GPS 받기
+            socket, requestData = request
+            gi = requestData['GPS_i']
+            gj = requestData['GPS_j']
+            PS = requestData['PS']
+            U[i] = [gi, gj, PS, request]
 
-        list_ri, list_Ri = CSA.generateRandomNonce(self.clusterNum, self.g, self.p)
-        c = 0
-        for i in range(self.clusterNum): # get all users' public key
-            ri = list_ri[i]
-            for j in range(self.perGroup[i]):
-                hex_keys[i][j] = requests[c][1]['pk']
+        a = 6
+        b = 8
+        k = 3
+        rf = 2
+        cf = 1
+        t = 4
+        C = CSA.clustering(a, b, k, rf, cf, U, t)
+
+        self.clusterNum = len(C)
+        self.clusters = []     # list of clusters' index
+        self.perLatency = {}   # define maximum latency(latency level) per cluster
+        self.users_keys = {}   # {clusterIndex: {index: pk(:bytes)}}
+        hex_keys = {}          # {clusterIndex: {index: pk(:hex)}}
+
+        for i, cluster in C.items(): # get all users' public key
+            self.clusters.append(i) # store clusters' index
+            hex_keys[i] = {}
+            self.users_keys[i] = {}
+            self.perLatency[i] = 10 + i*5
+            for j, request in cluster:
+                hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
-                c += 1
-        
-        c = 0
-        for i in range(self.clusterNum):
+
+        list_ri, list_Ri = CSA.generateRandomNonce(self.clusters, self.g, self.p)
+
+        for i, cluster in C.items():
             ri = list_ri[i]
-            self.survived[i] = [idx for idx in range(self.perGroup[i])]
-            for j in range(self.perGroup[i]):
+            self.survived[i] = [j for j, request in cluster]
+            clusterN = len(cluster)
+            for j, request in cluster:
                 response_ij = CSASetupDto(
                     n = usersNow, 
                     g = self.g, 
@@ -193,19 +229,22 @@ class CSAServer:
                     encrypted_ri = CSA.encrypt(self.users_keys[i][j], bytes(str(ri), 'ascii')).hex(),
                     Ri = list_Ri[i],
                     cluster = i,
-                    clusterN = self.perGroup[i],
+                    clusterN = clusterN,
+                    cluster_indexes = self.survived[i],
                     cluster_keys = str(hex_keys[i]), # node's id and public key
                     index = j,
-                    data = [int(k) for k in user_groups[c]],
+                    qLevel = self.quantizationLevel,
+                    data = [int(k) for k in user_groups[j]],
                     weights= str(model_weights_list),
                 )._asdict()
                 response_json = json.dumps(response_ij)
-                clientSocket = requests[c][0]
+                clientSocket = request[0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
-                c += 1
+
+        self.setupTime = round(time.time() - self.start, 4)
     
     def shareMasks(self, requests, cluster):
-        emask = {i: {} for i in range(self.perGroup[cluster])}
+        emask = {}
         pmask = {}
         self.survived[cluster] = []
         for (clientSocket, requestData) in requests:
@@ -213,7 +252,10 @@ class CSAServer:
             self.survived[cluster].append(int(index))
             pmask[index] = requestData['pmask']
             for k, mjk in requestData['emask'].items():
-                emask[int(k)][index] = mjk
+                k = int(k)
+                if emask.get(k) is None:
+                    emask[k] = {}
+                emask[k][index] = mjk
         # print(self.survived[cluster])
 
         # send response
@@ -284,13 +326,16 @@ class CSAServer:
         #print(average_weight['conv1.bias'])
 
         self.model.load_state_dict(average_weight)
-        fl.test_model(self.model)
+        self.accuracy = round(fl.test_model(self.model), 4)
+
+        self.totalTime = round(time.time() - self.start, 4)
+        self.allTime = round(self.allTime + self.totalTime, 4)
 
     def close(self):
         self.serverSocket.close()
 
 
 if __name__ == "__main__":
-    server = CSAServer(n=4, k=3, isBasic = True) # Basic CSA
-    # server = CSAServer(n=4, k=1, isBasic = False) # Full CSA
+    server = CSAServer(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
+    # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
     server.start()

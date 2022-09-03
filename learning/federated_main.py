@@ -11,7 +11,6 @@ from .utils import get_mnist_train, get_mnist_test, get_users_data, average_weig
 # 전역변수 선언
 train_loss, train_accuracy, train_dataset = [], [], []
 args = args_parser()
-start_time = 0
 
 # [호츌] : 서버, 클라이언트
 # [리턴] : global_model 
@@ -47,8 +46,7 @@ def setup():
 # [리턴] : user_groups[dict[int, Any]]
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
 def get_user_dataset(num_users):
-    global start_time, args, train_dataset, user_groups
-    start_time = time.time()
+    global args, train_dataset, user_groups
     user_groups = get_users_data(args, num_users, train_dataset)
     return user_groups
 
@@ -124,7 +122,7 @@ def add_accuracy(list_acc, epoch):
 
 # [호츌] : 서버
 # [인자] : global_model
-# [리턴] : X
+# [리턴] : test accuracy
 # # 모든 학습이 끝난후 출력 
 def test_model(global_model):
     global train_accuracy, args
@@ -133,8 +131,8 @@ def test_model(global_model):
     
     #print(f' \n Results after {args.epochs} global rounds of training:')
     #print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
-    print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
-    print("|---- Test Loss: {:.2f}%".format(100*test_loss))
+    #print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
+    #print("|---- Test Loss: {:.2f}%".format(100*test_loss))
 
     # Saving the objects train_loss and train_accuracy:
     # file_name = '../save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
@@ -143,5 +141,4 @@ def test_model(global_model):
 
     # with open(file_name, 'wb') as f:
     #     pickle.dump([train_loss, train_accuracy], f)
-    global start_time
-    print('\n Total Run Time: {0:0.4f}'.format(time.time()-start_time))
+    return 100*test_acc

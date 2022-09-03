@@ -19,3 +19,10 @@ class CSARound(Enum):
     ShareMasks = 2
     Aggregation = 3
     RemoveMasks = 4
+
+class BreaRound(Enum):
+    SetUp = 1
+    ShareKeys = 2
+    ShareCommitmentsVerifyShares = 3
+    ComputeDistance = 4
+    Unmasking = 5

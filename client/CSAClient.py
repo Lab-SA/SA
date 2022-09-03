@@ -16,7 +16,7 @@ ENCODING = 'utf-8'
 
 class CSAClient:
     HOST = 'localhost'
-    PORT = 7000
+    PORT = 8000
     verifyRound = 'verify'
     isBasic = True # true if BasicCSA, else FullCSA
 
@@ -25,6 +25,9 @@ class CSAClient:
     cluster = clusterN = 0
     index = 0
     ri = 0
+    PS = 0
+    GPS_i = 0
+    GPS_j = 0
 
     my_sk = my_pk = 0
     others_keys = {}  # other users' public key dic
@@ -36,23 +39,31 @@ class CSAClient:
 
     def setUp(self):
         tag = CSARound.SetUp.name
+        print("Start New Round")
 
         self.my_sk, self.my_pk = CSA.generateECCKey()
+        self.PS = random.randrange(0, 3)
+        self.GPS_i = random.randrange(1, 6)
+        self.GPS_j = random.randrange(1, 8)
 
         # request with my public key (pk)
         # response: CSASetupDto
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk.hex()})
+        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk.hex(), 'PS': self.PS, 'GPS_i': self.GPS_i, 'GPS_j': self.GPS_j})
         setupDto = json.loads(json.dumps(response), object_hook=lambda d: CSASetupDto(**d))
-        
+
         self.n = setupDto.n
         self.g = setupDto.g
         self.p = setupDto.p
         self.R = setupDto.R
         self.cluster = setupDto.cluster
         self.clusterN = setupDto.clusterN
+        self.cluster_indexes = setupDto.cluster_indexes
         self.index = setupDto.index
+        self.quantizationLevel = setupDto.qLevel
         self.others_keys = {int(key): value for key, value in literal_eval(setupDto.cluster_keys).items()}
         self.others_keys.pop(self.index)
+
+        self.cluster_indexes.remove(self.index)
 
         # decrypt ri and verity Ri = (g ** ri) mod p
         self.ri = int(bytes.decode(CSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
@@ -74,12 +85,12 @@ class CSAClient:
         self.weights_info, self.weight = mhelper.flatten_tensor(local_weight)
         self.weight = stochasticQuantization(self.weight, self.quantizationLevel, self.p)
         #print(local_weight['conv1.bias'])
-    
+
     def shareRandomMasks(self): # send random masks
         tag = CSARound.ShareMasks.name
 
         while True: # repete until all member share valid masks
-            self.my_mask, encrypted_mask, public_mask = CSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p)
+            self.my_mask, encrypted_mask, public_mask = CSA.generateMasks(self.index, self.cluster_indexes, self.ri, self.others_keys, self.g, self.p)
             request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             # print(self.my_mask, public_mask)
@@ -120,7 +131,7 @@ class CSAClient:
         if not self.isBasic:
             request['a'] = self.a
         while True:
-            RS = CSA.computeReconstructionValue(self.survived, self.my_mask, self.others_mask, self.clusterN)
+            RS = CSA.computeReconstructionValue(self.survived, self.my_mask, self.others_mask, self.cluster_indexes)
             request['RS'] = RS
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             self.survived = response['survived']

@@ -1,7 +1,6 @@
 import random
 from ecies.utils import generate_key
 from ecies import encrypt, decrypt
-from sympy import Q
 
 def generateECCKey():
     """ generate ECC key pair (secp256k1)
@@ -50,32 +49,25 @@ def generateMasks(idx, cluster_indexes, ri, pub_keys, g, p):
         mask = {}
         encrypted_mask = {}
         public_mask = {}
-        sum_mask = 0
         flag = False
 
         n = len(cluster_indexes)
         for i, k in enumerate(cluster_indexes):
             if i == n - 1: # lask mask
                 # last mask (ri - sum_mask)
-                m = mask[k] = ri - sum_mask # allow negative value
+                m = mask[k] = ri - sum(mask.values()) # allow negative value
                 if m != 0: # mask is not allowed to be 0
                     flag = True
             else:
                 m = mask[k] = random.randrange(1, p) # positive integer # for modular p
-                sum_mask = (sum_mask + m) % p
 
             encrypted_mask[k] = encrypt(pub_keys[k], bytes(str(m), 'ascii')).hex()
             if m > 0:
                 public_mask[k] = (g ** m) % p
             else:
-                public_mask[k] = (g ** (p - 1 + m)) % p
-        
-        if flag:
-            mul_Mkn = 1
-            for Mkn in public_mask.values():
-                mul_Mkn = (mul_Mkn * Mkn) % p
-            if (g ** ri) % p == mul_Mkn: break
-        #if flag: break # repeat cause last mask is 0
+                public_mask[k] = (g ** (m % (p - 1))) % p
+
+        if flag: break # repeat cause last mask is 0
 
     return mask, encrypted_mask, public_mask
 
@@ -99,7 +91,7 @@ def verifyMasks(idx, ri, encrypted_mask, public_mask, sk, g, p):
     for k, mkj in encrypted_mask.items():
         mask[k] = m = int(bytes.decode(decrypt(sk, bytes.fromhex(mkj)), 'ascii'))
         if m < 0:
-            m = p - 1 + m
+            m = m % (p - 1)
         if public_mask[k][str(idx)] != (g ** m) % p:
             print('Mask is Invalid. 1')
             return {}

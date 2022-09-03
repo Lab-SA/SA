@@ -57,10 +57,13 @@ class CSAClient:
         self.R = setupDto.R
         self.cluster = setupDto.cluster
         self.clusterN = setupDto.clusterN
+        self.cluster_indexes = setupDto.cluster_indexes
         self.index = setupDto.index
         self.quantizationLevel = setupDto.qLevel
         self.others_keys = {int(key): value for key, value in literal_eval(setupDto.cluster_keys).items()}
         self.others_keys.pop(self.index)
+
+        self.cluster_indexes.remove(self.index)
 
         # decrypt ri and verity Ri = (g ** ri) mod p
         self.ri = int(bytes.decode(CSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
@@ -87,7 +90,7 @@ class CSAClient:
         tag = CSARound.ShareMasks.name
 
         while True: # repete until all member share valid masks
-            self.my_mask, encrypted_mask, public_mask = CSA.generateMasks(self.index, self.clusterN, self.ri, self.others_keys, self.g, self.p)
+            self.my_mask, encrypted_mask, public_mask = CSA.generateMasks(self.index, self.cluster_indexes, self.ri, self.others_keys, self.g, self.p)
             request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             # print(self.my_mask, public_mask)
@@ -128,7 +131,7 @@ class CSAClient:
         if not self.isBasic:
             request['a'] = self.a
         while True:
-            RS = CSA.computeReconstructionValue(self.survived, self.my_mask, self.others_mask, self.clusterN)
+            RS = CSA.computeReconstructionValue(self.survived, self.my_mask, self.others_mask, self.cluster_indexes)
             request['RS'] = RS
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             self.survived = response['survived']

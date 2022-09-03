@@ -17,25 +17,25 @@ def generateECCKey():
     # decrypt(sk_bytes, cipher)
     return sk_bytes, pk_bytes
 
-def generateRandomNonce(c, g, p):
+def generateRandomNonce(clusters, g, p):
     """ generate random nonce for clusters
     Args:
-        c (int): number of clusters
+        clusters (list): index of clusters
         g (int): secure parameter
         p (int): big prime number
     Returns:
         list: list of random nonces
         list: list of Ri
     """
-    list_ri = [random.randrange(1, p) for i in range(c)] # for modular p
-    list_Ri = [(g ** ri) % p for ri in list_ri]
+    list_ri = {c: random.randrange(1, p) for c in clusters} # for modular p
+    list_Ri = {c: (g ** ri) % p for c, ri in list_ri.items()}
     return list_ri, list_Ri
 
-def generateMasks(idx, n, ri, pub_keys, g, p):
+def generateMasks(idx, cluster_indexes, ri, pub_keys, g, p):
     """ generate masks
     Args:
         idx (int): user's index (idx < n)
-        n (int): number of nodes in a cluster
+        cluster_indexes (list): index of nodes in a cluster (without my index)
         ri (int): random nonce ri
         pub_keys (dict): public keys
         g (int): secure parameter
@@ -53,9 +53,9 @@ def generateMasks(idx, n, ri, pub_keys, g, p):
         sum_mask = 0
         flag = False
 
-        for k in range(n):
-            if k == idx: continue
-            if (idx == n - 1 and k == n - 2) or k == n - 1:
+        n = len(cluster_indexes)
+        for i, k in enumerate(cluster_indexes):
+            if i == n - 1: # lask mask
                 # last mask (ri - sum_mask)
                 m = mask[k] = ri - sum_mask # allow negative value
                 if m != 0: # mask is not allowed to be 0
@@ -135,48 +135,23 @@ def generateSecureWeight(weight, ri, masks, p, a = 0):
     return [w + sum_mask for w in weight]
 
 
-def computeReconstructionValue(survived, my_masks, masks, n):
+def computeReconstructionValue(survived, my_masks, masks, cluster_indexes):
     """ compute reconstruction value RSj
     Args:
         survived (list): index list of survived(active) users
         my_masks (dict): random masks by this user (mjk)
         mask (dict): random masks by other users (mkj)
-        n (int): number of nodes in a cluster
+        cluster_indexes (list): index of nodes in a cluster
     Returns:
         int: reconstruction value RSj
     """
     RS = 0
-    for k in range(n):
+    for k in cluster_indexes:
         if k not in survived:
             try:
                 RS = RS + masks[k] - my_masks[k]
             except KeyError: pass # drop out in shareMasks user
     return RS
-
-
-def computeIntermediateSum(S_dic, n, p, RS_dic = {}):
-    """ compute intermediate sum ISi
-    Args:
-        S_dic (dict): dict of Sj
-        n (int): number of nodes in a cluster
-        p (int): big prime number
-        RS_dic (dict): for drop-out users
-    Returns:
-        dict: random masks (mkj)
-    """
-    # check drop-out users
-    drop_out = []
-    for j in range(n):
-        if j not in S_dic:
-            drop_out.append(j)
-    
-    if drop_out == []:  # no drop-out user
-        return False, list(sum(x) % p for x in zip(*list(S_dic.values())))
-    elif RS_dic != {}:  # remove masks of drop-out users
-        removed_masks = sum(RS_dic.values())
-        return False, list((sum(x)+removed_masks) % p for x in zip(*list(S_dic.values())))
-    else:               # need RS
-        return True, drop_out
 
 
 def clustering(a, b, k, rf, cf, U, t):
@@ -214,63 +189,17 @@ def clustering(a, b, k, rf, cf, U, t):
                 C[k-1] = C[k-1] + C[k]
                 del C[k]
         k -= 1
-    if len(C[k]) < t: # k = 0
-        C[k+1] = C[k] + C[k+1]
+
+    while len(C[0]) < t: # k = 0
+        k += 1
+        if C.get(k) is None: continue
+        C[0] = C[0] + C[k]
         del C[k]
 
     return C
 
 
 if __name__ == "__main__":
-    # example
-    p = 7
-    g = 3
-    c = 3
-    n = 3
-    a = generateRandomNonce(c, g, p)
-    ri = a[0][0]
-
-    sk0, pk0 = generateECCKey()
-    sk1, pk1 = generateECCKey()
-    sk2, pk2 = generateECCKey()
-    pub_keys = {0: pk0, 1: pk1, 2: pk2}
-
-    a0, b0, c0 = generateMasks(0, n, ri, pub_keys, g, p)
-    a1, b1, c1 = generateMasks(1, n, ri, pub_keys, g, p)
-    a2, b2, c2 = generateMasks(2, n, ri, pub_keys, g, p)
-
-    e1 = {0: b0[1], 2: b2[1]}
-    p1 = {0: c0, 1: c1, 2: c2}
-    verifyMasks(1, ri, e1, p1, sk1, g, p)
-
-
-    # IntermediateSum example
-    w0 = [1,2,3] # weights
-    w1 = [2,3,4]
-    w2 = [3,4,5]
-    m0 = {1: a1[0], 2: a2[0]} # masks for user 0
-    m1 = {0: a0[1], 2: a2[1]}
-    m2 = {0: a0[2], 1: a1[2]} # drop-out
-
-    s0 = generateSecureWeight(w0, ri, m0, p)
-    s1 = generateSecureWeight(w1, ri, m1, p)
-    s2 = generateSecureWeight(w2, ri, m2, p) # drop-out
-
-    # case 1: no drop-out
-    print(computeIntermediateSum({0: s0, 1: s1, 2: s2}, n, p))
-
-    # case 2: 1 drop-out user
-    isDropout, result = computeIntermediateSum({0: s0, 1: s1}, n, p)
-    if isDropout:
-        # request Reconstruction Value RSj - R0, R1
-        RS_dic = {}
-        RS_dic[0] = computeReconstructionValue(result, a0, m0, n)
-        RS_dic[1] = computeReconstructionValue(result, a1, m1, n)
-
-        # after request RSj
-        print(computeIntermediateSum({0: s0, 1: s1}, n, p, RS_dic))
-
-
     # example: node clustring
     n = 25
     a = 5

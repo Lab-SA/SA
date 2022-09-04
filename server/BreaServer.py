@@ -29,8 +29,6 @@ class BreaServer(BasicSAServerV2):
             self.setUp(requests)
         elif tag == BreaRound.ShareKeys.name:
             self.ShareKeys(requests)
-        elif tag == BreaRound.ShareCommitmentsVerifyShares.name:
-            self.ShareCommitmentsVerifyShares(requests)
         elif tag == BreaRound.ComputeDistance.name:
             self.ComputeDistance(requests)
         elif tag == BreaRound.Unmasking.name:
@@ -39,9 +37,7 @@ class BreaServer(BasicSAServerV2):
     def setUp(self, requests):
         # init
         self.surviving_users = []
-
         self.usersNow = len(requests)
-        self.t = int(self.usersNow / 2)  # threshold
 
         commonValues = getCommonValues()
         self.R = commonValues["R"]
@@ -71,80 +67,53 @@ class BreaServer(BasicSAServerV2):
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
     def ShareKeys(self, requests):
-        # (one) request example: {"index": index, "shares": sij}
-        # requests example: [{0: [([13]), ... ]}, {1: [(0), ... ]}, ... ]
+        # (one) request example: {"index": index, "shares": sij, "commitment": cij}
         # sij : secret share from i for j
-
-        # response example: { 0: [([13]), ... ] 1: [([10]), ... }
-        # sji : secret share from j for i
-
-        response = {}
-        response_shares = []
-        for request in requests:
-            requestData = request[1]  # (socket, data)
-            shares = requestData["shares"]
-            response_shares.append(requestData)
-            for idx in range(len(shares)):
-                response[idx] = {}
-
-        for request in response_shares:
-            i = int(request["index"])
-            shares = request["shares"]
-            for idx in range(len(shares)):
-                response[idx][i] = shares[idx]
-
-        self.foreach_share(requests, response)
-
-
-    def ShareCommitmentsVerifyShares(self, requests):
-        # (one) request example: {"index": index, "commitment": cij }
-        # requests example: [{0: [([1]), ... ]}, {1: [(2187), ... ]}, ... ]
         # cij : commitment from i
 
         # response example: { 0: [([13]), ... ] 1: [([10]), ... }
-        response = {}
-        response_commit = []
-        for request in requests:
-            requestData = request[1]
-            commit = requestData["commitment"]
-            response_commit.append(requestData)
-            for idx in range(len(commit)):
-                response[idx] = {}
+        # sji : secret share from j for i
+        self.usersNow = len(requests)
 
-        for request in response_commit:
-            i = int(request["index"])
-            commit = request["commitment"]
-            for idx in range(len(commit)):
-                response[idx][i] = commit[idx]
+        shares_dict = {}
+        commits_dict = {}
+        for _, requestData in requests: # (socket, data)
+            i = int(requestData["index"])
 
-        self.broadcast(requests, response)
+            shares = requestData["shares"]
+            for idx, s in enumerate(shares):
+                if shares_dict.get(idx) is None:
+                    shares_dict[idx] = {}
+                shares_dict[idx][i] = s
+
+            commitments = requestData["commitments"]
+            for idx, c in enumerate(commitments):
+                if commits_dict.get(idx) is None:
+                    commits_dict[idx] = {}
+                commits_dict[idx][i] = c
+
+        for clientSocket, requestData in requests:
+            idx = requestData['index']
+            response = {"shares": shares_dict[idx], "commitments": commits_dict}
+            response_json = json.dumps(response)
+            clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
 
     def ComputeDistance(self, requests):
         # (one) request example: {"index": index, "distance": djk(i) }
+        self.usersNow = len(requests)
 
         djk = {}
-        requests_djk = []
         real_djk = {}
-        for request in requests:
-            requestData = request[1]  # (socket, data)
-            requests_djk.append(requestData)
+        for _, requestData in requests: # (socket, data)
+            index = requestData["index"]
             distance = requestData["distance"]
-            for (j, k, d) in distance:
-                djk[(j, k)] = {}
+            for j, k, d in distance:
+                real_djk[j] = {}
+                if djk.get((j, k)) is None:
+                    djk[(j, k)] = {}
+                djk[(j, k)][index] = d
 
-        for request in requests_djk:
-            index = request["index"]
-            distance = request["distance"]
-            for(j, k, d) in distance:
-                try:
-                    real_djk[j] = {}
-                    djk[(j, k)][index] = d
-                except KeyError:
-                    print("KeyError")
-                    pass
-
-        d = 0
         for (j, k), data in djk.items():
             tmp_djk = []
             tmp_theta = []
@@ -172,11 +141,11 @@ class BreaServer(BasicSAServerV2):
 
     def Unmasking(self, requests):
         # requests example: {0: s0, 1: s1, 2: s2, ... }
+        self.usersNow = len(requests)
 
         _si = {}
         s = 0
-        for request in requests:
-            requestData = request[1]  # (socket, data)
+        for _, requestData in requests: # (socket, data)
             index = requestData["index"]
             si = requestData["si"]
             _si[index] = si

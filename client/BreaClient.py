@@ -62,37 +62,28 @@ class BreaClient:
         weights_info, flatten_weights = mhelper.flatten_list(local_weights_list)
         self.flatten_weights = stochasticQuantization(flatten_weights, self.quantization_level, self.p)
 
+
     def ShareKeys(self):
         tag = BreaRound.ShareKeys.name
 
         # generate theta and rij list
-        rij_list = Brea.generate_rij(self.t, self.p)
-        self.rij = rij_list
+        self.rij_list = Brea.generate_rij(self.t, self.p)
+
         # generate shares and commitments
-        self.shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, rij_list, self.p)
-        request = {"index": self.index, "shares": self.shares}
+        self.shares = Brea.make_shares(self.flatten_weights, self.theta, self.t, self.rij_list, self.p)
+        self.commitments = Brea.generate_commitments(self.flatten_weights, self.rij, self.g, self.p)
+
+        request = {"index": self.index, "shares": self.shares, "commitments": self.commitments}
         # receive shares_list from server in json format
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
 
-        # store others shares_list from server to client in dic
+        # store others shares_dict and commitments_dict from server to client in dic
         # other shares list : sji
-        for j, shares in response.items():
-            self.others_shares[int(j)] = shares
+        shares_dict = response["shares"]
+        self.others_shares = {int(idx): data for idx, data in shares_dict.items()}
 
-
-    def ShareCommitmentsVerifyShares(self):
-        tag = BreaRound.ShareCommitmentsVerifyShares.name
-
-        commitments = Brea.generate_commitments(self.flatten_weights, self.rij, self.g, self.p)
-        self.commitment = commitments
-        request = {"index": self.index, "commitment": self.commitment}
-
-        # receive commitments_list from server in json format
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
-
-        commitment_all = {}
-        for idx, data in response.items():
-            commitment_all[idx] = data
+        commits_dict = response["commitments"]
+        commitment_all = {idx: data for idx, data in commits_dict.items()}
 
         result = Brea.verify(self.g, self.others_shares, commitment_all, self.theta[self.index], self.p)
         print("verify result : ", result)
@@ -127,6 +118,5 @@ if __name__ == "__main__":
     for i in range(5):  # round
         client.setUp()
         client.ShareKeys()
-        client.ShareCommitmentsVerifyShares()
         client.ComputeDistance()
         client.unMasking()

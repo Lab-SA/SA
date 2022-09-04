@@ -23,6 +23,5 @@ class CSARound(Enum):
 class BreaRound(Enum):
     SetUp = 1
     ShareKeys = 2
-    ShareCommitmentsVerifyShares = 3
-    ComputeDistance = 4
-    Unmasking = 5
+    ComputeDistance = 3
+    Unmasking = 4

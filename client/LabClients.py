@@ -45,14 +45,14 @@ def runOneClient(mode, k):
 
     elif mode == 4: # BasicCSA
         client = CSAClient(isBasic = True)
-        for _ in range(3):
+        for _ in range(k):
             client.setUp()
             client.shareRandomMasks()
             client.sendSecureWeight()
 
     elif mode == 5: # FullCSA
         client = CSAClient(isBasic = False)
-        for _ in range(3):
+        for _ in range(k):
             client.setUp()
             client.shareRandomMasks()
             client.sendSecureWeight()

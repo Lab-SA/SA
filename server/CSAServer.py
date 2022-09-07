@@ -244,6 +244,12 @@ class CSAServer:
         self.setupTime = round(time.time() - self.start, 4)
     
     def shareMasks(self, requests, cluster):
+        if len(requests) < 4: # remove this cluster if nodes < 4 (threshold)
+            for (clientSocket, requestData) in requests:
+                clientSocket.sendall(bytes(json.dumps({"process": False}) + "\r\n", self.ENCODING))
+                self.clusters.remove(cluster)
+                return
+
         emask = {}
         pmask = {}
         self.survived[cluster] = []
@@ -322,6 +328,7 @@ class CSAServer:
         # update global model
         new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
         final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
+        self.n = final_userNum
         average_weight = utils.average_weight(new_weight, final_userNum)
         #print(average_weight['conv1.bias'])
 

@@ -94,6 +94,8 @@ class CSAClient:
             request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
             response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
             # print(self.my_mask, public_mask)
+            if response.get('process') is not None: # this cluster is end
+                return False
 
             emask = {int(key): value for key, value in response['emask'].items()}
             pmask = {int(key): value for key, value in response['pmask'].items()}
@@ -107,6 +109,7 @@ class CSAClient:
                 request = {'cluster': self.cluster, 'index': self.index}
                 sendRequest(self.HOST, self.PORT, self.verifyRound, request)
                 break
+        return True
 
     def sendSecureWeight(self): # send secure weight S
         tag = CSARound.Aggregation.name
@@ -143,5 +146,6 @@ if __name__ == "__main__":
     # client = CSAClient(isBasic = False) # FullCSA
     for _ in range(3):
         client.setUp()
-        client.shareRandomMasks()
+        if not client.shareRandomMasks():
+            continue
         client.sendSecureWeight()

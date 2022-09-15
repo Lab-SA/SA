@@ -127,7 +127,7 @@ class HeteroSAServer(BasicSAServerV2):
                     self.segment_yu[int(i)][int(q)].append(yu)
 
         self.broadcast(requests, {"users": self.surviving_users})
-        print(f'surviving_users: {self.surviving_users}')
+        #print(f'surviving_users: {self.surviving_users}')
         #print(f'segment_yu: {self.segment_yu}')
 
     def unmasking(self, requests):

@@ -56,7 +56,7 @@ class CSAClient:
         self.p = setupDto.p
         self.R = setupDto.R
         self.cluster = setupDto.cluster
-        self.clusterN = setupDto.clusterN
+        self.clusterN = setupDto.clusterN # deprecated
         self.cluster_indexes = setupDto.cluster_indexes
         self.index = setupDto.index
         self.quantizationLevel = setupDto.qLevel
@@ -96,6 +96,12 @@ class CSAClient:
             # print(self.my_mask, public_mask)
             if response.get('process') is not None: # this cluster is end
                 return False
+
+            prev_survived = len(self.cluster_indexes) + 1 # include my index
+            if len(response['survived']) != prev_survived: # drop out in shareRandomMasks stage!
+                self.cluster_indexes = response['survived']
+                self.cluster_indexes.remove(self.index)
+                continue
 
             emask = {int(key): value for key, value in response['emask'].items()}
             pmask = {int(key): value for key, value in response['pmask'].items()}

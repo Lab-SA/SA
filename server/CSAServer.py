@@ -252,6 +252,7 @@ class CSAServer:
 
         emask = {}
         pmask = {}
+        prev_survived = len(self.survived[cluster])
         self.survived[cluster] = []
         for (clientSocket, requestData) in requests:
             index = requestData['index']
@@ -264,10 +265,17 @@ class CSAServer:
                 emask[k][index] = mjk
         # print(self.survived[cluster])
 
+        now_survived = len(self.survived[cluster])
+        if prev_survived != now_survived and now_survived < 4: # remove this cluster if nodes < 4 (threshold)
+            for (clientSocket, requestData) in requests:
+                clientSocket.sendall(bytes(json.dumps({"process": False}) + "\r\n", self.ENCODING))
+                self.clusters.remove(cluster)
+                return
+
         # send response
         for (clientSocket, requestData) in requests:
             index = requestData['index']
-            response = {"emask": emask[index], "pmask": pmask}
+            response = {'survived': self.survived[cluster], 'emask': emask[index], 'pmask': pmask}
             response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 

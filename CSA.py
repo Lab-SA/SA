@@ -133,16 +133,14 @@ def computeReconstructionValue(survived, my_masks, masks, cluster_indexes):
         survived (list): index list of survived(active) users
         my_masks (dict): random masks by this user (mjk)
         mask (dict): random masks by other users (mkj)
-        cluster_indexes (list): index of nodes in a cluster
+        cluster_indexes (list): survived indexes in a cluster
     Returns:
         int: reconstruction value RSj
     """
     RS = 0
     for k in cluster_indexes:
         if k not in survived:
-            try:
-                RS = RS + masks[k] - my_masks[k]
-            except KeyError: pass # drop out in shareMasks user
+            RS = RS + masks[k] - my_masks[k]
     return RS
 
 

@@ -8,6 +8,7 @@ from ast import literal_eval
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
+from common import writeToExcel
 
 class BasicSAServerV2:
     host = 'localhost'
@@ -21,6 +22,7 @@ class BasicSAServerV2:
 
     userNum = {}
     requests = []
+    run_data = []
 
     model = {}
     users_keys = {}
@@ -44,18 +46,22 @@ class BasicSAServerV2:
         # start!
         print(f'[{self.__class__.__name__}] Server started')
             
-        for j in range(self.k): # for k times        
+        for j in range(self.k): # for k times
+            # time
+            self.start = time.time()
+            self.setupTime = 0
+            self.totalTime = 0
+
             # init
             self.users_keys = {}
             self.yu_list = []
 
-            self.requests = {round.name: [] for round in self.RoundValue}
+            self.requests = {r.name: [] for r in self.RoundValue}
             self.userNum = {i: 0 for i in range(len(self.RoundValue))}
             self.userNum[-1] = self.n
 
             # execute BasicSA round (total 5)
             for i, r in enumerate(self.RoundValue):
-                round = r.name
                 self.startTime = self.endTime = time.time()
                 while (self.endTime - self.startTime) < self.interval:
                     currentClient = socket
@@ -80,9 +86,9 @@ class BasicSAServerV2:
                         requestData.pop('request')
                         self.requests[clientTag].append((clientSocket, requestData))
 
-                        print(f'[{round}] Client: {clientTag}/{addr}')
+                        print(f'[{r.name}] Client: {clientTag}/{addr}')
 
-                        if round == clientTag:
+                        if r.name == clientTag:
                             self.userNum[i] = self.userNum[i] + 1
                     except socket.timeout:
                         pass
@@ -101,11 +107,18 @@ class BasicSAServerV2:
                     raise Exception(f"Need at least {self.t} users, but only {self.userNum[i]} user(s) responsed")
             
                 # do
-                self.saRound(round, self.requests[round])
-        
+                self.saRound(r.name, self.requests[r.name])
+
+            self.totalTime = round(time.time() - self.start, 4)
+            self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
+            print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
+
         # End
         # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
+
+        # write to excel
+        writeToExcel('../../results/basicsa.xlsx', self.run_data) # Hetero
 
     # broadcast to all client (same response)
     def broadcast(self, requests, response): # send response (broadcast)
@@ -173,6 +186,8 @@ class BasicSAServerV2:
 
             # response
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+        self.setupTime = round(time.time() - self.start, 4)
 
     def advertiseKeys(self, requests):
         # requests example: {"c_pk":"VALUE", "s_pk": "VALUE"}
@@ -271,7 +286,7 @@ class BasicSAServerV2:
         
         # End
         self.broadcast(requests, "[Server] End protocol")
-        fl.test_model(self.model)
+        self.accuracy = round(fl.test_model(self.model), 4)
     
     def close(self):
         self.serverSocket.close()

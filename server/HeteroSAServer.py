@@ -1,4 +1,4 @@
-import os, sys, json
+import os, sys, json, time
 import statistics
 from ast import literal_eval
 
@@ -81,6 +81,8 @@ class HeteroSAServer(BasicSAServerV2):
                 response_json = json.dumps(response_ij)
                 clientSocket = requests[idx][0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+        self.setupTime = round(time.time() - self.start, 4)
 
     def advertiseKeys(self, requests):
         # requests example: {"group":, "index":, "c_pk":"VALUE", "s_pk": "VALUE"}
@@ -182,7 +184,7 @@ class HeteroSAServer(BasicSAServerV2):
 
         # End
         self.broadcast(requests, "[Server] End protocol")
-        fl.test_model(self.model)
+        self.accuracy = round(fl.test_model(self.model), 4)
 
 if __name__ == "__main__":
     quantization_levels = [20, 30, 60, 80, 100]

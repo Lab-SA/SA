@@ -9,6 +9,7 @@ from dto.CSASetupDto import CSASetupDto
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
+from common import writeToExcel
 
 class CSAServer:
     host = 'localhost'
@@ -160,6 +161,9 @@ class CSAServer:
         # serverSocket.close()
         print(f'[{self.__class__.__name__}] Server finished')
         print('\n|---- Total Time: ', self.allTime)
+
+        # write to excel
+        writeToExcel('../../results/csa.xlsx', self.run_data)
 
     def saRound(self, tag, requests, cluster):
         if tag == CSARound.ShareMasks.name:

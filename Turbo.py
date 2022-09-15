@@ -30,7 +30,7 @@ def computeMaskedModel(x, u_i, next_users, q):
         mask = u_i + r_ij
         maskedx = np.array(x) + mask
         tildeX[j] = maskedx.tolist()
-        print(f"mask={mask}")  # tildeX = {maskedx}
+        #print(f"mask={mask}")  # tildeX = {maskedx}
     # print(f"tildeX = {tildeX}")
     return tildeX
 
@@ -85,8 +85,8 @@ def generateEncodedModel(alpha_list, beta_list, tildeX):
     """
     barX = {i: [] for i in range(len(beta_list))}
 
-    print(f"alpha_list: {alpha_list}")
-    print(f"beta_list: {beta_list}")
+    #print(f"alpha_list: {alpha_list}")
+    #print(f"beta_list: {beta_list}")
 
     for pair in zip(*tildeX.values()):
         f_i = generateLagrangePolynomial(alpha_list, list(pair))

@@ -53,7 +53,7 @@ class TurboClient:
 
         self.data = response["data"]  # user_groups[idx]
         global_weights = mhelper.dic_of_list_to_weights(response["weights"])
-        print(f'group: {self.group}, index: {self.index}')
+        #print(f'group: {self.group}, index: {self.index}')
 
         if self.model == {}:
             self.model = fl.setup()
@@ -104,7 +104,7 @@ class TurboClient:
         tag = TurboRound.TurboFinal.name
 
         response = sendRequestAndReceive(self.HOST, self.PORT, tag, {})
-        print(f"response[chosen]= {response['chosen']}")
+        #print(f"response[chosen]= {response['chosen']}")
 
         if response["chosen"] == True:
             self.index = response["index"]

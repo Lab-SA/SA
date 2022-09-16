@@ -45,16 +45,18 @@ def runOneClient(mode, k):
 
     elif mode == 4: # BasicCSA
         client = CSAClient(isBasic = True)
-        for _ in range(3):
+        for _ in range(k):
             client.setUp()
-            client.shareRandomMasks()
+            if not client.shareRandomMasks():
+                continue
             client.sendSecureWeight()
 
     elif mode == 5: # FullCSA
         client = CSAClient(isBasic = False)
-        for _ in range(3):
+        for _ in range(k):
             client.setUp()
-            client.shareRandomMasks()
+            if not client.shareRandomMasks():
+                continue
             client.sendSecureWeight()
 
 
@@ -76,7 +78,7 @@ if __name__ == "__main__":
     port = 6000
     quantization_levels = [20, 30, 60, 80, 100]
     args = {'t': int(n/2), 'perGroup': 2, 'G': 2, 'qLevel': 30, 'quantization_levels': quantization_levels}
-    sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
+    #sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
 
     # thread
     for _ in range(n):

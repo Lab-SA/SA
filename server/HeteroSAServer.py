@@ -1,4 +1,4 @@
-import os, sys, json
+import os, sys, json, time
 import statistics
 from ast import literal_eval
 
@@ -82,6 +82,8 @@ class HeteroSAServer(BasicSAServerV2):
                 clientSocket = requests[idx][0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
+        self.setupTime = round(time.time() - self.start, 4)
+
     def advertiseKeys(self, requests):
         # requests example: {"group":, "index":, "c_pk":"VALUE", "s_pk": "VALUE"}
 
@@ -125,7 +127,7 @@ class HeteroSAServer(BasicSAServerV2):
                     self.segment_yu[int(i)][int(q)].append(yu)
 
         self.broadcast(requests, {"users": self.surviving_users})
-        print(f'surviving_users: {self.surviving_users}')
+        #print(f'surviving_users: {self.surviving_users}')
         #print(f'segment_yu: {self.segment_yu}')
 
     def unmasking(self, requests):
@@ -182,7 +184,7 @@ class HeteroSAServer(BasicSAServerV2):
 
         # End
         self.broadcast(requests, "[Server] End protocol")
-        fl.test_model(self.model)
+        self.accuracy = round(fl.test_model(self.model), 4)
 
 if __name__ == "__main__":
     quantization_levels = [20, 30, 60, 80, 100]

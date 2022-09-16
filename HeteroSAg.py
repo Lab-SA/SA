@@ -139,7 +139,7 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, we
     # compute pu first
     random.seed(bu)
     pu = random.randrange(1, R) # 1~R
-    print(f'pu: {pu}')
+    #print(f'pu: {pu}')
 
     # compute p_uv
     weights_info, flatten_xu = mhelper.flatten_tensor(xu)
@@ -165,7 +165,7 @@ def generateMaskedInputOfSegments(index, bu, xu, s_sk, B, G, group, perGroup, we
                         p_uv = -p_uv
                     p_uv_list.append(p_uv)
 
-        print(f'puv list[{l}]: {p_uv_list}')
+        #print(f'puv list[{l}]: {p_uv_list}')
 
         # quantization weights
         quantized_xu = quantization_weights(segment_xu[l], q, default_r1, default_r2, quantization_levels)
@@ -236,7 +236,7 @@ def unmasking(segment_info, G, segment_yu, surviving_users, users_keys, s_sk_dic
                         sum_pvu = sum_pvu + reconstructPvu(v, index, s_sk, users_keys[index]["s_pk"], R)
                     
                     surviving_num = surviving_num + 1
-            print(f'sum pu / (recontructed) sum_pvu : {sum_pu} / {sum_pvu}')
+            #print(f'sum pu / (recontructed) sum_pvu : {sum_pu} / {sum_pvu}')
             mask = sum_pvu - sum_pu
 
             #segment_xu[l][q] = sum(segment_yu[l][q]) + mask

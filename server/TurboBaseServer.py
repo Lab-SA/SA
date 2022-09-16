@@ -7,6 +7,7 @@ from Turbo import generateRandomVectorSet, reconstruct, computeFinalOutput
 from CommonValue import TurboRound
 import learning.federated_main as fl
 import learning.models_helper as mhelper
+from common import writeToExcel
 
 class TurboServer:
     host = 'localhost'
@@ -19,6 +20,7 @@ class TurboServer:
     
     model = {}
     requests = []
+    run_data = []
 
     requests_next = {}
     requests_value = []
@@ -53,7 +55,12 @@ class TurboServer:
         self.userNum = {i: 0 for i in range(len(self.requests))} # only need 2 (setup, final)
         self.userNum[-1] = self.n
 
-        for j in range(self.k): # for k times        
+        for j in range(self.k): # for k times
+            # time
+            self.start = time.time()
+            self.setupTime = 0
+            self.totalTime = 0
+
             # init
             self.users_keys = {}
             self.mask_u_dic = {}
@@ -68,13 +75,12 @@ class TurboServer:
 
             # execute Turbo round
             for i, r in enumerate(TurboRound):
-                round = r.name
-                if round == TurboRound.Turbo.name:
+                if r.name == TurboRound.Turbo.name:
                     self.turbo()
                     continue
-                elif round == TurboRound.TurboValue.name or round == TurboRound.TurboFinal.name:
+                elif r.name == TurboRound.TurboValue.name or r.name == TurboRound.TurboFinal.name:
                     continue
-                elif round == TurboRound.Final.name: # range of i: [0, 1]
+                elif r.name == TurboRound.Final.name: # range of i: [0, 1]
                     self.requests[TurboRound.SetUp.name] = []
                     self.userNum[0] = 0
                     i = 1
@@ -103,7 +109,7 @@ class TurboServer:
                         requestData.pop('request')
                         self.requests[clientTag].append((clientSocket, requestData))
 
-                        print(f'[{round}] Client: {clientTag}/{addr}')
+                        print(f'[{r.name}] Client: {clientTag}/{addr}')
 
                         if TurboRound.SetUp.name == clientTag:
                             self.userNum[0] = self.userNum[0] + 1
@@ -118,7 +124,7 @@ class TurboServer:
                         pass
                     
                     self.endTime = time.time()
-                    if round == TurboRound.Final.name:
+                    if r.name == TurboRound.Final.name:
                         if self.userNum[i] >= self.perGroup:
                             break
                     elif self.userNum[i] >= self.userNum[i-1]:
@@ -130,10 +136,18 @@ class TurboServer:
                     raise Exception(f"Need at least {self.t} users, but only {self.userNum[i]} user(s) responsed")
             
                 # do
-                self.saRound(round, self.requests[round])
+                self.saRound(r.name, self.requests[r.name])
             
             # End
-            print(f'[{self.__class__.__name__}] Server finished {j+1} round')
+            self.totalTime = round(time.time() - self.start, 4)
+            self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
+            print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
+
+        # End
+        print(f'[{self.__class__.__name__}] Server finished')
+
+        # write to excel
+        writeToExcel('../../results/turbo.xlsx', self.run_data)
 
     def turbo(self):
         tag = TurboRound.Turbo.name
@@ -266,6 +280,8 @@ class TurboServer:
                 clientSocket = requests[idx][0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
+        self.setupTime = round(time.time() - self.start, 4)
+
     def final(self, requests):
         final_tildeS = {}
         final_barS = {}
@@ -297,7 +313,7 @@ class TurboServer:
 
         # End
         self.broadcast(requests, "[Server] End protocol")
-        fl.test_model(self.model)
+        self.accuracy = round(fl.test_model(self.model), 4)
     
     # send response to requests-client
     def sendTurboValue(self, requests, requests_value):

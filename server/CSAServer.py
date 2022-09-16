@@ -9,6 +9,7 @@ from dto.CSASetupDto import CSASetupDto
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
+from common import writeToExcel
 
 class CSAServer:
     host = 'localhost'
@@ -161,6 +162,9 @@ class CSAServer:
         print(f'[{self.__class__.__name__}] Server finished')
         print('\n|---- Total Time: ', self.allTime)
 
+        # write to excel
+        writeToExcel('../../results/csa.xlsx', self.run_data)
+
     def saRound(self, tag, requests, cluster):
         if tag == CSARound.ShareMasks.name:
             self.shareMasks(requests, cluster)
@@ -244,8 +248,15 @@ class CSAServer:
         self.setupTime = round(time.time() - self.start, 4)
     
     def shareMasks(self, requests, cluster):
+        if len(requests) < 4: # remove this cluster if nodes < 4 (threshold)
+            for (clientSocket, requestData) in requests:
+                clientSocket.sendall(bytes(json.dumps({"process": False}) + "\r\n", self.ENCODING))
+                self.clusters.remove(cluster)
+                return
+
         emask = {}
         pmask = {}
+        prev_survived = len(self.survived[cluster])
         self.survived[cluster] = []
         for (clientSocket, requestData) in requests:
             index = requestData['index']
@@ -258,10 +269,17 @@ class CSAServer:
                 emask[k][index] = mjk
         # print(self.survived[cluster])
 
+        now_survived = len(self.survived[cluster])
+        if prev_survived != now_survived and now_survived < 4: # remove this cluster if nodes < 4 (threshold)
+            for (clientSocket, requestData) in requests:
+                clientSocket.sendall(bytes(json.dumps({"process": False}) + "\r\n", self.ENCODING))
+                self.clusters.remove(cluster)
+                return
+
         # send response
         for (clientSocket, requestData) in requests:
             index = requestData['index']
-            response = {"emask": emask[index], "pmask": pmask}
+            response = {'survived': self.survived[cluster], 'emask': emask[index], 'pmask': pmask}
             response_json = json.dumps(response)
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
@@ -322,6 +340,7 @@ class CSAServer:
         # update global model
         new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
         final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
+        self.n = final_userNum
         average_weight = utils.average_weight(new_weight, final_userNum)
         #print(average_weight['conv1.bias'])
 

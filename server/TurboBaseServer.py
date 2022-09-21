@@ -47,7 +47,7 @@ class TurboServer:
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
         self.serverSocket.settimeout(self.timeout)
-        self.serverSocket.listen()
+        self.serverSocket.listen(200)
         print(f'[Turbo] Server started')
 
         # self.requests = {round.name: [] for round in TurboRound}

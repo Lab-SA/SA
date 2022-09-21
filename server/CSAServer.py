@@ -48,7 +48,7 @@ class CSAServer:
 
     def start(self):
         # start!
-        self.serverSocket.listen()
+        self.serverSocket.listen(200)
         print(f'[{self.__class__.__name__}] Server started')
 
         requests = {round.name: {} for round in CSARound}
@@ -213,7 +213,7 @@ class CSAServer:
             self.clusters.append(i) # store clusters' index
             hex_keys[i] = {}
             self.users_keys[i] = {}
-            self.perLatency[i] = 10 + i*5
+            self.perLatency[i] = 50 + i*5
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
@@ -302,7 +302,7 @@ class CSAServer:
         
         if len(self.survived[cluster]) == beforeN and self.isBasic: # no need RemoveMasks stage in this cluster (step3-1 x)
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
-            self.IS[cluster] = list(sum(x) for x in zip(*self.S_list[cluster].values())) # sum
+            self.IS[cluster] = list(sum(x) % self.p for x in zip(*self.S_list[cluster].values())) # sum
 
         self.requests_clusters[CSARound.Aggregation.name][cluster] = 0
         self.startTime[cluster] = time.time() # reset start time
@@ -328,7 +328,7 @@ class CSAServer:
                 if not self.isBasic:
                     a += int(requestData['a'])
                 clientSocket.sendall(response_json)
-            self.IS[cluster] = list(sum(x) + RS - a for x in zip(*surv_S_list))
+            self.IS[cluster] = list((sum(x) + RS - a) % self.p for x in zip(*surv_S_list))
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
 
         self.startTime[cluster] = time.time() # reset start time

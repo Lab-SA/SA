@@ -9,7 +9,7 @@ from dto.CSASetupDto import CSASetupDto
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
-from common import writeToExcel
+from common import writeToExcel, writeWeightsToFile, readWeightsFromFile
 
 class CSAServer:
     host = 'localhost'
@@ -22,6 +22,7 @@ class CSAServer:
     verifyRound = 'verify'
     isBasic = True      # true if BasicCSA, else FullCSA
     quantizationLevel = 30
+    filename = '../../results/csa.xlsx'
 
     startTime = {}
     userNum = {}
@@ -103,19 +104,28 @@ class CSAServer:
                     print(f'[{clientTag}] Client: {clientTag}/{addr}/{cluster}')
 
                 except socket.timeout:
-                    if clientTag == CSARound.SetUp.name: continue
+                    if clientTag == CSARound.SetUp.name:
+                        if len(requests[clientTag][0]) >= self.n:
+                            self.setUp(requests[clientTag][0])
+                            for round_t in CSARound:
+                                for c in self.clusters:
+                                    requests[round_t.name][c] = []
+                                    self.requests_clusters[round_t.name][c] = 1
+                                    self.startTime[c] = time.time()
+                            requests[self.verifyRound] = {c: [] for c in self.clusters}
+                            requests[clientTag][0] = [] # clear
+                        continue
                     now = time.time()
                     for c in self.clusters:
                         if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
-                            if clientTag == CSARound.ShareMasks.name:
-                                if len(requests[self.verifyRound][c]) >= 1: # verify
+                            for r in CSARound:
+                                if r.name == CSARound.ShareMasks.name and len(requests[self.verifyRound][c]) >= 1:
                                     self.requests_clusters[CSARound.ShareMasks.name][c] = 0
-                                elif self.requests_clusters[clientTag][c] == 1:
-                                    self.saRound(clientTag, requests[clientTag][c], c)
+                                    requests[self.verifyRound][c] = [] # clear
+                                elif self.requests_clusters[r.name][c] == 1:
+                                    self.saRound(r.name, requests[r.name][c], c)
                                     requests[clientTag][c] = [] # clear
-                            elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1:
-                                self.saRound(clientTag, requests[clientTag][c], c)
-                                requests[clientTag][c] = [] # clear
+
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
                         self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
@@ -183,6 +193,10 @@ class CSAServer:
 
         if self.model == {}:
             self.model = fl.setup()
+            # optional
+            # prev_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
+            # self.model.load_state_dict(prev_weights)
+
         model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(usersNow)
 
@@ -353,8 +367,18 @@ class CSAServer:
     def close(self):
         self.serverSocket.close()
 
+    def writeResults(self):
+        print(f'[{self.__class__.__name__}] Server finished cause by Interrupt')
+        print('\n|---- Total Time: ', self.allTime)
+
+        # write to excel
+        writeToExcel(self.filename, self.run_data)
+        writeWeightsToFile(mhelper.flatten_tensor(self.model.state_dict())[1])
 
 if __name__ == "__main__":
-    server = CSAServer(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
-    # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
-    server.start()
+    try:
+        server = CSAServer(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
+        # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
+        server.start()
+    except (KeyboardInterrupt, RuntimeError):
+        server.writeResults()

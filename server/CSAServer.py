@@ -1,4 +1,5 @@
 import socket, json, time, sys, os
+from threading import Thread
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -10,6 +11,26 @@ import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
 from common import writeToExcel, writeWeightsToFile, readWeightsFromFile
+from MessageQueue import MessageQueue
+
+def listenAndAccept(mq, serverSocket, SIZE, ENCODING):
+    serverSocket.listen(200)
+
+    while True:  # always listen
+        clientSocket, addr = serverSocket.accept()
+
+        # receive client data
+        # client request must ends with "\r\n"
+        request = ''
+        while True:
+            received = str(clientSocket.recv(SIZE), ENCODING)
+            if received.endswith("\r\n"):
+                received = received.replace("\r\n", "")
+                request = request + received
+                break
+            request = request + received
+
+        mq.put(clientSocket, request)
 
 class CSAServer:
     host = 'localhost'
@@ -45,11 +66,16 @@ class CSAServer:
         self.isBasic = isBasic
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
-        self.serverSocket.settimeout(self.timeout)
+        #self.serverSocket.settimeout(self.timeout)
+        self.mq = MessageQueue()
 
     def start(self):
         # start!
-        self.serverSocket.listen(200)
+        Thread( # listen and accept from server socket
+            target=listenAndAccept,
+            args=(self.mq, self.serverSocket, self.SIZE, self.ENCODING),
+            daemon=True
+        ).start()
         print(f'[{self.__class__.__name__}] Server started')
 
         requests = {round.name: {} for round in CSARound}
@@ -74,24 +100,12 @@ class CSAServer:
             while True: # always listen
                 currentClient = socket
                 try:
-                    clientSocket, addr = self.serverSocket.accept()
-                    currentClient = clientSocket
+                    currentClient, requestData = self.mq.get()
 
-                    # receive client data
-                    # client request must ends with "\r\n"
-                    request = ''
-                    while True:
-                        received = str(clientSocket.recv(self.SIZE), self.ENCODING)
-                        if received.endswith("\r\n"):
-                            received = received.replace("\r\n", "")
-                            request = request + received
-                            break
-                        request = request + received
-
-                    requestData = json.loads(request)
+                    requestData = json.loads(requestData)
                     # request must contain {request: tag}
                     if requestData['request'] == 'table': # request data
-                        clientSocket.sendall(bytes(json.dumps({'data': self.run_data}) + "\r\n", self.ENCODING))
+                        currentClient.sendall(bytes(json.dumps({'data': self.run_data}) + "\r\n", self.ENCODING))
                         continue
                     clientTag = requestData['request']
                     requestData.pop('request')
@@ -99,11 +113,13 @@ class CSAServer:
                         cluster = 0
                     else:
                         cluster = int(requestData['cluster'])
-                    requests[clientTag][cluster].append((clientSocket, requestData))
+                    requests[clientTag][cluster].append((currentClient, requestData))
 
-                    print(f'[{clientTag}] Client: {clientTag}/{addr}/{cluster}')
+                    print(f'[{clientTag}] Client: {clientTag}/{cluster}')
 
-                except socket.timeout:
+                except (IndexError, socket.timeout): # IndexError(pop from an empty deque) if deque is empty
+                    time.sleep(self.timeout)
+
                     if clientTag == CSARound.SetUp.name:
                         if len(requests[clientTag][0]) >= self.n:
                             self.setUp(requests[clientTag][0])

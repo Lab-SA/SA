@@ -89,6 +89,7 @@ class CSAServer:
             self.start = time.time()
             self.setupTime = 0
             self.totalTime = 0
+            self.isSetupOk = False
 
             # init
             self.users_keys = {}
@@ -120,16 +121,14 @@ class CSAServer:
                 except (IndexError, socket.timeout): # IndexError(pop from an empty deque) if deque is empty
                     time.sleep(self.timeout)
 
-                    if clientTag == CSARound.SetUp.name:
-                        if len(requests[clientTag][0]) >= self.n:
-                            self.setUp(requests[clientTag][0])
+                    if not self.isSetupOk: # not yet setup this round
+                        if len(requests[CSARound.SetUp.name][0]) >= self.n:
+                            self.setUp(requests[CSARound.SetUp.name][0])
                             for round_t in CSARound:
                                 for c in self.clusters:
                                     requests[round_t.name][c] = []
-                                    self.requests_clusters[round_t.name][c] = 1
-                                    self.startTime[c] = time.time()
                             requests[self.verifyRound] = {c: [] for c in self.clusters}
-                            requests[clientTag][0] = [] # clear
+                            requests[CSARound.SetUp.name][0] = [] # clear
                         continue
                     now = time.time()
                     for c in self.clusters:
@@ -138,9 +137,11 @@ class CSAServer:
                                 if r.name == CSARound.ShareMasks.name and len(requests[self.verifyRound][c]) >= 1:
                                     self.requests_clusters[CSARound.ShareMasks.name][c] = 0
                                     requests[self.verifyRound][c] = [] # clear
+                                    break
                                 elif self.requests_clusters[r.name][c] == 1:
                                     self.saRound(r.name, requests[r.name][c], c)
                                     requests[clientTag][c] = [] # clear
+                                    break
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
@@ -153,16 +154,15 @@ class CSAServer:
                     currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
                     pass
 
-                if clientTag == CSARound.SetUp.name:
-                    if len(requests[clientTag][0]) >= self.n:
-                        self.setUp(requests[clientTag][0])
+                #if clientTag == CSARound.SetUp.name:
+                if not self.isSetupOk: # not yet setup this round
+                    if len(requests[CSARound.SetUp.name][0]) >= self.n:
+                        self.setUp(requests[CSARound.SetUp.name][0])
                         for round_t in CSARound:
                             for c in self.clusters:
                                 requests[round_t.name][c] = []
-                                self.requests_clusters[round_t.name][c] = 1
-                                self.startTime[c] = time.time()
                         requests[self.verifyRound] = {c: [] for c in self.clusters}
-                        requests[clientTag][0] = [] # clear
+                        requests[CSARound.SetUp.name][0] = [] # clear
                 else: # check all nodes in cluster sent request
                     for c in self.clusters:
                         nowN = len(self.survived[c])
@@ -201,7 +201,7 @@ class CSAServer:
 
     def setUp(self, requests):
         usersNow = len(requests)
-        
+
         commonValues = getCommonValues()
         self.g = commonValues["g"]
         self.p = commonValues["p"]
@@ -274,6 +274,16 @@ class CSAServer:
                 response_json = json.dumps(response_ij)
                 clientSocket = request[0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+
+        # init
+        self.isSetupOk = True
+        for round_t in CSARound:
+            for c in self.clusters:
+                self.requests_clusters[round_t.name][c] = 1
+                self.startTime[c] = time.time()
+        for c in self.clusters:
+            self.requests_clusters[CSARound.SetUp.name][c] = 0
 
         self.setupTime = round(time.time() - self.start, 4)
     
@@ -370,7 +380,7 @@ class CSAServer:
         # update global model
         new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
         final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
-        self.n = final_userNum
+        #self.n = final_userNum
         average_weight = utils.average_weight(new_weight, final_userNum)
         #print(average_weight['conv1.bias'])
 

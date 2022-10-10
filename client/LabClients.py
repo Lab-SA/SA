@@ -6,7 +6,7 @@ from BreaClient import BreaClient
 from HeteroSAClient import HeteroSAClient
 from CSAClient import CSAClient
 
-def runOneClient(mode, k):
+def runOneClient(mode, k, dropout = False):
     if mode == 0: # BasicSA
         client = BasicSAClient()
         for _ in range(k):
@@ -49,7 +49,8 @@ def runOneClient(mode, k):
             client.setUp()
             if not client.shareRandomMasks():
                 continue
-            client.sendSecureWeight()
+            if not dropout:
+                client.sendSecureWeight()
 
     elif mode == 5: # FullCSA
         client = CSAClient(isBasic = False)
@@ -81,6 +82,11 @@ if __name__ == "__main__":
     #sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
 
     # thread
-    for _ in range(n):
-        thread = threading.Thread(target=runOneClient, args=(mode, k))
-        thread.start()
+    dropout = int(n/2)
+    for i in range(n):
+        if i >= dropout:
+            threading.Thread(target=runOneClient, args=(mode, k, True)).start()
+        else:
+            threading.Thread(target=runOneClient, args=(mode, k, False)).start()
+        #thread = threading.Thread(target=runOneClient, args=(mode, k))
+        #thread.start()

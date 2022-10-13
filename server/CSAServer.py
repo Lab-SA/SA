@@ -1,5 +1,4 @@
-import socket, json, time, sys, os
-from threading import Thread
+import socket, json, time, sys, os, select
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -11,26 +10,6 @@ import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
 from common import writeToExcel, writeWeightsToFile, readWeightsFromFile
-from MessageQueue import MessageQueue
-
-def listenAndAccept(mq, serverSocket, SIZE, ENCODING):
-    serverSocket.listen(200)
-
-    while True:  # always listen
-        clientSocket, addr = serverSocket.accept()
-
-        # receive client data
-        # client request must ends with "\r\n"
-        request = ''
-        while True:
-            received = str(clientSocket.recv(SIZE), ENCODING)
-            if received.endswith("\r\n"):
-                received = received.replace("\r\n", "")
-                request = request + received
-                break
-            request = request + received
-
-        mq.put(clientSocket, request)
 
 class CSAServer:
     host = 'localhost'
@@ -66,16 +45,11 @@ class CSAServer:
         self.isBasic = isBasic
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
-        #self.serverSocket.settimeout(self.timeout)
-        self.mq = MessageQueue()
+        self.serverSocket.setblocking(False)
 
     def start(self):
         # start!
-        Thread( # listen and accept from server socket
-            target=listenAndAccept,
-            args=(self.mq, self.serverSocket, self.SIZE, self.ENCODING),
-            daemon=True
-        ).start()
+        self.serverSocket.listen(200)
         print(f'[{self.__class__.__name__}] Server started')
 
         requests = {round.name: {} for round in CSARound}
@@ -83,6 +57,7 @@ class CSAServer:
         requests[CSARound.SetUp.name][0] = []
         requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
         self.allTime = 0
+        connections = [self.serverSocket]
 
         for j in range(self.k): # for k times
             # time
@@ -99,62 +74,43 @@ class CSAServer:
 
             clientTag = CSARound.SetUp.name
             while True: # always listen
-                currentClient = socket
-                try:
-                    currentClient, requestData = self.mq.get()
+                readable, writable, exceptional = select.select(connections, [], [])
 
-                    requestData = json.loads(requestData)
-                    # request must contain {request: tag}
-                    if requestData['request'] == 'table': # request data
-                        currentClient.sendall(bytes(json.dumps({'data': self.run_data}) + "\r\n", self.ENCODING))
-                        continue
-                    clientTag = requestData['request']
-                    requestData.pop('request')
-                    if clientTag == CSARound.SetUp.name:
-                        cluster = 0
-                    else:
-                        cluster = int(requestData['cluster'])
-                    requests[clientTag][cluster].append((currentClient, requestData))
+                if self.serverSocket in readable: # new connection on the listening socket
+                    clientSocket, addr = self.serverSocket.accept()
+                    connections.append(clientSocket)
 
-                    print(f'[{clientTag}] Client: {clientTag}/{cluster}')
+                else: # reading from an established connection
+                    for clientSocket in readable:
+                        # receive client data
+                        # client request must ends with "\r\n"
+                        requestData = ''
+                        while True:
+                            received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                            if received.endswith("\r\n"):
+                                received = received.replace("\r\n", "")
+                                requestData = requestData + received
+                                break
+                            requestData = requestData + received
 
-                except (IndexError, socket.timeout): # IndexError(pop from an empty deque) if deque is empty
-                    time.sleep(self.timeout)
+                        if requestData.find('}\r\n{') > 0: # for multiple requests at once
+                            requestData_all = requestData.split('\r\n')
+                        else:
+                            requestData_all = [requestData]
 
-                    if not self.isSetupOk: # not yet setup this round
-                        if len(requests[CSARound.SetUp.name][0]) >= self.n:
-                            self.setUp(requests[CSARound.SetUp.name][0])
-                            for round_t in CSARound:
-                                for c in self.clusters:
-                                    requests[round_t.name][c] = []
-                            requests[self.verifyRound] = {c: [] for c in self.clusters}
-                            requests[CSARound.SetUp.name][0] = [] # clear
-                        continue
-                    now = time.time()
-                    for c in self.clusters:
-                        if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
-                            for r in CSARound:
-                                if r.name == CSARound.ShareMasks.name and len(requests[self.verifyRound][c]) >= 1:
-                                    self.requests_clusters[CSARound.ShareMasks.name][c] = 0
-                                    requests[self.verifyRound][c] = [] # clear
-                                    break
-                                elif self.requests_clusters[r.name][c] == 1:
-                                    self.saRound(r.name, requests[r.name][c], c)
-                                    requests[clientTag][c] = [] # clear
-                                    break
+                        for requestOne in requestData_all:
+                            requestData = json.loads(requestOne)
+                            clientTag = requestData['request']
+                            requestData.pop('request')
+                            if clientTag == CSARound.SetUp.name:
+                                cluster = 0
+                            else:
+                                cluster = int(requestData['cluster'])
+                            requests[clientTag][cluster].append((clientSocket, requestData))
 
-                    if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
-                        self.finalAggregation()
-                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
-                        print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
-                        break # end of this round
-                    continue
-                except:
-                    print(f'[{self.__class__.__name__}] Exception: invalid request or unknown server error')
-                    currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
-                    pass
+                            print(f'[{clientTag}] Client: {clientTag}/{cluster}')
 
-                #if clientTag == CSARound.SetUp.name:
+
                 if not self.isSetupOk: # not yet setup this round
                     if len(requests[CSARound.SetUp.name][0]) >= self.n:
                         self.setUp(requests[CSARound.SetUp.name][0])
@@ -164,7 +120,10 @@ class CSAServer:
                         requests[self.verifyRound] = {c: [] for c in self.clusters}
                         requests[CSARound.SetUp.name][0] = [] # clear
                 else: # check all nodes in cluster sent request
+                    now = time.time()
+
                     for c in self.clusters:
+                        # check number of requests
                         nowN = len(self.survived[c])
                         if clientTag == CSARound.ShareMasks.name:
                             if clientTag == self.verifyRound:
@@ -176,6 +135,18 @@ class CSAServer:
                         elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= nowN:
                             self.saRound(clientTag, requests[clientTag][c], c)
                             requests[clientTag][c] = [] # clear
+
+                        # check latency
+                        if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
+                            for r in CSARound:
+                                if r.name == CSARound.ShareMasks.name and len(requests[self.verifyRound][c]) >= 1:
+                                    self.requests_clusters[CSARound.ShareMasks.name][c] = 0
+                                    requests[self.verifyRound][c] = [] # clear
+                                    break
+                                elif self.requests_clusters[r.name][c] == 1:
+                                    self.saRound(r.name, requests[r.name][c], c)
+                                    requests[clientTag][c] = [] # clear
+                                    break
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()

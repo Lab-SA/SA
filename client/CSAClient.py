@@ -1,11 +1,11 @@
-import os, sys, json, random
+import os, sys, json, random, socket
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
 import CSA
 from CommonValue import CSARound
 from BasicSA import stochasticQuantization
-from BasicSAClient import sendRequestAndReceive, sendRequest
+from common import sendRequestAndReceiveV2, sendRequestV2
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 from dto.CSASetupDto import CSASetupDto
@@ -36,6 +36,8 @@ class CSAClient:
 
     def __init__(self, isBasic):
         self.isBasic = isBasic
+        self.mysocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.mysocket.connect((self.HOST, self.PORT))
 
     def setUp(self):
         tag = CSARound.SetUp.name
@@ -48,7 +50,7 @@ class CSAClient:
 
         # request with my public key (pk)
         # response: CSASetupDto
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, {'pk': self.my_pk.hex(), 'PS': self.PS, 'GPS_i': self.GPS_i, 'GPS_j': self.GPS_j})
+        response = sendRequestAndReceiveV2(self.mysocket, tag, {'pk': self.my_pk.hex(), 'PS': self.PS, 'GPS_i': self.GPS_i, 'GPS_j': self.GPS_j})
         setupDto = json.loads(json.dumps(response), object_hook=lambda d: CSASetupDto(**d))
 
         self.n = setupDto.n
@@ -92,7 +94,7 @@ class CSAClient:
         while True: # repete until all member share valid masks
             self.my_mask, encrypted_mask, public_mask = CSA.generateMasks(self.index, self.cluster_indexes, self.ri, self.others_keys, self.g, self.p)
             request = {'cluster': self.cluster, 'index': self.index, 'emask': encrypted_mask, 'pmask': public_mask}
-            response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+            response = sendRequestAndReceiveV2(self.mysocket, tag, request)
             # print(self.my_mask, public_mask)
             if response.get('process') is not None: # this cluster is end
                 return False
@@ -113,7 +115,7 @@ class CSAClient:
             #print('others mask', self.others_mask)
             if self.others_mask != {}:
                 request = {'cluster': self.cluster, 'index': self.index}
-                sendRequest(self.HOST, self.PORT, self.verifyRound, request)
+                sendRequestV2(self.mysocket, self.verifyRound, request)
                 break
         return True
 
@@ -127,7 +129,7 @@ class CSAClient:
         S = CSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p, self.a)
         #print(S[250:260])
         request = {'cluster': self.cluster, 'index': self.index, 'S': S}
-        response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+        response = sendRequestAndReceiveV2(self.mysocket, tag, request)
 
         self.survived = response['survived']
         if not self.isBasic or len(self.survived) != self.nowN:
@@ -142,7 +144,7 @@ class CSAClient:
         while True:
             RS = CSA.computeReconstructionValue(self.survived, self.my_mask, self.others_mask, self.cluster_indexes)
             request['RS'] = RS
-            response = sendRequestAndReceive(self.HOST, self.PORT, tag, request)
+            response = sendRequestAndReceiveV2(self.mysocket, tag, request)
             self.survived = response['survived']
             if len(self.survived) == 0:
                 break

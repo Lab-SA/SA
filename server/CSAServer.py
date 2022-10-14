@@ -72,8 +72,9 @@ class CSAServer:
             self.S_list = {}
             self.IS = {}
 
+            timeout = 3
             while True: # always listen
-                readable, writable, exceptional = select.select(connections, [], [])
+                readable, writable, exceptional = select.select(connections, [], [], timeout)
 
                 if self.serverSocket in readable: # new connection on the listening socket
                     clientSocket, addr = self.serverSocket.accept()
@@ -87,7 +88,7 @@ class CSAServer:
                         while True:
                             received = str(clientSocket.recv(self.SIZE), self.ENCODING)
                             if received.endswith("\r\n"):
-                                received = received.replace("\r\n", "")
+                                received = received[:-2]
                                 requestData = requestData + received
                                 break
                             requestData = requestData + received

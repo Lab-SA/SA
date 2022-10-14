@@ -72,7 +72,6 @@ class CSAServer:
             self.S_list = {}
             self.IS = {}
 
-            clientTag = CSARound.SetUp.name
             while True: # always listen
                 readable, writable, exceptional = select.select(connections, [], [])
 
@@ -125,16 +124,14 @@ class CSAServer:
                     for c in self.clusters:
                         # check number of requests
                         nowN = len(self.survived[c])
-                        if clientTag == CSARound.ShareMasks.name:
-                            if clientTag == self.verifyRound:
-                                if len(requests[self.verifyRound][c]) >= nowN: # verify ok
-                                    self.requests_clusters[CSARound.ShareMasks.name][c] = 0
-                            elif self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= nowN:
-                                self.saRound(clientTag, requests[clientTag][c], c)
-                                requests[clientTag][c] = [] # clear
-                        elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= nowN:
-                            self.saRound(clientTag, requests[clientTag][c], c)
-                            requests[clientTag][c] = [] # clear
+
+                        if len(requests[self.verifyRound][c]) >= nowN: # verify ok
+                            self.requests_clusters[CSARound.ShareMasks.name][c] = 0
+
+                        for r in CSARound:
+                            if self.requests_clusters[r.name][c] == 1 and len(requests[r.name][c]) >= nowN:
+                                self.saRound(r.name, requests[r.name][c], c)
+                                requests[r.name][c] = [] # clear
 
                         # check latency
                         if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
@@ -145,7 +142,7 @@ class CSAServer:
                                     break
                                 elif self.requests_clusters[r.name][c] == 1:
                                     self.saRound(r.name, requests[r.name][c], c)
-                                    requests[clientTag][c] = [] # clear
+                                    requests[r.name][c] = [] # clear
                                     break
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:

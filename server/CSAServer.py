@@ -78,6 +78,8 @@ class CSAServer:
 
                 if self.serverSocket in readable: # new connection on the listening socket
                     clientSocket, addr = self.serverSocket.accept()
+                    clientSocket.setblocking(True)
+                    clientSocket.settimeout(2)
                     connections.append(clientSocket)
 
                 else: # reading from an established connection
@@ -85,13 +87,18 @@ class CSAServer:
                         # receive client data
                         # client request must ends with "\r\n"
                         requestData = ''
-                        while True:
-                            received = str(clientSocket.recv(self.SIZE), self.ENCODING)
-                            if received.endswith("\r\n"):
-                                received = received[:-2]
+                        try:
+                            while True:
+                                received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                                if received.endswith("\r\n"):
+                                    received = received[:-2]
+                                    requestData = requestData + received
+                                    break
                                 requestData = requestData + received
-                                break
-                            requestData = requestData + received
+                        except socket.timeout:
+                            if requestData.endswith("\r\n"):
+                                requestData = requestData[:-2]
+                            pass
 
                         if requestData.find('}\r\n{') > 0: # for multiple requests at once
                             requestData_all = requestData.split('\r\n')

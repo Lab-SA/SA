@@ -38,6 +38,7 @@ class CSAClient:
         self.isBasic = isBasic
         self.mysocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.mysocket.connect((self.HOST, self.PORT))
+        self.mysocket.settimeout(10)
 
     def setUp(self):
         tag = CSARound.SetUp.name

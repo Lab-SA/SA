@@ -1,4 +1,4 @@
-import time, json
+import time, json, socket
 from openpyxl import load_workbook
 from ast import literal_eval
 
@@ -40,13 +40,21 @@ def sendRequestAndReceiveV2(s, tag, request):
     # receive server response
     # response must ends with "\r\n"
     receivedStr = ''
+    flag = False
     while True:
-        received = str(s.recv(SIZE), ENCODING)
-        if received.endswith("\r\n"):
-            received = received.replace("\r\n", "")
+        try:
+            received = str(s.recv(SIZE), ENCODING)
+            flag = True
+            if received.endswith("\r\n"):
+                received = received[:-2]
+                receivedStr = receivedStr + received
+                break
             receivedStr = receivedStr + received
-            break
-        receivedStr = receivedStr + received
+        except socket.timeout:
+            if flag:
+                if receivedStr.endswith("\r\n"):
+                    receivedStr = receivedStr[:-2]
+                break
 
     try:
         response = json.loads(receivedStr)

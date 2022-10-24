@@ -1,4 +1,4 @@
-import socket, json, time, sys, os
+import socket, json, time, sys, os, select
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -9,7 +9,7 @@ from dto.CSASetupDto import CSASetupDto
 import learning.federated_main as fl
 import learning.models_helper as mhelper
 import learning.utils as utils
-from common import writeToExcel
+from common import writeToExcel, writeWeightsToFile, readWeightsFromFile
 
 class CSAServer:
     host = 'localhost'
@@ -22,6 +22,7 @@ class CSAServer:
     verifyRound = 'verify'
     isBasic = True      # true if BasicCSA, else FullCSA
     quantizationLevel = 30
+    filename = '../../results/csa.xlsx'
 
     startTime = {}
     userNum = {}
@@ -44,11 +45,11 @@ class CSAServer:
         self.isBasic = isBasic
         self.serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverSocket.bind((self.host, self.port))
-        self.serverSocket.settimeout(self.timeout)
+        self.serverSocket.setblocking(False)
 
     def start(self):
         # start!
-        self.serverSocket.listen()
+        self.serverSocket.listen(200)
         print(f'[{self.__class__.__name__}] Server started')
 
         requests = {round.name: {} for round in CSARound}
@@ -56,12 +57,14 @@ class CSAServer:
         requests[CSARound.SetUp.name][0] = []
         requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
         self.allTime = 0
+        connections = [self.serverSocket]
 
         for j in range(self.k): # for k times
             # time
             self.start = time.time()
             self.setupTime = 0
             self.totalTime = 0
+            self.isSetupOk = False
 
             # init
             self.users_keys = {}
@@ -69,87 +72,86 @@ class CSAServer:
             self.S_list = {}
             self.IS = {}
 
-            clientTag = CSARound.SetUp.name
+            timeout = 3
             while True: # always listen
-                currentClient = socket
-                try:
+                readable, writable, exceptional = select.select(connections, [], [], timeout)
+
+                if self.serverSocket in readable: # new connection on the listening socket
                     clientSocket, addr = self.serverSocket.accept()
-                    currentClient = clientSocket
+                    clientSocket.setblocking(True)
+                    clientSocket.settimeout(2)
+                    connections.append(clientSocket)
 
-                    # receive client data
-                    # client request must ends with "\r\n"
-                    request = ''
-                    while True:
-                        received = str(clientSocket.recv(self.SIZE), self.ENCODING)
-                        if received.endswith("\r\n"):
-                            received = received.replace("\r\n", "")
-                            request = request + received
-                            break
-                        request = request + received
+                else: # reading from an established connection
+                    for clientSocket in readable:
+                        # receive client data
+                        # client request must ends with "\r\n"
+                        requestData = ''
+                        try:
+                            while True:
+                                received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                                if received.endswith("\r\n"):
+                                    received = received[:-2]
+                                    requestData = requestData + received
+                                    break
+                                requestData = requestData + received
+                        except socket.timeout:
+                            if requestData.endswith("\r\n"):
+                                requestData = requestData[:-2]
+                            pass
 
-                    requestData = json.loads(request)
-                    # request must contain {request: tag}
-                    if requestData['request'] == 'table': # request data
-                        clientSocket.sendall(bytes(json.dumps({'data': self.run_data}) + "\r\n", self.ENCODING))
-                        continue
-                    clientTag = requestData['request']
-                    requestData.pop('request')
-                    if clientTag == CSARound.SetUp.name:
-                        cluster = 0
-                    else:
-                        cluster = int(requestData['cluster'])
-                    requests[clientTag][cluster].append((clientSocket, requestData))
+                        if requestData.find('}\r\n{') > 0: # for multiple requests at once
+                            requestData_all = requestData.split('\r\n')
+                        else:
+                            requestData_all = [requestData]
 
-                    print(f'[{clientTag}] Client: {clientTag}/{addr}/{cluster}')
+                        for requestOne in requestData_all:
+                            requestData = json.loads(requestOne)
+                            clientTag = requestData['request']
+                            requestData.pop('request')
+                            if clientTag == CSARound.SetUp.name:
+                                cluster = 0
+                            else:
+                                cluster = int(requestData['cluster'])
+                            requests[clientTag][cluster].append((clientSocket, requestData))
 
-                except socket.timeout:
-                    if clientTag == CSARound.SetUp.name: continue
-                    now = time.time()
-                    for c in self.clusters:
-                        if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
-                            if clientTag == CSARound.ShareMasks.name:
-                                if len(requests[self.verifyRound][c]) >= 1: # verify
-                                    self.requests_clusters[CSARound.ShareMasks.name][c] = 0
-                                elif self.requests_clusters[clientTag][c] == 1:
-                                    self.saRound(clientTag, requests[clientTag][c], c)
-                                    requests[clientTag][c] = [] # clear
-                            elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1:
-                                self.saRound(clientTag, requests[clientTag][c], c)
-                                requests[clientTag][c] = [] # clear
-                    if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
-                        self.finalAggregation()
-                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
-                        print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
-                        break # end of this round
-                    continue
-                except:
-                    print(f'[{self.__class__.__name__}] Exception: invalid request or unknown server error')
-                    currentClient.sendall(bytes('Exception: invalid request or unknown server error\r\n', self.ENCODING))
-                    pass
+                            print(f'[{clientTag}] Client: {clientTag}/{cluster}')
 
-                if clientTag == CSARound.SetUp.name:
-                    if len(requests[clientTag][0]) >= self.n:
-                        self.setUp(requests[clientTag][0])
+
+                if not self.isSetupOk: # not yet setup this round
+                    if len(requests[CSARound.SetUp.name][0]) >= self.n:
+                        self.setUp(requests[CSARound.SetUp.name][0])
                         for round_t in CSARound:
                             for c in self.clusters:
                                 requests[round_t.name][c] = []
-                                self.requests_clusters[round_t.name][c] = 1
-                                self.startTime[c] = time.time()
                         requests[self.verifyRound] = {c: [] for c in self.clusters}
-                        requests[clientTag][0] = [] # clear
+                        requests[CSARound.SetUp.name][0] = [] # clear
                 else: # check all nodes in cluster sent request
+                    now = time.time()
+
                     for c in self.clusters:
+                        # check number of requests
                         nowN = len(self.survived[c])
-                        if clientTag == CSARound.ShareMasks.name:
-                            if clientTag == self.verifyRound:
-                                if len(requests[self.verifyRound][c]) >= nowN: # verify ok
+
+                        if len(requests[self.verifyRound][c]) >= nowN: # verify ok
+                            self.requests_clusters[CSARound.ShareMasks.name][c] = 0
+
+                        for r in CSARound:
+                            if self.requests_clusters[r.name][c] == 1 and len(requests[r.name][c]) >= nowN:
+                                self.saRound(r.name, requests[r.name][c], c)
+                                requests[r.name][c] = [] # clear
+
+                        # check latency
+                        if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
+                            for r in CSARound:
+                                if r.name == CSARound.ShareMasks.name and len(requests[self.verifyRound][c]) >= 1:
                                     self.requests_clusters[CSARound.ShareMasks.name][c] = 0
-                            elif self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= nowN:
-                                self.saRound(clientTag, requests[clientTag][c], c)
-                                requests[clientTag][c] = [] # clear
-                        elif clientTag != self.verifyRound and self.requests_clusters[clientTag][c] == 1 and len(requests[clientTag][c]) >= nowN:
-                            self.saRound(clientTag, requests[clientTag][c], c)
-                            requests[clientTag][c] = [] # clear
+                                    requests[self.verifyRound][c] = [] # clear
+                                    break
+                                elif self.requests_clusters[r.name][c] == 1:
+                                    self.saRound(r.name, requests[r.name][c], c)
+                                    requests[r.name][c] = [] # clear
+                                    break
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
@@ -175,7 +177,7 @@ class CSAServer:
 
     def setUp(self, requests):
         usersNow = len(requests)
-        
+
         commonValues = getCommonValues()
         self.g = commonValues["g"]
         self.p = commonValues["p"]
@@ -183,6 +185,10 @@ class CSAServer:
 
         if self.model == {}:
             self.model = fl.setup()
+            # optional
+            # prev_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
+            # self.model.load_state_dict(prev_weights)
+
         model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
         user_groups = fl.get_user_dataset(usersNow)
 
@@ -213,7 +219,7 @@ class CSAServer:
             self.clusters.append(i) # store clusters' index
             hex_keys[i] = {}
             self.users_keys[i] = {}
-            self.perLatency[i] = 10 + i*5
+            self.perLatency[i] = 50 + i*5
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
@@ -244,6 +250,16 @@ class CSAServer:
                 response_json = json.dumps(response_ij)
                 clientSocket = request[0]
                 clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
+
+
+        # init
+        self.isSetupOk = True
+        for round_t in CSARound:
+            for c in self.clusters:
+                self.requests_clusters[round_t.name][c] = 1
+                self.startTime[c] = time.time()
+        for c in self.clusters:
+            self.requests_clusters[CSARound.SetUp.name][c] = 0
 
         self.setupTime = round(time.time() - self.start, 4)
     
@@ -302,7 +318,7 @@ class CSAServer:
         
         if len(self.survived[cluster]) == beforeN and self.isBasic: # no need RemoveMasks stage in this cluster (step3-1 x)
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
-            self.IS[cluster] = list(sum(x) for x in zip(*self.S_list[cluster].values())) # sum
+            self.IS[cluster] = list(sum(x) % self.p for x in zip(*self.S_list[cluster].values())) # sum
 
         self.requests_clusters[CSARound.Aggregation.name][cluster] = 0
         self.startTime[cluster] = time.time() # reset start time
@@ -328,7 +344,7 @@ class CSAServer:
                 if not self.isBasic:
                     a += int(requestData['a'])
                 clientSocket.sendall(response_json)
-            self.IS[cluster] = list(sum(x) + RS - a for x in zip(*surv_S_list))
+            self.IS[cluster] = list((sum(x) + RS - a) % self.p for x in zip(*surv_S_list))
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
 
         self.startTime[cluster] = time.time() # reset start time
@@ -340,7 +356,7 @@ class CSAServer:
         # update global model
         new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
         final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
-        self.n = final_userNum
+        #self.n = final_userNum
         average_weight = utils.average_weight(new_weight, final_userNum)
         #print(average_weight['conv1.bias'])
 
@@ -353,8 +369,18 @@ class CSAServer:
     def close(self):
         self.serverSocket.close()
 
+    def writeResults(self):
+        print(f'[{self.__class__.__name__}] Server finished cause by Interrupt')
+        print('\n|---- Total Time: ', self.allTime)
+
+        # write to excel
+        writeToExcel(self.filename, self.run_data)
+        writeWeightsToFile(mhelper.flatten_tensor(self.model.state_dict())[1])
 
 if __name__ == "__main__":
-    server = CSAServer(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
-    # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
-    server.start()
+    try:
+        server = CSAServer(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
+        # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
+        server.start()
+    except (KeyboardInterrupt, RuntimeError):
+        server.writeResults()

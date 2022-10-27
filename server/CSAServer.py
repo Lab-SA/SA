@@ -246,6 +246,7 @@ class CSAServer:
                     qLevel = self.quantizationLevel,
                     data = [int(k) for k in user_groups[j]],
                     weights= str(model_weights_list),
+                    training_weight=0,
                 )._asdict()
                 response_json = json.dumps(response_ij)
                 clientSocket = request[0]

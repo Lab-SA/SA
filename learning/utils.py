@@ -5,7 +5,7 @@
 import copy
 import torch
 from torchvision import datasets, transforms
-from .sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
+from .sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal, mnist_iid_cluster
 
 def get_mnist_train():
     data_dir = '../data/mnist/'
@@ -26,7 +26,7 @@ def get_mnist_test():
     test_dataset = datasets.MNIST(data_dir, train=False, download=True, transform=apply_transform)
     return test_dataset
 
-def get_users_data(args, num_users, train_dataset):
+def get_users_data(args, num_users, train_dataset, isCluster=False, cluster=0, num_items=0):
     """ Returns a user group which is a dict where
     the keys are the user index and the values are the corresponding data for each of those users.
     """
@@ -34,7 +34,10 @@ def get_users_data(args, num_users, train_dataset):
         # sample training data amongst users
         if args.iid:
             # Sample IID user data from Mnist
-            user_groups = mnist_iid(train_dataset, num_users)
+            if isCluster:
+                user_groups = mnist_iid_cluster(train_dataset, num_users, cluster, num_items)
+            else:
+                user_groups = mnist_iid(train_dataset, num_users)
         else:
             # Sample Non-IID user data from Mnist
             if args.unequal:

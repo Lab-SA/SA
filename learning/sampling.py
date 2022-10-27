@@ -22,6 +22,23 @@ def mnist_iid(dataset, num_users):
         #all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
+def mnist_iid_cluster(dataset, num_users, cluster, num_items):
+    """
+    Sample I.I.D. client data from MNIST dataset
+    :param dataset:
+    :param num_users(dict): index of users in cluster
+    :param cluster(list): index of clusters
+    :param num_items(list): # of dataset in cluster
+    :return: dict of image index
+    """
+    all_idxs = [i for i in range(len(dataset))]
+    dict_users = {}
+    for c in cluster:
+        dict_users[c] = {}
+        for i in num_users[c]:
+            dict_users[c][i] = set(np.random.choice(all_idxs, num_items[c],
+                                                    replace=False))
+    return dict_users
 
 def mnist_noniid(dataset, num_users):
     """

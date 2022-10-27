@@ -45,9 +45,9 @@ def setup():
 # [인자] : X
 # [리턴] : user_groups[dict[int, Any]]
 # user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
-def get_user_dataset(num_users):
+def get_user_dataset(num_users, isCluster=False, cluster=0, num_items=0):
     global args, train_dataset, user_groups
-    user_groups = get_users_data(args, num_users, train_dataset)
+    user_groups = get_users_data(args, num_users, train_dataset, isCluster, cluster, num_items)
     return user_groups
 
 # 서버는 user_groups[idx] 를 클라이언트로 전달

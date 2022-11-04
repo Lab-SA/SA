@@ -124,7 +124,7 @@ def generateSecureWeight(weight, ri, masks, p, a = 0):
         dict: secure weight Sj
     """
     sum_mask = ri - (sum(masks.values()) % p) + a
-    return [w + sum_mask for w in weight]
+    return [(w + sum_mask) % p for w in weight]
 
 
 def computeReconstructionValue(survived, my_masks, masks, cluster_indexes):

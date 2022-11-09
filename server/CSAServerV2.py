@@ -47,6 +47,7 @@ class CSAServerV2(CSAServer):
 
         self.clusterNum = len(C)
         self.clusters = []     # list of clusters' index
+        self.clusterN = {}     # number of clients in cluster
         self.perLatency = {}   # define maximum latency(latency level) per cluster
         self.num_items = {}    # number of dataset in cluster
         self.users_keys = {}   # {clusterIndex: {index: pk(:bytes)}}
@@ -56,7 +57,7 @@ class CSAServerV2(CSAServer):
             self.clusters.append(i) # store clusters' index
             hex_keys[i] = {}
             self.users_keys[i] = {}
-            self.perLatency[i] = 50 + i*5
+            self.perLatency[i] = 20 + i*5
             self.num_items[i] = 5000 - i * 1000
             self.survived[i] = [j for j, request in cluster]
             for j, request in cluster:
@@ -68,7 +69,7 @@ class CSAServerV2(CSAServer):
 
         for i, cluster in C.items():
             ri = list_ri[i]
-            clusterN = len(cluster)
+            self.clusterN[i] = clusterN = len(cluster)
             training_weight = self.num_items[i] / (self.num_items[i] * clusterN)
             for j, request in cluster:
                 response_ij = CSASetupDto(
@@ -153,17 +154,22 @@ class CSAServerV2(CSAServer):
         self.startTime[cluster] = time.time() # reset start time
     
     def finalAggregation(self):
-        sum_weights = list(sum(x) % self.p for x in zip(*self.IS.values())) # sum
-        sum_weights = convertToRealDomain(sum_weights, self.quantizationLevel, self.p)
+        sum_active_items = 0
+        for c in self.clusters:
+            sum_active_items += self.num_items[c] * len(self.survived[c])
+
+        for c in self.clusters:
+            # dequantization first
+            self.IS[c] = convertToRealDomain(self.IS[c], self.quantizationLevel, self.p)
+            # aggregation (training weight)
+            f = (self.num_items[c] * self.clusterN[c]) / sum_active_items
+            self.IS[c] = list(f * x for x in self.IS[c])
+
+        sum_weights = list(sum(x) for x in zip(*self.IS.values())) # sum
 
         # update global model
+        # final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
         new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
-        final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
-        #self.n = final_userNum
-        #average_weight = utils.average_weight(new_weight, final_userNum)
-        #print(average_weight['conv1.bias'])
-
-        #self.model.load_state_dict(average_weight)
         self.model.load_state_dict(new_weight)
         self.accuracy = round(fl.test_model(self.model), 4)
 

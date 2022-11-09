@@ -67,7 +67,8 @@ def runOneClient(mode, k, dropout = False):
             client.setUp()
             if not client.shareRandomMasks():
                 continue
-            client.sendSecureWeight()
+            if not dropout:
+                client.sendSecureWeight()
 
 
 if __name__ == "__main__":
@@ -92,7 +93,7 @@ if __name__ == "__main__":
     #sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
 
     # thread
-    dropout = n#int(n/2)
+    dropout = n #int(n/2)
     for i in range(n):
         if i >= dropout:
             threading.Thread(target=runOneClient, args=(mode, k, True)).start()

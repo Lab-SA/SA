@@ -90,6 +90,8 @@ class CSAServer:
                         try:
                             while True:
                                 received = str(clientSocket.recv(self.SIZE), self.ENCODING)
+                                #print(clientSocket.getpeername(), received, len(received))
+                                if len(received) == 0: break
                                 if received.endswith("\r\n"):
                                     received = received[:-2]
                                     requestData = requestData + received
@@ -98,8 +100,8 @@ class CSAServer:
                         except socket.timeout:
                             if requestData.endswith("\r\n"):
                                 requestData = requestData[:-2]
-                            pass
 
+                        if len(requestData) == 0: break
                         if requestData.find('}\r\n{') > 0: # for multiple requests at once
                             requestData_all = requestData.split('\r\n')
                         else:

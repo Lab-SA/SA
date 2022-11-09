@@ -42,6 +42,7 @@ class CSAClientV2(CSAClient):
         self.others_keys = {int(key): value for key, value in literal_eval(setupDto.cluster_keys).items()}
         self.others_keys.pop(self.index)
         self.training_weight = setupDto.training_weight
+        #print(self.training_weight)
 
         self.cluster_indexes.remove(self.index)
 
@@ -66,7 +67,7 @@ class CSAClientV2(CSAClient):
         self.weights_info, self.weight = mhelper.flatten_tensor(local_weight)
         self.weight = list(self.training_weight * x for x in self.weight)
         self.weight = stochasticQuantization(self.weight, self.quantizationLevel, self.p)
-        #print(local_weight['conv1.bias'])
+        #print(self.index, self.weight[250:260])
 
 
     def shareRandomMasks(self): # send random masks

@@ -14,6 +14,9 @@ import learning.utils as utils
 class CSAServerV2(CSAServer):
     def setUp(self, requests):
         usersNow = len(requests)
+        print('usersNow:', usersNow)
+
+        self.clusterTime = {}
 
         commonValues = getCommonValues()
         self.g = commonValues["g"]
@@ -58,11 +61,12 @@ class CSAServerV2(CSAServer):
             hex_keys[i] = {}
             self.users_keys[i] = {}
             self.perLatency[i] = 20 + i*5
-            self.num_items[i] = 5000 - i * 1000
+            self.num_items[i] = 3000 + i * 1000
             self.survived[i] = [j for j, request in cluster]
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
+        self.clusters.sort()
 
         user_groups = fl.get_user_dataset(self.survived, True, self.clusters, self.num_items)
         list_ri, list_Ri = CSA.generateRandomNonce(self.clusters, self.g, self.p)
@@ -123,6 +127,7 @@ class CSAServerV2(CSAServer):
         if len(self.survived[cluster]) == beforeN and self.isBasic: # no need RemoveMasks stage in this cluster (step3-1 x)
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
             self.IS[cluster] = list(sum(x) % self.p for x in zip(*self.S_list[cluster].values())) # sum
+            self.clusterTime[cluster] = time.time()
 
         self.requests_clusters[CSARound.Aggregation.name][cluster] = 0
         self.startTime[cluster] = time.time() # reset start time
@@ -152,6 +157,7 @@ class CSAServerV2(CSAServer):
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
 
         self.startTime[cluster] = time.time() # reset start time
+        self.clusterTime[cluster] = time.time()
     
     def finalAggregation(self):
         sum_active_items = 0

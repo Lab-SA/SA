@@ -25,6 +25,7 @@ class CSAServer:
     filename = '../../results/csa.xlsx'
 
     startTime = {}
+    clusterTime = {}
     userNum = {}
     requests = {}
     run_data = []
@@ -52,8 +53,8 @@ class CSAServer:
         self.serverSocket.listen(200)
         print(f'[{self.__class__.__name__}] Server started')
 
-        requests = {round.name: {} for round in CSARound}
-        self.requests_clusters = {round.name: {} for round in CSARound} # check completion of clusters
+        requests = {r.name: {} for r in CSARound}
+        self.requests_clusters = {r.name: {} for r in CSARound} # check completion of clusters
         requests[CSARound.SetUp.name][0] = []
         requests[self.verifyRound] = {} # for step 2: repete until all member share valid masks
         self.allTime = 0
@@ -157,7 +158,10 @@ class CSAServer:
 
                     if sum(self.requests_clusters[CSARound.RemoveMasks.name].values()) == 0:
                         self.finalAggregation()
-                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime])
+                        clusterData = []
+                        for c in self.clusters:
+                            clusterData.append(round(self.clusterTime[c] - self.start, 4))
+                        self.run_data.append([j+1, self.accuracy, self.setupTime, self.totalTime] + clusterData)
                         print("\n|---- {}: setupTime: {} totalTime: {} accuracy: {}%".format(j+1, self.setupTime, self.totalTime, self.accuracy))
                         break # end of this round
 
@@ -179,6 +183,9 @@ class CSAServer:
 
     def setUp(self, requests):
         usersNow = len(requests)
+        print('usersNow:', usersNow)
+
+        self.clusterTime = {}
 
         commonValues = getCommonValues()
         self.g = commonValues["g"]
@@ -225,6 +232,7 @@ class CSAServer:
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
+        self.clusters.sort()
 
         list_ri, list_Ri = CSA.generateRandomNonce(self.clusters, self.g, self.p)
 
@@ -322,6 +330,7 @@ class CSAServer:
         if len(self.survived[cluster]) == beforeN and self.isBasic: # no need RemoveMasks stage in this cluster (step3-1 x)
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
             self.IS[cluster] = list(sum(x) % self.p for x in zip(*self.S_list[cluster].values())) # sum
+            self.clusterTime[cluster] = time.time()
 
         self.requests_clusters[CSARound.Aggregation.name][cluster] = 0
         self.startTime[cluster] = time.time() # reset start time
@@ -351,6 +360,7 @@ class CSAServer:
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
 
         self.startTime[cluster] = time.time() # reset start time
+        self.clusterTime[cluster] = time.time()
     
     def finalAggregation(self):
         sum_weights = list(sum(x) % self.p for x in zip(*self.IS.values())) # sum

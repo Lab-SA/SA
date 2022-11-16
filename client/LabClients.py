@@ -5,6 +5,7 @@ from TurboClient import TurboClient
 from BreaClient import BreaClient
 from HeteroSAClient import HeteroSAClient
 from CSAClient import CSAClient
+from CSAClientV2 import CSAClientV2
 
 def runOneClient(mode, k, dropout = False):
     if mode == 0: # BasicSA
@@ -60,6 +61,14 @@ def runOneClient(mode, k, dropout = False):
                 continue
             client.sendSecureWeight()
 
+    elif mode == 6: # BasicCSA V2
+        client = CSAClientV2(isBasic = False)
+        for _ in range(k):
+            client.setUp()
+            if not client.shareRandomMasks():
+                continue
+            client.sendSecureWeight()
+
 
 if __name__ == "__main__":
     # args
@@ -73,6 +82,7 @@ if __name__ == "__main__":
     3: HeteroSA Client
     4: BasicCSA Client
     5: FullCSA Client
+    6: BasicCSA Client V2
     """
 
     host = 'localhost'

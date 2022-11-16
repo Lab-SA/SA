@@ -15,3 +15,4 @@ class CSASetupDto(NamedTuple):
     qLevel: int
     data: dict
     weights: dict
+    training_weight: int

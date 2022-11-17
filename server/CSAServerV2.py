@@ -60,7 +60,7 @@ class CSAServerV2(CSAServer):
             self.clusters.append(i) # store clusters' index
             hex_keys[i] = {}
             self.users_keys[i] = {}
-            self.perLatency[i] = 20 + i*5
+            self.perLatency[i] = 40 + i*5
             self.num_items[i] = 3000 + i * 1000
             self.survived[i] = [j for j, request in cluster]
             for j, request in cluster:
@@ -185,7 +185,7 @@ class CSAServerV2(CSAServer):
 if __name__ == "__main__":
     server = ''
     try:
-        server = CSAServerV2(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
+        server = CSAServerV2(n=4, k=3, isBasic = True, qLevel=100) # Basic CSA
         server.start()
     except (KeyboardInterrupt, RuntimeError):
         server.writeResults()

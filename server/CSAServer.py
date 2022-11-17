@@ -392,7 +392,7 @@ class CSAServer:
 
 if __name__ == "__main__":
     try:
-        server = CSAServer(n=4, k=3, isBasic = True, qLevel=30) # Basic CSA
+        server = CSAServer(n=4, k=3, isBasic = True, qLevel=100) # Basic CSA
         # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
         server.start()
     except (KeyboardInterrupt, RuntimeError):

@@ -5,7 +5,7 @@ from ast import literal_eval
 SIZE = 2048
 ENCODING = 'utf-8'
 
-def sendRequestV2(s, tag, request):
+def sendRequestV2(s, tag, request, delay=0):
     """ send request to server
     Args:
         s (socket): client's socket
@@ -17,10 +17,11 @@ def sendRequestV2(s, tag, request):
     request['request'] = tag
 
     # send request
+    time.sleep(delay)
     s.sendall(bytes(json.dumps(request) + "\r\n", ENCODING))
     # print(f"[{tag}] Send request (no response)")
 
-def sendRequestAndReceiveV2(s, tag, request):
+def sendRequestAndReceiveV2(s, tag, request, delay=0):
     """ send request and receive response to/from server
     Args:
         s (socket): client's socket
@@ -33,6 +34,7 @@ def sendRequestAndReceiveV2(s, tag, request):
     request['request'] = tag
 
     # send request
+    time.sleep(delay)
     s.sendall(bytes(json.dumps(request) + "\r\n", ENCODING))
     # print(f"[{tag}] Send request")
     # print(f"[{tag}] Send {request}")

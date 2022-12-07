@@ -59,7 +59,8 @@ def runOneClient(mode, k, dropout = False):
             client.setUp()
             if not client.shareRandomMasks():
                 continue
-            client.sendSecureWeight()
+            if not dropout:
+                client.sendSecureWeight()
 
     elif mode == 6: # BasicCSA V2
         client = CSAClientV2(isBasic = True)
@@ -70,6 +71,14 @@ def runOneClient(mode, k, dropout = False):
             if not dropout:
                 client.sendSecureWeight()
 
+    elif mode == 7: # FullCSA V2
+        client = CSAClientV2(isBasic = False)
+        for _ in range(k):
+            client.setUp()
+            if not client.shareRandomMasks():
+                continue
+            if not dropout:
+                client.sendSecureWeight()
 
 if __name__ == "__main__":
     # args
@@ -93,7 +102,7 @@ if __name__ == "__main__":
     #sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
 
     # thread
-    dropout = 22 #int(n/2)
+    dropout = n #int(n/2)
     for i in range(n):
         if i >= dropout:
             threading.Thread(target=runOneClient, args=(mode, k, True)).start()

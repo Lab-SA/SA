@@ -20,49 +20,56 @@ class CSAClientV2(CSAClient):
         tag = CSARound.SetUp.name
         print("Start New Round")
 
-        self.my_sk, self.my_pk = CSA.generateECCKey()
-        self.PS = 3#random.randrange(0, 3)
-        self.GPS_i = random.randrange(1, 6)
-        self.GPS_j = random.randrange(1, 8)
+        global_weights = {}
 
-        # request with my public key (pk)
-        # response: CSASetupDto
-        response = sendRequestAndReceiveV2(self.mysocket, tag, {'pk': self.my_pk.hex(), 'PS': self.PS, 'GPS_i': self.GPS_i, 'GPS_j': self.GPS_j}, self.PS)
-        setupDto = json.loads(json.dumps(response), object_hook=lambda d: CSASetupDto(**d))
+        if self.isFirst:
+            self.isFirst = False
 
-        self.n = setupDto.n
-        self.g = setupDto.g
-        self.p = setupDto.p
-        self.R = setupDto.R
-        self.cluster = setupDto.cluster
-        self.clusterN = setupDto.clusterN # deprecated
-        self.cluster_indexes = setupDto.cluster_indexes
-        self.index = setupDto.index
-        self.quantizationLevel = setupDto.qLevel
-        self.others_keys = {int(key): value for key, value in literal_eval(setupDto.cluster_keys).items()}
-        self.others_keys.pop(self.index)
-        self.training_weight = setupDto.training_weight
-        #print(self.training_weight)
-        # self.PS = 0
+            self.my_sk, self.my_pk = CSA.generateECCKey()
+            self.PS = 3#random.randrange(0, 3)
+            self.GPS_i = random.randrange(1, 6)
+            self.GPS_j = random.randrange(1, 8)
 
-        self.cluster_indexes.remove(self.index)
+            # request with my public key (pk)
+            # response: CSASetupDto
+            response = sendRequestAndReceiveV2(self.mysocket, tag, {'pk': self.my_pk.hex(), 'PS': self.PS, 'GPS_i': self.GPS_i, 'GPS_j': self.GPS_j}, self.PS)
+            setupDto = json.loads(json.dumps(response), object_hook=lambda d: CSASetupDto(**d))
 
-        # decrypt ri and verity Ri = (g ** ri) mod p
-        self.ri = int(bytes.decode(CSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
-        self.Ri = int(setupDto.Ri)
-        if self.Ri != (self.g ** self.ri) % self.p:
-            print("Invalid Ri and ri.")
+            self.n = setupDto.n
+            self.g = setupDto.g
+            self.p = setupDto.p
+            self.R = setupDto.R
+            self.cluster = setupDto.cluster
+            self.clusterN = setupDto.clusterN # deprecated
+            self.cluster_indexes = setupDto.cluster_indexes
+            self.index = setupDto.index
+            self.quantizationLevel = setupDto.qLevel
+            self.others_keys = {int(key): value for key, value in literal_eval(setupDto.cluster_keys).items()}
+            self.others_keys.pop(self.index)
+            self.training_weight = setupDto.training_weight
+            #print(self.training_weight)
+            #self.PS = 0
 
-        # print(self.cluster, self.clusterN, self.index, self.ri, self.Ri)
-        # print(self.others_keys)
+            self.cluster_indexes.remove(self.index)
 
-        self.data = setupDto.data
-        global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
-        #print(self.cluster, len(self.data))
+            # decrypt ri and verity Ri = (g ** ri) mod p
+            self.ri = int(bytes.decode(CSA.decrypt(self.my_sk, bytes.fromhex(setupDto.encrypted_ri)), 'ascii'))
+            self.Ri = int(setupDto.Ri)
+            if self.Ri != (self.g ** self.ri) % self.p:
+                print("Invalid Ri and ri.")
 
-        #self.weight = [1] # temp
-        if self.model == {}:
+            # print(self.cluster, self.clusterN, self.index, self.ri, self.Ri)
+            # print(self.others_keys)
+
+            self.data = setupDto.data
+            global_weights = mhelper.dic_of_list_to_weights(literal_eval(setupDto.weights))
+
             self.model = fl.setup()
+
+        else:
+            response = sendRequestAndReceiveV2(self.mysocket, tag, {}, self.PS)
+            global_weights = mhelper.dic_of_list_to_weights(literal_eval(response['weights']))
+
         fl.update_model(self.model, global_weights)
         local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0) # epoch 0 (temp)
         self.weights_info, self.weight = mhelper.flatten_tensor(local_weight)
@@ -110,7 +117,7 @@ class CSAClientV2(CSAClient):
         else:               # FullCSA
             self.a = random.randrange(1, self.p)
         S = CSA.generateSecureWeight(self.weight, self.ri, self.others_mask, self.p, self.a)
-        #print(S[250:260])
+        #print(self.index, S[250:260])
         request = {'cluster': self.cluster, 'index': self.index, 'S': S}
         response = sendRequestAndReceiveV2(self.mysocket, tag, request, self.PS)
 

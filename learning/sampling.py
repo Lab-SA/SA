@@ -31,13 +31,13 @@ def mnist_iid_cluster(dataset, num_users, cluster, num_items):
     :param num_items(list): # of dataset in cluster
     :return: dict of image index
     """
-    all_idxs = [i for i in range(len(dataset))]
-    dict_users = {}
+    dict_users, all_idxs = {}, [i for i in range(len(dataset))]
     for c in cluster:
         dict_users[c] = {}
         for i in num_users[c]:
             dict_users[c][i] = set(np.random.choice(all_idxs, num_items[c],
                                                     replace=False))
+            all_idxs = list(set(all_idxs) - dict_users[c][i])
     return dict_users
 
 def mnist_noniid(dataset, num_users):

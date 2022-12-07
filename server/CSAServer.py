@@ -146,6 +146,7 @@ class CSAServer:
 
                         # check latency
                         if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
+                            print(now - self.startTime[c], self.perLatency[c])
                             for r in CSARound:
                                 if r.name == CSARound.ShareMasks.name and len(requests[self.verifyRound][c]) >= 1:
                                     self.requests_clusters[CSARound.ShareMasks.name][c] = 0
@@ -221,6 +222,7 @@ class CSAServer:
         self.clusterNum = len(C)
         self.clusters = []     # list of clusters' index
         self.perLatency = {}   # define maximum latency(latency level) per cluster
+        self.num_items = {}  # number of dataset in cluster
         self.users_keys = {}   # {clusterIndex: {index: pk(:bytes)}}
         hex_keys = {}          # {clusterIndex: {index: pk(:hex)}}
 
@@ -228,24 +230,27 @@ class CSAServer:
             self.clusters.append(i) # store clusters' index
             hex_keys[i] = {}
             self.users_keys[i] = {}
-            self.perLatency[i] = 50 + i*5
+            self.perLatency[i] = 15 + i*5
+            self.num_items[i] = 400 + i * 50
+            self.survived[i] = [j for j, request in cluster]
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
                 self.users_keys[i][j] = bytes.fromhex(hex_keys[i][j])
         self.clusters.sort()
 
+        user_groups = fl.get_user_dataset(self.survived, True, self.clusters, self.num_items)
         list_ri, list_Ri = CSA.generateRandomNonce(self.clusters, self.g, self.p)
 
         for i, cluster in C.items():
             ri = list_ri[i]
-            self.survived[i] = [j for j, request in cluster]
+            #self.survived[i] = [j for j, request in cluster]
             clusterN = len(cluster)
             for j, request in cluster:
                 response_ij = CSASetupDto(
-                    n = usersNow, 
-                    g = self.g, 
-                    p = self.p, 
-                    R = self.R, 
+                    n = usersNow,
+                    g = self.g,
+                    p = self.p,
+                    R = self.R,
                     encrypted_ri = CSA.encrypt(self.users_keys[i][j], bytes(str(ri), 'ascii')).hex(),
                     Ri = list_Ri[i],
                     cluster = i,
@@ -254,7 +259,7 @@ class CSAServer:
                     cluster_keys = str(hex_keys[i]), # node's id and public key
                     index = j,
                     qLevel = self.quantizationLevel,
-                    data = [int(k) for k in user_groups[j]],
+                    data = [int(k) for k in user_groups[i][j]],
                     weights= str(model_weights_list),
                     training_weight=0,
                 )._asdict()
@@ -273,7 +278,7 @@ class CSAServer:
             self.requests_clusters[CSARound.SetUp.name][c] = 0
 
         self.setupTime = round(time.time() - self.start, 4)
-    
+
     def shareMasks(self, requests, cluster):
         if len(requests) < 4: # remove this cluster if nodes < 4 (threshold)
             for (clientSocket, requestData) in requests:
@@ -326,7 +331,7 @@ class CSAServer:
         for (clientSocket, requestData) in requests:
             self.S_list[cluster][int(requestData['index'])] = requestData['S']
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
-        
+
         if len(self.survived[cluster]) == beforeN and self.isBasic: # no need RemoveMasks stage in this cluster (step3-1 x)
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
             self.IS[cluster] = list(sum(x) % self.p for x in zip(*self.S_list[cluster].values())) # sum
@@ -361,7 +366,7 @@ class CSAServer:
 
         self.startTime[cluster] = time.time() # reset start time
         self.clusterTime[cluster] = time.time()
-    
+
     def finalAggregation(self):
         sum_weights = list(sum(x) % self.p for x in zip(*self.IS.values())) # sum
         sum_weights = convertToRealDomain(sum_weights, self.quantizationLevel, self.p)
@@ -392,7 +397,7 @@ class CSAServer:
 
 if __name__ == "__main__":
     try:
-        server = CSAServer(n=4, k=3, isBasic = True, qLevel=100) # Basic CSA
+        server = CSAServer(n=100, k=101, isBasic = True, qLevel=300) # Basic CSA
         # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
         server.start()
     except (KeyboardInterrupt, RuntimeError):

@@ -73,9 +73,9 @@ def runOneClient(mode, k, dropout = False):
 
 if __name__ == "__main__":
     # args
-    k = 3       # rounds
-    n = 4       # number of users
-    mode = 0
+    k = 101       # rounds
+    n = 25       # number of users
+    mode = 6
     """ mode
     0: BasicSA Client
     1: Turbo Client
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     #sendRequest(host, port, mode, {'n': n, 'k': k, 'args': args})
 
     # thread
-    dropout = n #int(n/2)
+    dropout = 22 #int(n/2)
     for i in range(n):
         if i >= dropout:
             threading.Thread(target=runOneClient, args=(mode, k, True)).start()

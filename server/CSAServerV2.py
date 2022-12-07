@@ -60,8 +60,9 @@ class CSAServerV2(CSAServer):
             self.clusters.append(i) # store clusters' index
             hex_keys[i] = {}
             self.users_keys[i] = {}
-            self.perLatency[i] = 40 + i*5
-            self.num_items[i] = 3000 + i * 1000
+            self.perLatency[i] = 20 + i*5
+            self.num_items[i] = 400 + i * 50
+            #self.num_items[i] = 475 + i * 50
             self.survived[i] = [j for j, request in cluster]
             for j, request in cluster:
                 hex_keys[i][j] = request[1]['pk']
@@ -77,10 +78,10 @@ class CSAServerV2(CSAServer):
             training_weight = self.num_items[i] / (self.num_items[i] * clusterN)
             for j, request in cluster:
                 response_ij = CSASetupDto(
-                    n = usersNow, 
-                    g = self.g, 
-                    p = self.p, 
-                    R = self.R, 
+                    n = usersNow,
+                    g = self.g,
+                    p = self.p,
+                    R = self.R,
                     encrypted_ri = CSA.encrypt(self.users_keys[i][j], bytes(str(ri), 'ascii')).hex(),
                     Ri = list_Ri[i],
                     cluster = i,
@@ -123,7 +124,7 @@ class CSAServerV2(CSAServer):
         for (clientSocket, requestData) in requests:
             self.S_list[cluster][int(requestData['index'])] = requestData['S']
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
-        
+
         if len(self.survived[cluster]) == beforeN and self.isBasic: # no need RemoveMasks stage in this cluster (step3-1 x)
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
             self.IS[cluster] = list(sum(x) % self.p for x in zip(*self.S_list[cluster].values())) # sum
@@ -158,11 +159,14 @@ class CSAServerV2(CSAServer):
 
         self.startTime[cluster] = time.time() # reset start time
         self.clusterTime[cluster] = time.time()
-    
+
     def finalAggregation(self):
+        final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
+
         sum_active_items = 0
         for c in self.clusters:
             sum_active_items += self.num_items[c] * len(self.survived[c])
+        print('final', final_userNum, sum_active_items)
 
         for c in self.clusters:
             # dequantization first
@@ -185,7 +189,7 @@ class CSAServerV2(CSAServer):
 if __name__ == "__main__":
     server = ''
     try:
-        server = CSAServerV2(n=4, k=3, isBasic = True, qLevel=100) # Basic CSA
+        server = CSAServerV2(n=100, k=101, isBasic = True, qLevel=300) # Basic CSA
         server.start()
     except (KeyboardInterrupt, RuntimeError):
         server.writeResults()

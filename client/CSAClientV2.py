@@ -21,7 +21,7 @@ class CSAClientV2(CSAClient):
         print("Start New Round")
 
         self.my_sk, self.my_pk = CSA.generateECCKey()
-        self.PS = random.randrange(0, 3)
+        self.PS = 3#random.randrange(0, 3)
         self.GPS_i = random.randrange(1, 6)
         self.GPS_j = random.randrange(1, 8)
 
@@ -43,6 +43,7 @@ class CSAClientV2(CSAClient):
         self.others_keys.pop(self.index)
         self.training_weight = setupDto.training_weight
         #print(self.training_weight)
+        # self.PS = 0
 
         self.cluster_indexes.remove(self.index)
 

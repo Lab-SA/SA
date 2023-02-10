@@ -1,6 +1,7 @@
 import time, json, socket
 from openpyxl import load_workbook
 from ast import literal_eval
+import matplotlib.pyplot as plt
 
 SIZE = 2048
 ENCODING = 'utf-8'
@@ -119,3 +120,33 @@ def readWeightsFromFile():
     weights = f.readline()
     f.close()
     return literal_eval(weights)
+
+def plotResults():
+    filename = '../results/최종/24-27.xlsx'
+    write_wb = load_workbook(filename, read_only=True, data_only=True)
+    r = [x for x in range(100)]
+    acc = [
+        [x[0].value for x in write_wb['24']['B1':'B100']],
+        [x[0].value for x in write_wb['25']['B1':'B100']],
+        [x[0].value for x in write_wb['4']['B1':'B100']],
+        [x[0].value for x in write_wb['26']['B1':'B100']],
+        [x[0].value for x in write_wb['27']['B1':'B100']],
+        [x[0].value for x in write_wb['10']['B1':'B100']],
+    ]
+
+    plt.plot(r, acc[0], label='C=1, qLevel=30')
+    plt.plot(r, acc[1], label='C=1, qLevel=100')
+    plt.plot(r, acc[2], label='C=1, qLevel=300')
+    plt.plot(r, acc[3], label='C=4, qLevel=30')
+    plt.plot(r, acc[4], label='C=4, qLevel=100')
+    plt.plot(r, acc[5], label='C=4, qLevel=300')
+    plt.legend()
+    plt.xlabel('Round')
+    plt.ylabel('Test Accuracy(%)')
+    plt.show()
+
+    write_wb.close()
+
+
+if __name__ == "__main__":
+    plotResults()

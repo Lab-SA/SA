@@ -93,6 +93,7 @@ if __name__ == "__main__":
     4: BasicCSA Client
     5: FullCSA Client
     6: BasicCSA Client V2
+    7: FullCSA Client V2
     """
 
     host = 'localhost'

@@ -149,7 +149,6 @@ class CSAServer:
 
                         # check latency
                         if (now - self.startTime[c]) >= self.perLatency[c]: # exceed
-                            print(now - self.startTime[c], self.perLatency[c])
                             for r in CSARound:
                                 if r.name == CSARound.ShareMasks.name and len(requests[self.verifyRound][c]) >= 1:
                                     self.requests_clusters[CSARound.ShareMasks.name][c] = 0
@@ -200,9 +199,11 @@ class CSAServer:
             self.R = commonValues["R"]
 
             self.model = fl.setup()
-            # optional
-            # prev_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
-            # self.model.load_state_dict(prev_weights)
+            ### optional
+            # : Use when you want to define base weights of model
+            prev_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
+            self.model.load_state_dict(prev_weights)
+
             model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
 
             #user_groups = fl.get_user_dataset(usersNow)
@@ -235,7 +236,7 @@ class CSAServer:
                 self.clusters.append(i) # store clusters' index
                 hex_keys[i] = {}
                 self.users_keys[i] = {}
-                self.perLatency[i] = 20 + i*5
+                self.perLatency[i] = 10 + i*5
                 self.num_items[i] = 100 + i * 300
                 self.survived[i] = [j for j, request in cluster]
                 for j, request in cluster:
@@ -379,6 +380,9 @@ class CSAServer:
         self.clusterTime[cluster] = time.time()
 
     def finalAggregation(self):
+        ### Use when you want to drop out one cluster for testing
+        #del self.IS[1]
+
         sum_weights = list(sum(x) % self.p for x in zip(*self.IS.values())) # sum
         sum_weights = convertToRealDomain(sum_weights, self.quantizationLevel, self.p)
 
@@ -405,12 +409,12 @@ class CSAServer:
 
         # write to excel
         writeToExcel(self.filename, self.run_data)
-        writeWeightsToFile(mhelper.flatten_tensor(self.model.state_dict())[1])
+        #writeWeightsToFile(mhelper.flatten_tensor(self.model.state_dict())[1])
 
 if __name__ == "__main__":
     try:
         server = CSAServer(n=100, k=101, isBasic = True, qLevel=300) # Basic CSA
         # server = CSAServer(n=4, k=1, isBasic = False, qLevel=30) # Full CSA
         server.start()
-    except (KeyboardInterrupt, RuntimeError):
+    except (KeyboardInterrupt, RuntimeError, ZeroDivisionError):
         server.writeResults()

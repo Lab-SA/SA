@@ -1,4 +1,4 @@
-import socket, json, time, sys, os, select
+import json, time, sys, os
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
@@ -9,7 +9,7 @@ from CommonValue import CSARound
 from dto.CSASetupDto import CSASetupDto
 import learning.federated_main as fl
 import learning.models_helper as mhelper
-import learning.utils as utils
+from common import readWeightsFromFile
 
 class CSAServerV2(CSAServer):
     def setUp(self, requests):
@@ -27,9 +27,10 @@ class CSAServerV2(CSAServer):
             self.R = commonValues["R"]
 
             self.model = fl.setup()
-            # optional
-            # prev_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
-            # self.model.load_state_dict(prev_weights)
+            ### optional
+            # : Use when you want to define base weights of model
+            prev_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
+            self.model.load_state_dict(prev_weights)
 
             model_weights_list = mhelper.weights_to_dic_of_list(self.model.state_dict())
             #print('model (0)', model_weights_list['conv1.bias'])
@@ -63,8 +64,8 @@ class CSAServerV2(CSAServer):
                 self.clusters.append(i) # store clusters' index
                 hex_keys[i] = {}
                 self.users_keys[i] = {}
-                self.perLatency[i] = 20 + i*5
-                self.num_items[i] = 100 + i * 300
+                self.perLatency[i] = 30 + i*5
+                self.num_items[i] = 550 + i * 300
                 self.survived[i] = [j for j, request in cluster]
                 for j, request in cluster:
                     hex_keys[i][j] = request[1]['pk']
@@ -125,7 +126,6 @@ class CSAServerV2(CSAServer):
         for (clientSocket, requestData) in requests:
             self.survived[cluster].append(int(requestData['index']))
 
-        # print(self.survived[cluster])
         response = {'survived': self.survived[cluster]}
         response_json = json.dumps(response)
 
@@ -175,9 +175,13 @@ class CSAServerV2(CSAServer):
         sum_active_items = 0
         for c in self.clusters:
             sum_active_items += self.num_items[c] * len(self.survived[c])
-        print('final', final_userNum, sum_active_items)
 
         for c in self.clusters:
+            ### Use when you want to drop out one cluster for testing
+            #if c==1:
+            #    del self.IS[c]
+            #    continue
+
             # dequantization first
             self.IS[c] = convertToRealDomain(self.IS[c], self.quantizationLevel, self.p)
             # aggregation (training weight)
@@ -187,7 +191,6 @@ class CSAServerV2(CSAServer):
         sum_weights = list(sum(x) for x in zip(*self.IS.values())) # sum
 
         # update global model
-        # final_userNum = sum(list(map(lambda c: len(self.survived[c]), self.survived.keys())))
         new_weight = mhelper.restore_weights_tensor(mhelper.default_weights_info, sum_weights)
         self.model.load_state_dict(new_weight)
         self.accuracy = round(fl.test_model(self.model), 4)
@@ -201,5 +204,5 @@ if __name__ == "__main__":
         server = CSAServerV2(n=100, k=101, isBasic = True, qLevel=300) # Basic CSA
         #server = CSAServerV2(n=100, k=101, isBasic=False, qLevel=300)  # Full CSA
         server.start()
-    except (KeyboardInterrupt, RuntimeError):
+    except (KeyboardInterrupt, RuntimeError, ZeroDivisionError):
         server.writeResults()

@@ -113,7 +113,7 @@ def add_accuracy(list_acc, epoch):
     # list_acc.append(acc)
     global train_accuracy
     train_accuracy.append(sum(list_acc)/len(list_acc))
-    print_every = 2
+    print_every = 1
     global train_loss
     if (epoch+1) % print_every == 0:
         print(f' \nAvg Training Stats after {epoch+1} global rounds:')
@@ -125,7 +125,7 @@ def add_accuracy(list_acc, epoch):
 # [리턴] : test accuracy
 # # 모든 학습이 끝난후 출력 
 def test_model(global_model):
-    global train_accuracy, args
+    global args
     test_dataset = get_mnist_test()
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
     

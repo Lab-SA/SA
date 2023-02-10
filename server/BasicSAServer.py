@@ -186,7 +186,7 @@ def unmasking():
     mask = sum_pvu - sum_pu
     sum_xu = generatingOutput(yu_list, mask)
     
-    # update global model
+    # update global model with averaging
     model = fl.update_globalmodel(model, sum_xu)
     
     # End

@@ -1,9 +1,9 @@
 import copy
-from tqdm import tqdm
 
-from federated_main import add_accuracy, setup, get_user_dataset, local_update, test_accuracy, update_globalmodel, test_model
-from models_helper import get_model_weights
-from utils import sum_weights
+from federated_main import add_accuracy, setup, get_user_dataset, local_update, test_model
+from utils import sum_weights, average_weights
+from common import writeToExcel, readWeightsFromFile
+import learning.models_helper as mhelper
 
 if __name__ == "__main__":
 
@@ -12,45 +12,34 @@ if __name__ == "__main__":
     train_loss = []
 
     global_model = setup()
+    base_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
+    global_model.load_state_dict(base_weights)
 
-    user_groups = get_user_dataset()
+    n = 100
+    user_groups = get_user_dataset(n)
+    run_data = []
 
-    global_weights = get_model_weights(global_model)
-
+    global_weights = global_model.state_dict()
 
     print(f'\n | TESTING CODE |\n')
 
-    for epoch in tqdm(range(3)):
+    for epoch in range(100):
         local_weights, local_losses = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
-        for idx in range(0,4):
+        for idx in range(n):
             local_model, local_weight, local_loss = local_update(global_model, user_groups[idx], epoch)
-            print(local_weight)
-            local_models.append(copy.deepcopy(local_model))
+            #print(local_weight['conv1.bias'])
             local_weights.append(copy.deepcopy(local_weight))
-            local_losses.append(copy.deepcopy(local_loss))
 
+        # update global weights
         sum_weight = sum_weights(local_weights)
+        average_weight = average_weights(sum_weight, n)
+        #print(average_weight['conv1.bias'])
+        global_model.load_state_dict(average_weight)  # update
 
-        global_model = update_globalmodel(global_model, sum_weight, local_losses)
+        acc = test_model(global_model)
+        run_data.append([epoch+1, acc])
+        print(acc)
 
-        # # update global weights
-        # global_weights = average_weights_origin(local_weights)
-
-        # # update global weights
-        # global_model.load_state_dict(global_weights)
-
-        # loss_avg = sum(local_losses) / len(local_losses)
-        # train_loss.append(loss_avg)
-
-
-        list_acc = []
-        for idx in range(0,4):
-            acc = test_accuracy(local_models[idx], global_model)
-            list_acc.append(acc)
-        
-        add_accuracy(list_acc, epoch)
-
-    
-    test_model(global_model)
+    writeToExcel('../../results/csa.xlsx', run_data)

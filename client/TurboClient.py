@@ -57,7 +57,7 @@ class TurboClient:
 
         if self.model == {}:
             self.model = fl.setup()
-        fl.update_model(self.model, global_weights)
+        self.model.load_state_dict(global_weights)
         local_model, local_weight, local_loss = fl.local_update(self.model, self.data, 0)
         self.weight = local_weight
 

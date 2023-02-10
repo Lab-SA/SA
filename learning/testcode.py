@@ -1,7 +1,7 @@
 import copy
 
 from federated_main import setup, get_user_dataset, local_update, test_model
-from utils import sum_weights, average_weights
+from utils import sum_weights, average_weight
 from common import writeToExcel, readWeightsFromFile
 import learning.models_helper as mhelper
 
@@ -32,9 +32,9 @@ if __name__ == "__main__":
 
         # update global weights
         sum_weight = sum_weights(local_weights) # sum
-        average_weight = average_weights(sum_weight, n) # average
-        global_model.load_state_dict(average_weight)  # update
-        #print(average_weight['conv1.bias'])
+        avg_weight = average_weight(sum_weight, n) # average
+        global_model.load_state_dict(avg_weight)  # update
+        #print(avg_weight['conv1.bias'])
 
         # test model
         acc = test_model(global_model)

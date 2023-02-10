@@ -87,9 +87,6 @@ def update_globalmodel(global_model, local_weight_sum):
     # train_loss.append(loss_avg)
     return global_model
 
-def update_model(model, weights):
-    model.load_state_dict(weights)
-
 # 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 
 # [호츌] : 클라이언트

@@ -48,14 +48,23 @@ def get_users_data(args, num_users, train_dataset, isCluster=False, cluster=0, n
                 user_groups = mnist_noniid(train_dataset, num_users)
     return user_groups
 
-def average_weights(w, n):
+def average_weight(w, n):
     """
-    Returns the average of the weights.
+    Returns the average of the weight.
     """
     w_avg = copy.deepcopy(w)
     for key in w_avg.keys():
         w_avg[key] = torch.div(w_avg[key], n)
     return w_avg
+
+def average_weights(w):
+    """
+    Returns the average of the weights.
+    """
+    w_avg = copy.deepcopy(w)
+    for key in w_avg.keys():
+        w_avg[key] = torch.div(w_avg[key], len(w))
+    return
 
 def sum_weights(w):
     """

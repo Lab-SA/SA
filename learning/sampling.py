@@ -29,7 +29,7 @@ def mnist_iid(dataset, num_users):
 
 def mnist_iid_cluster(dataset, num_users, cluster, num_items):
     """
-    Sample I.I.D. client data from MNIST dataset
+    Sample I.I.D. client data from MNIST dataset according to clusters
     :param dataset:
     :param num_users(dict): index of users in cluster
     :param cluster(list): index of clusters

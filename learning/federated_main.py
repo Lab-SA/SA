@@ -42,11 +42,10 @@ def setup():
     return global_model
 
 # [호츌] : 서버
-# [인자] : X
+# [인자] : num_users(사용자 수), isCluster(클러스터 기반인지), cluster(클러스터 정보), num_items(클러스터별로 할당할 data set 사이즈)
 # [리턴] : user_groups[dict[int, Any]]
-# user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
 def get_user_dataset(num_users, isCluster=False, cluster=0, num_items=0):
-    global args, train_dataset, user_groups
+    global args, train_dataset
     user_groups = get_users_data(args, num_users, train_dataset, isCluster, cluster, num_items)
     return user_groups
 
@@ -72,9 +71,8 @@ def local_update(global_model, user_group, epoch):
 # 클라언트는 local_model은 리턴받아 저장
 # 서버로 local_weight, local_loss를 전달
 
-
 # [호츌] : 서버
-# [인자] : global_model, local_weight_sum (local_weight들의 합), local_losses (local_loss 들을 모은 배열) 
+# [인자] : global_model, local_weight_sum (local_weight들의 합)
 # [리턴] : global_model (업데이트된 global_model) 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
 def update_globalmodel(global_model, local_weight_sum):

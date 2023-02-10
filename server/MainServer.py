@@ -3,6 +3,7 @@ import socket
 import json
 import time
 
+### deprecated
 class MainServer:
     host = 'localhost'
     port = 20

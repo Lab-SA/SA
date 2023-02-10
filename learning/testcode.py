@@ -1,25 +1,23 @@
 import copy
 
-from federated_main import add_accuracy, setup, get_user_dataset, local_update, test_model
+from federated_main import setup, get_user_dataset, local_update, test_model
 from utils import sum_weights, average_weights
 from common import writeToExcel, readWeightsFromFile
 import learning.models_helper as mhelper
 
 if __name__ == "__main__":
+    # test federated learning
 
-    local_models = []
-
-    train_loss = []
-
+    # setup model with base weights
     global_model = setup()
     base_weights = mhelper.restore_weights_tensor(mhelper.default_weights_info, readWeightsFromFile())
     global_model.load_state_dict(base_weights)
 
+    # get data set
     n = 100
     user_groups = get_user_dataset(n)
-    run_data = []
 
-    global_weights = global_model.state_dict()
+    run_data = []
 
     print(f'\n | TESTING CODE |\n')
 
@@ -29,17 +27,19 @@ if __name__ == "__main__":
 
         for idx in range(n):
             local_model, local_weight, local_loss = local_update(global_model, user_groups[idx], epoch)
-            #print(local_weight['conv1.bias'])
             local_weights.append(copy.deepcopy(local_weight))
+            #print(local_weight['conv1.bias'])
 
         # update global weights
-        sum_weight = sum_weights(local_weights)
-        average_weight = average_weights(sum_weight, n)
-        #print(average_weight['conv1.bias'])
+        sum_weight = sum_weights(local_weights) # sum
+        average_weight = average_weights(sum_weight, n) # average
         global_model.load_state_dict(average_weight)  # update
+        #print(average_weight['conv1.bias'])
 
+        # test model
         acc = test_model(global_model)
         run_data.append([epoch+1, acc])
+
         print(acc)
 
     writeToExcel('../../results/csa.xlsx', run_data)

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 SIZE = 2048
 ENCODING = 'utf-8'
 
+
 def sendRequestV2(s, tag, request, delay=0):
     """ send request to server
     Args:
@@ -21,6 +22,7 @@ def sendRequestV2(s, tag, request, delay=0):
     time.sleep(delay)
     s.sendall(bytes(json.dumps(request) + "\r\n", ENCODING))
     # print(f"[{tag}] Send request (no response)")
+
 
 def sendRequestAndReceiveV2(s, tag, request, delay=0):
     """ send request and receive response to/from server
@@ -65,10 +67,11 @@ def sendRequestAndReceiveV2(s, tag, request, delay=0):
         # print(f"[{tag}] receive response {response}")
         return response
     except json.decoder.JSONDecodeError:
-        #raise Exception(f"[{tag}] Server response with: {response}")
+        # raise Exception(f"[{tag}] Server response with: {response}")
         print(f"[{tag}] Server response with: {receivedStr}")
 
     # Do not close socket to maintain the connection.
+
 
 # deprecated
 def listenAndAccept(mq, serverSocket, SIZE, ENCODING):
@@ -98,7 +101,14 @@ def listenAndAccept(mq, serverSocket, SIZE, ENCODING):
 
         mq.put(clientSocket, request)
 
+
 def writeToExcel(filename, run_data):
+    """ write running data to excel
+    Args:
+        filename (str): name of excel file
+        run_data (list): running data
+    Returns:
+    """
     write_wb = load_workbook(filename)
     write_ws = write_wb.create_sheet(str(int(time.time())))
     for data in run_data:
@@ -106,14 +116,26 @@ def writeToExcel(filename, run_data):
     write_wb.save(filename)
     write_wb.close()
 
+
 def writeWeightsToFile(weights):
+    """ write weights to text file
+    Args:
+        weights (list): one-dimensional list of weights
+    Returns:
+    """
     # WARN: STATIC FILE PATH!
     # weights must be 1-dim list
     f = open('../../results/model.txt', 'w')
     f.write(str(weights))
     f.close()
 
+
 def readWeightsFromFile():
+    """ read weights from text file
+    Args:
+    Returns:
+        list: one-dimensional list of weights
+    """
     # WARN: STATIC FILE PATH!
     # return 1-dim list (weights)
     f = open('../../results/model.txt', 'r')
@@ -121,7 +143,8 @@ def readWeightsFromFile():
     f.close()
     return literal_eval(weights)
 
-def plotResults():
+
+def plotResults():  # used to plot the result
     filename = '../results/최종/24-27.xlsx'
     write_wb = load_workbook(filename, read_only=True, data_only=True)
     r = [x for x in range(100)]

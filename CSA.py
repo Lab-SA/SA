@@ -119,7 +119,7 @@ def generateSecureWeight(weight, ri, masks, p, a = 0):
         ri (int): random nonce ri
         mask (dict): random masks (mkj)
         p (int): big prime number
-        a (int): random value [FullCSA]
+        a (int): random value [FCSA]
     Returns:
         dict: secure weight Sj
     """
@@ -145,6 +145,18 @@ def computeReconstructionValue(survived, my_masks, masks, cluster_indexes):
 
 
 def clustering(a, b, k, rf, cf, U, t):
+    """ clustering
+    Args:
+        a (int): row
+        b (int): column
+        k (int): clustering level
+        rf (int): the row index of the server cell
+        cf (int): the column index of the server cell
+        U (dict): contains user information (GPS, PS level, socket)
+        t (int): constraint
+    Returns:
+        dict: result of clustering
+    """
     # node clustering
     C = {i: [] for i in range(k+1)} # clusters
     Uij = {i: {j: [] for j in range(1, b+1)} for i in range(1, a+1)}

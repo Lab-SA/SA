@@ -17,6 +17,8 @@ threshold = 0
 R = 0
 usersNow = 0
 
+### deprecated
+
 # broadcast common value
 def setUp():
     global n, threshold, R, model, usersNow

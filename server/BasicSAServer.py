@@ -17,6 +17,8 @@ threshold = 0
 R = 0
 usersNow = 0
 
+### deprecated
+
 # broadcast common value
 def setUp():
     global n, threshold, R, model, usersNow
@@ -186,7 +188,7 @@ def unmasking():
     mask = sum_pvu - sum_pu
     sum_xu = generatingOutput(yu_list, mask)
     
-    # update global model
+    # update global model with averaging
     model = fl.update_globalmodel(model, sum_xu)
     
     # End

@@ -42,11 +42,10 @@ def setup():
     return global_model
 
 # [호츌] : 서버
-# [인자] : X
+# [인자] : num_users(사용자 수), isCluster(클러스터 기반인지), cluster(클러스터 정보), num_items(클러스터별로 할당할 data set 사이즈)
 # [리턴] : user_groups[dict[int, Any]]
-# user_groups: 각 유저가 가지는 데이터셋을 모아놓은 것
 def get_user_dataset(num_users, isCluster=False, cluster=0, num_items=0):
-    global args, train_dataset, user_groups
+    global args, train_dataset
     user_groups = get_users_data(args, num_users, train_dataset, isCluster, cluster, num_items)
     return user_groups
 
@@ -72,9 +71,8 @@ def local_update(global_model, user_group, epoch):
 # 클라언트는 local_model은 리턴받아 저장
 # 서버로 local_weight, local_loss를 전달
 
-
 # [호츌] : 서버
-# [인자] : global_model, local_weight_sum (local_weight들의 합), local_losses (local_loss 들을 모은 배열) 
+# [인자] : global_model, local_weight_sum (local_weight들의 합)
 # [리턴] : global_model (업데이트된 global_model) 
 # local train이 끝나고 서버는 해당 결과를 모아서 global_model을 업데이트 
 def update_globalmodel(global_model, local_weight_sum):
@@ -88,9 +86,6 @@ def update_globalmodel(global_model, local_weight_sum):
     # loss_avg = sum(local_losses) / len(local_losses)
     # train_loss.append(loss_avg)
     return global_model
-
-def update_model(model, weights):
-    model.load_state_dict(weights)
 
 # 서버는 전달받은 update된 global model을 클라이언트들에게 전송
 
@@ -113,7 +108,7 @@ def add_accuracy(list_acc, epoch):
     # list_acc.append(acc)
     global train_accuracy
     train_accuracy.append(sum(list_acc)/len(list_acc))
-    print_every = 2
+    print_every = 1
     global train_loss
     if (epoch+1) % print_every == 0:
         print(f' \nAvg Training Stats after {epoch+1} global rounds:')
@@ -125,7 +120,7 @@ def add_accuracy(list_acc, epoch):
 # [리턴] : test accuracy
 # # 모든 학습이 끝난후 출력 
 def test_model(global_model):
-    global train_accuracy, args
+    global args
     test_dataset = get_mnist_test()
     test_acc, test_loss = test_inference(args, global_model, test_dataset)
     

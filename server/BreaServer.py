@@ -198,7 +198,7 @@ class BreaServer(BasicSAServerV2):
         #print("new_weights" + str(new_weights))
 
         # update global model
-        fl.update_model(self.model, new_weights)
+        self.model.load_state_dict(new_weights)
 
         # End
         self.broadcast(requests, "[Server] End protocol")

@@ -10,9 +10,9 @@ class CSASetupDto(NamedTuple):
     cluster: int    # cluster index
     clusterN: int   # number of nodes in cluster
     cluster_indexes: list # list of index in cluster
-    cluster_keys: dict
-    index: int
-    qLevel: int
-    data: dict
-    weights: dict
-    training_weight: int
+    cluster_keys: dict # node's id and public key
+    index: int # user's index
+    qLevel: int # quantization level
+    data: dict # user's data set for learning
+    weights: dict # weights of global model
+    training_weight: int # user's training weight

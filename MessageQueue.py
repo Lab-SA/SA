@@ -1,6 +1,8 @@
 from threading import Lock
 from collections import deque
 
+### deprecated
+
 class MessageQueue:
     def __init__(self):
         self.queue = deque()

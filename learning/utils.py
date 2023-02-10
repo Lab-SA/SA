@@ -64,7 +64,7 @@ def average_weights(w):
     w_avg = copy.deepcopy(w)
     for key in w_avg.keys():
         w_avg[key] = torch.div(w_avg[key], len(w))
-    return w_avg
+    return
 
 def sum_weights(w):
     """

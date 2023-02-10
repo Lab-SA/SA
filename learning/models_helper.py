@@ -18,14 +18,24 @@ def get_model_weights(model):
     return model.state_dict()
 
 def weights_to_dic_of_list(weights):
+    """ convert dict-tensor to dict-list
+    Args:
+        weights (dict): model weights (model.state_dict())
+    Returns:
+        dict: dict of weights consisting of list
+    """
     dic_weights = {}
     for param_tensor, value in weights.items():
         dic_weights[param_tensor] = value.tolist()
     return dic_weights
 
-# list to tensor, dic
-# returns new weights of model
 def dic_of_list_to_weights(dic_weights):
+    """ convert dict-list to dict-tensor
+    Args:
+        dic_weights (dict): dict of weights consisting of list
+    Returns:
+        dict: dict of weights consisting of tensor
+    """
     params = {}
     for param_tensor, value in dic_weights.items():
         if args.gpu: # cuda

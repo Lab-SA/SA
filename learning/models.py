@@ -13,6 +13,9 @@ class CNNMnist(nn.Module):
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, args.num_classes)
+        #nn.init.xavier_uniform_(self.fc1.weight)
+        #nn.init.xavier_uniform_(self.fc2.weight)
+
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))

@@ -141,7 +141,3 @@ def convertToRealDomain(weights, q, p):
         else: # (p-1)/2 <= x < p
             real_numbers.append((x - p) / q)
     return real_numbers
-
-
-# just for testing
-# if __name__ == "__main__":

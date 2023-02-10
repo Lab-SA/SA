@@ -6,6 +6,8 @@ from BreaServer import BreaServer
 from HeteroSAServer import HeteroSAServer
 from CSAServer import CSAServer
 
+# deprecated
+
 def runServer(mode, k, n, args):
     if mode == 0: # BasicSA
         server = BasicSAServerV2(n=n, k=k, t=args['t'])
@@ -24,11 +26,11 @@ def runServer(mode, k, n, args):
         server = HeteroSAServer(n=n, k=k, t=args['t'], G=args['G'], perGroup=args['perGroup'], quantization_levels=args['quantization_levels'])
         server.start()
 
-    elif mode == 4: # BasicCSA
+    elif mode == 4: # BCSA
         server = CSAServer(n=n, k=k, isBasic=True, qLevel=args['qLevel'])
         server.start()
 
-    elif mode == 5: # FullCSA
+    elif mode == 5: # FCSA
         server = CSAServer(n=n, k=k, isBasic=False, qLevel=args['qLevel'])
         server.start()
 
@@ -72,8 +74,8 @@ class LabServer:
                 1: Turbo Client
                 2: BREA Client
                 3: HeteroSA Client
-                4: BasicCSA Client
-                5: FullCSA Client
+                4: BCSA Client
+                5: FCSA Client
                 """
                 if mode < 0 or mode > 5:
                     raise AttributeError

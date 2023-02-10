@@ -14,30 +14,40 @@ def mnist_iid(dataset, num_users):
     :param num_users:
     :return: dict of image index
     """
-    num_items = 5000 #int(len(dataset)/num_users)
+    num_items = 550 #int(len(dataset)/num_users)
     dict_users, all_idxs = {}, [i for i in range(len(dataset))]
+    start_idx = 0
     for i in range(num_users):
-        dict_users[i] = set(np.random.choice(all_idxs, num_items,
-                                             replace=False))
+        # select dataset in order
+        dict_users[i] = [x for x in range(start_idx, start_idx+num_items)]
+        start_idx += num_items
+        # select dataset randomly
+        #dict_users[i] = set(np.random.choice(all_idxs, num_items,
+        #                                     replace=False))
         #all_idxs = list(set(all_idxs) - dict_users[i])
     return dict_users
 
 def mnist_iid_cluster(dataset, num_users, cluster, num_items):
     """
-    Sample I.I.D. client data from MNIST dataset
+    Sample I.I.D. client data from MNIST dataset according to clusters
     :param dataset:
     :param num_users(dict): index of users in cluster
     :param cluster(list): index of clusters
     :param num_items(list): # of dataset in cluster
     :return: dict of image index
     """
-    all_idxs = [i for i in range(len(dataset))]
-    dict_users = {}
+    dict_users, all_idxs = {}, [i for i in range(len(dataset))]
+    start_idx = 0
     for c in cluster:
         dict_users[c] = {}
         for i in num_users[c]:
-            dict_users[c][i] = set(np.random.choice(all_idxs, num_items[c],
-                                                    replace=False))
+            # select dataset in order
+            dict_users[c][i] = [x for x in range(start_idx, start_idx+num_items[c])]
+            start_idx += num_items[c]
+            # select dataset randomly
+            #dict_users[c][i] = set(np.random.choice(all_idxs, num_items[c],
+            #                                        replace=False))
+            #all_idxs = list(set(all_idxs) - dict_users[c][i])
     return dict_users
 
 def mnist_noniid(dataset, num_users):

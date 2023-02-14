@@ -1,10 +1,4 @@
-import json
-import os
-import sys
-import numpy as np
-
 import Brea
-from dto.BreaSetupDto import BreaSetupDto
 from BasicSAClient import sendRequestAndReceive
 from CommonValue import BreaRound, BasicSARound
 import learning.federated_main as fl

@@ -73,35 +73,6 @@ def sendRequestAndReceiveV2(s, tag, request, delay=0):
     # Do not close socket to maintain the connection.
 
 
-# deprecated
-def listenAndAccept(mq, serverSocket, SIZE, ENCODING):
-    """ listen and accept from server socket and put in message queue
-    Args:
-        mq (MessageQueue): message queue
-        serverSocket (socket): server's socker
-        SIZE (int): buffer size
-        ENCODING (str): encoding
-    Returns:
-    """
-    serverSocket.listen(200)
-
-    while True:  # always listen
-        clientSocket, addr = serverSocket.accept()
-
-        # receive client data
-        # client request must ends with "\r\n"
-        request = ''
-        while True:
-            received = str(clientSocket.recv(SIZE), ENCODING)
-            if received.endswith("\r\n"):
-                received = received.replace("\r\n", "")
-                request = request + received
-                break
-            request = request + received
-
-        mq.put(clientSocket, request)
-
-
 def writeToExcel(filename, run_data):
     """ write running data to excel
     Args:

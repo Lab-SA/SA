@@ -47,10 +47,10 @@ class CSAServerV2(CSAServer):  # involves training weights based on CSAServer
             # set clustering parameters and do clustering
             a = 6
             b = 8
-            k = 3  # means there are k+1 clusters levels
-            rf = 2
-            cf = 1
-            t = 4  # constraint
+            k = 3   # means there are k+1 clusters levels
+            rf = 2  # the row index of the server cell
+            cf = 1  # the column index of the server cell
+            t = 4   # constraint
             self.C = CSA.clustering(a, b, k, rf, cf, U, t)
 
             # init
@@ -144,8 +144,7 @@ class CSAServerV2(CSAServer):  # involves training weights based on CSAServer
             clientSocket.sendall(bytes(response_json + "\r\n", self.ENCODING))
 
         # check threshold
-        if len(self.survived[
-                   cluster]) == beforeN and self.isBasic:  # no need RemoveMasks stage in this cluster (step3-1 x)
+        if len(self.survived[cluster]) == beforeN and self.isBasic:  # no need RemoveMasks stage in this cluster (step3-1 x)
             self.requests_clusters[CSARound.RemoveMasks.name][cluster] = 0
             self.IS[cluster] = list(sum(x) % self.p for x in zip(*self.S_list[cluster].values()))  # sum
             self.clusterTime[cluster] = time.time()
@@ -187,7 +186,7 @@ class CSAServerV2(CSAServer):  # involves training weights based on CSAServer
         self.clusterTime[cluster] = time.time()
 
     def finalAggregation(self):
-        # do final aggregation: aggergate all IS value
+        # do final aggregation: aggregate all IS value
 
         # 1. calculate sum of active items for aggregation with training weight
         sum_active_items = 0

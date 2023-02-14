@@ -17,27 +17,26 @@ class CSAServer:  # no training weight
     port = 8000
     SIZE = 2048
     ENCODING = 'utf-8'
-    interval = 10  # server waits in one round # second
+    interval = 10   # server waits in one round # second
     totalRound = 4  # CSA has 4 rounds
-    verifyRound = 'verify'
+    verifyRound = 'verify'  # tag for verify phase
     isBasic = True  # true if BCSA, else FCSA
     quantizationLevel = 30
     filename = '../../results/csa.xlsx'  # save result of CSA
 
-    startTime = {}  # start time of each step for checking latency
-    clusterTime = {}  # running time for a cluster in one round
-    userNum = {}
-    requests = {}  # collection of requests from users
-    run_data = []  # record and save the time during the entire run
+    startTime = {}      # start time of each step for checking latency
+    clusterTime = {}    # running time for a cluster in one round
+    requests = {}   # collection of requests from users
+    run_data = []   # record and save the time during the entire run
 
     model = {}
-    clusters = []  # list of cluster index
-    users_keys = {}  # clients' public key
+    clusters = []   # list of cluster index
+    users_keys = {} # clients' public key
     R = 0
 
-    survived = {}  # active user group per cluster
-    S_list = {}
-    IS = {}  # intermediate sum
+    survived = {}   # active user group per cluster
+    S_list = {}     # dict of S value (share of ui)
+    IS = {}         # dict of intermediate sum of Ci
 
     isFirst = True  # setup model at first
 
@@ -58,7 +57,7 @@ class CSAServer:  # no training weight
         self.serverSocket.listen(200)  # set queue size and listen requests
         print(f'[{self.__class__.__name__}] Server started')
 
-        # keep requests by steps
+        # store requests by steps
         requests = {r.name: {} for r in CSARound}
         requests[CSARound.SetUp.name][0] = []  # in setup, cluster index is only 1 (clustering not yet done)
         requests[self.verifyRound] = {}  # for step 2: repeat until all member share valid masks
@@ -140,8 +139,7 @@ class CSAServer:  # no training weight
 
                 if not self.isSetupOk:  # not yet setup this round
                     # set model at first of all round (this phase only runs once)
-                    if len(requests[CSARound.SetUp.name][
-                               0]) >= self.n:  # wait for the desired number of users(: n) to arrive
+                    if len(requests[CSARound.SetUp.name][0]) >= self.n:  # wait for the desired number of users(: n) to arrive
                         self.setUp(requests[CSARound.SetUp.name][0])
 
                         # init requests(dict) according to cluster information
@@ -245,8 +243,8 @@ class CSAServer:  # no training weight
             a = 6
             b = 8
             k = 3  # means there are k+1 clusters levels
-            rf = 2
-            cf = 1
+            rf = 2  # the row index of the server cell
+            cf = 1  # the column index of the server cell
             t = 4  # constraint
             self.C = CSA.clustering(a, b, k, rf, cf, U, t)
 
@@ -422,7 +420,7 @@ class CSAServer:  # no training weight
         self.clusterTime[cluster] = time.time()
 
     def finalAggregation(self):
-        # do final aggregation: aggergate all IS value
+        # do final aggregation: aggregate all IS value
 
         ### Use when you want to drop out one cluster for testing
         # del self.IS[1]
